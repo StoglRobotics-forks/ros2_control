@@ -22,6 +22,7 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "controller_manager/controller_manager_components/state_publisher.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -133,7 +134,7 @@ rclcpp::NodeOptions get_cm_node_options()
 
 ControllerManager::ControllerManager(
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & namespace_, const rclcpp::NodeOptions & options)
+  const std::string & namespace_, const rclcpp::NodeOptions & options, const bool & is_distributed)
 : rclcpp::Node(manager_node_name, namespace_, options),
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>()),
   diagnostics_updater_(this),
@@ -142,7 +143,8 @@ ControllerManager::ControllerManager(
     kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  is_distributed_(is_distributed_)
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -162,12 +164,13 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  create_hardware_state_publisher();
 }
 
 ControllerManager::ControllerManager(
   std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & namespace_, const rclcpp::NodeOptions & options)
+  const std::string & namespace_, const rclcpp::NodeOptions & options, const bool & is_distributed)
 : rclcpp::Node(manager_node_name, namespace_, options),
   resource_manager_(std::move(resource_manager)),
   diagnostics_updater_(this),
@@ -176,7 +179,8 @@ ControllerManager::ControllerManager(
     kControllerInterfaceNamespace, kControllerInterfaceClassName)),
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName))
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  is_distributed_(is_distributed)
 {
   if (!get_parameter("update_rate", update_rate_))
   {
@@ -186,6 +190,7 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  create_hardware_state_publisher();
 }
 
 void ControllerManager::init_resource_manager(const std::string & robot_description)
@@ -288,6 +293,27 @@ void ControllerManager::init_services()
       "~/set_hardware_component_state",
       std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
       qos_services, best_effort_callback_group_);
+}
+
+void ControllerManager::create_hardware_state_publisher()
+{
+
+    auto state_interface_names = resource_manager_->available_state_interfaces();
+    
+    for (const auto & state_interface : state_interface_names)
+    {
+      try
+      {
+        rclcpp::NodeOptions node_options;
+        auto state_publisher_node = std::make_shared<controller_manager_components::StatePublisher>(node_options, std::make_unique<hardware_interface::LoanedStateInterface>(resource_manager_->claim_state_interface(state_interface)));
+        executor_->add_node(state_publisher_node);
+      }
+      catch (const std::exception & e)
+      {
+        RCLCPP_ERROR(get_logger(), "Can't create StatePublisher<'%s'> : %s", state_interface.c_str(), e.what());
+        break;
+      }
+    }
 }
 
 controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
