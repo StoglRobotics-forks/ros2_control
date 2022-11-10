@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
-
 namespace hardware_interface
 {
 class LoanedStateInterface
@@ -28,12 +27,12 @@ class LoanedStateInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedStateInterface(StateInterface & state_interface)
+  explicit LoanedStateInterface(std::shared_ptr<ReadOnlyHandle> state_interface)
   : LoanedStateInterface(state_interface, nullptr)
   {
   }
 
-  LoanedStateInterface(StateInterface & state_interface, Deleter && deleter)
+  LoanedStateInterface(std::shared_ptr<ReadOnlyHandle> state_interface, Deleter && deleter)
   : state_interface_(state_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
@@ -50,23 +49,28 @@ public:
     }
   }
 
-  const std::string get_name() const { return state_interface_.get_name(); }
+  std::string get_interface_name() const { return state_interface_->get_interface_name(); }
 
-  const std::string & get_interface_name() const { return state_interface_.get_interface_name(); }
+  std::string get_name() const { return state_interface_->get_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
   get_full_name() const
   {
-    return state_interface_.get_name();
+    return state_interface_->get_name();
   }
 
-  const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
+  std::string get_prefix_name() const { return state_interface_->get_prefix_name(); }
 
-  double get_value() const { return state_interface_.get_value(); }
+  std::string get_underscore_separated_name() const
+  {
+    return state_interface_->get_underscore_separated_name();
+  }
+
+  double get_value() const { return state_interface_->get_value(); }
 
 protected:
-  StateInterface & state_interface_;
+  std::shared_ptr<ReadOnlyHandle> state_interface_;
   Deleter deleter_;
 };
 
