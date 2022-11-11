@@ -21,7 +21,7 @@
   <depend>launch_ros</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
-  <depend>rclcpp_components</depend>
+  <depend>rclcpp_lifecycle</depend>
   <depend>rcpputils</depend>
   <depend>realtime_tools</depend>
   <depend>ros2_control_test_assets</depend>

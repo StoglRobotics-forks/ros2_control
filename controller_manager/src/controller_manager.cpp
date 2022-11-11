@@ -22,7 +22,6 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
-#include "controller_manager/controller_manager_components/state_publisher.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -123,6 +122,7 @@ bool command_interface_is_reference_interface_of_controller(
 
 namespace controller_manager
 {
+
 rclcpp::NodeOptions get_cm_node_options()
 {
   rclcpp::NodeOptions node_options;
@@ -304,9 +304,11 @@ void ControllerManager::create_hardware_state_publisher()
     {
       try
       {
-        rclcpp::NodeOptions node_options;
-        auto state_publisher_node = std::make_shared<controller_manager_components::StatePublisher>(node_options, std::make_unique<hardware_interface::LoanedStateInterface>(resource_manager_->claim_state_interface(state_interface)));
-        executor_->add_node(state_publisher_node);
+        
+        RCLCPP_INFO(this->get_logger() , "Creating StatePublisher for interface:<%s>.", state_interface.c_str());
+        auto state_publisher = std::make_shared<controller_manager_components::StatePublisher>(get_namespace() , std::move(std::make_unique<hardware_interface::LoanedStateInterface>(resource_manager_->claim_state_interface(state_interface))));
+        state_interface_state_publisher_map_.insert(std::pair{state_interface, state_publisher});
+        executor_->add_node(state_publisher->get_node()->get_node_base_interface());
       }
       catch (const std::exception & e)
       {

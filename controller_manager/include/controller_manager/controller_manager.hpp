@@ -27,6 +27,7 @@
 #include "controller_interface/controller_interface.hpp"
 #include "controller_interface/controller_interface_base.hpp"
 
+#include "controller_manager/controller_manager_components/state_publisher.hpp"
 #include "controller_manager/controller_spec.hpp"
 #include "controller_manager/visibility_control.h"
 #include "controller_manager_msgs/srv/configure_controller.hpp"
@@ -406,6 +407,7 @@ private:
 
   rclcpp::CallbackGroup::SharedPtr components_callback_group_;
   const bool is_distributed_;
+  std::map<std::string, std::shared_ptr<controller_manager_components::StatePublisher>> state_interface_state_publisher_map_;
 
   /**
    * The RTControllerListWrapper class wraps a double-buffered list of controllers
