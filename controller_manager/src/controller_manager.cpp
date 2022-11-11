@@ -305,14 +305,14 @@ void ControllerManager::create_hardware_state_publisher()
       try
       {
         
-        RCLCPP_INFO(this->get_logger() , "Creating StatePublisher for interface:<%s>.", state_interface.c_str());
-        auto state_publisher = std::make_shared<controller_manager_components::StatePublisher>(get_namespace() , std::move(std::make_unique<hardware_interface::LoanedStateInterface>(resource_manager_->claim_state_interface(state_interface))));
+        RCLCPP_INFO(get_logger() , "Creating StatePublisher for interface:<%s>.", state_interface.c_str());
+        auto state_publisher = std::make_shared<distributed_control::StatePublisher>(get_namespace() , std::move(std::make_unique<hardware_interface::LoanedStateInterface>(resource_manager_->claim_state_interface(state_interface))));
         state_interface_state_publisher_map_.insert(std::pair{state_interface, state_publisher});
         executor_->add_node(state_publisher->get_node()->get_node_base_interface());
       }
       catch (const std::exception & e)
       {
-        RCLCPP_ERROR(get_logger(), "Can't create StatePublisher<'%s'> : %s", state_interface.c_str(), e.what());
+        RCLCPP_ERROR(get_logger(), "Can't create StatePublisher<%s> : %s", state_interface.c_str(), e.what());
         break;
       }
     }

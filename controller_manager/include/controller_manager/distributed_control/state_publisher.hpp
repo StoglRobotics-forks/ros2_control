@@ -1,23 +1,26 @@
-#ifndef CONTROLLER_MAMAGER_COMPONENTS__STATE_PUBLISHER
-#define CONTROLLER_MAMAGER_COMPONENTS__STATE_PUBLISHER
+#ifndef DISTRIBUTED_CONTROL__STATE_PUBLISHER
+#define DISTRIBUTED_CONTROL__STATE_PUBLISHER
 
 #include <memory>
 
 #include "hardware_interface/loaned_state_interface.hpp"
+#include "visibility_control.h"
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "std_msgs/msg/float64.hpp"
 
-namespace controller_manager_components
+namespace distributed_control
 {
 
-class StatePublisher final 
+class StatePublisher final : public rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 {
 public:
     explicit StatePublisher(const std::string & ns = "" , std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr = nullptr);
     
     ~StatePublisher(){}
-
+    
+    STATE_PUBLISHER_PUBLIC
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node();
     
 private:
@@ -30,6 +33,6 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-} // namespace controller_manager_components
+} // namespace distributed_control
 
-#endif // CONTROLLER_MAMAGER_COMPONENTS__STATE_PUBLISHER
+#endif // DISTRIBUTED_CONTROL__STATE_PUBLISHER

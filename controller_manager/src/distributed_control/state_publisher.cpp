@@ -1,4 +1,4 @@
-#include "controller_manager/controller_manager_components/state_publisher.hpp"
+#include "controller_manager/distributed_control/state_publisher.hpp"
 
 #include <chrono>
 #include <limits>
@@ -6,7 +6,7 @@
 
 using namespace std::chrono_literals;
 
-namespace controller_manager_components
+namespace distributed_control
 {
 
 StatePublisher::StatePublisher(const std::string & ns, std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr)
@@ -48,4 +48,4 @@ void StatePublisher::on_timer()
   state_value_pub_->publish(std::move(msg));
 }
 
-} // namespace controller_manager_components
+} // namespace distributed_control

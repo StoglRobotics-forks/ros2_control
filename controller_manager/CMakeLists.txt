@@ -27,7 +27,7 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
 endforeach()
 
 add_library(controller_manager SHARED
-  src/controller_manager_components/state_publisher.cpp
+  src/distributed_control/state_publisher.cpp
   src/controller_manager.cpp
 )
 target_compile_features(controller_manager PUBLIC cxx_std_17)
