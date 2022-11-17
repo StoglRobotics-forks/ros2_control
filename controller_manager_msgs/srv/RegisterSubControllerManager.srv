@@ -1,0 +1,22 @@
+# The RegisterSubControllerManager service allows a distributed controller
+# manager to register itself at the central controller manager
+
+# Req:
+# To register a controller the distributed sub controller manager has to 
+# define:
+#   * the full namespace it operates in 
+#   * the StatePublisher it has
+
+# Res:
+# The response includes:
+#   * a bool if the registration succeeded 
+#   * a the CommandPublishers the central controller manager provides
+
+string sub_controller_manager_namespace
+string sub_controller_manager_name
+string[] state_interface_names
+string[] state_publisher_topics
+---
+bool ok
+string[] command_interface_names
+string[] command_publishers_topics

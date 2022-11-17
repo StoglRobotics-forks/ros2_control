@@ -26,9 +26,10 @@
 #include "controller_interface/chainable_controller_interface.hpp"
 #include "controller_interface/controller_interface.hpp"
 #include "controller_interface/controller_interface_base.hpp"
+#include "distributed_control/sub_controller_manager_wrapper.hpp"
 
-#include "controller_manager/distributed_control/state_publisher.hpp"
 #include "controller_manager/controller_spec.hpp"
+#include "controller_manager/distributed_control/state_publisher.hpp"
 #include "controller_manager/visibility_control.h"
 #include "controller_manager_msgs/srv/configure_controller.hpp"
 #include "controller_manager_msgs/srv/list_controller_types.hpp"
@@ -36,6 +37,7 @@
 #include "controller_manager_msgs/srv/list_hardware_components.hpp"
 #include "controller_manager_msgs/srv/list_hardware_interfaces.hpp"
 #include "controller_manager_msgs/srv/load_controller.hpp"
+#include "controller_manager_msgs/srv/register_sub_controller_manager.hpp"
 #include "controller_manager_msgs/srv/reload_controller_libraries.hpp"
 #include "controller_manager_msgs/srv/set_hardware_component_state.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
@@ -70,17 +72,15 @@ public:
     std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
     std::shared_ptr<rclcpp::Executor> executor,
     const std::string & manager_node_name = "controller_manager",
-    const std::string & namespace_ = "",
+    const std::string & namespace_ = "");
     const rclcpp::NodeOptions & options = get_cm_node_options(),
-    const bool & is_distributed = false);
 
   CONTROLLER_MANAGER_PUBLIC
   ControllerManager(
     std::shared_ptr<rclcpp::Executor> executor,
     const std::string & manager_node_name = "controller_manager",
-    const std::string & namespace_ = "",
+    const std::string & namespace_ = "");
     const rclcpp::NodeOptions & options = get_cm_node_options()
-    const bool & is_distributed = false);
 
   CONTROLLER_MANAGER_PUBLIC
   virtual ~ControllerManager() = default;
@@ -198,7 +198,22 @@ protected:
   void init_services();
 
   CONTROLLER_MANAGER_PUBLIC
+  void configure_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void init_distributed_main_controller_services();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager_srv_cb(
+    const std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Request>
+      request,
+    std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
+
+  CONTROLLER_MANAGER_PUBLIC
   void create_hardware_state_publisher();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
   controller_interface::ControllerInterfaceBaseSharedPtr add_controller_impl(
@@ -405,10 +420,13 @@ private:
    */
   rclcpp::CallbackGroup::SharedPtr best_effort_callback_group_;
 
-  rclcpp::CallbackGroup::SharedPtr components_callback_group_;
-  const bool is_distributed_;
-  std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>> state_interface_state_publisher_map_;
-
+  bool distributed_ = false;
+  bool sub_controller_manager_ = false;
+  std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>>
+    state_interface_state_publisher_map_;
+  std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
+    sub_controller_manager_map_;
+  rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**
    * The RTControllerListWrapper class wraps a double-buffered list of controllers
    * to avoid needing to lock the real-time thread when switching controllers in
@@ -505,6 +523,11 @@ private:
     list_hardware_interfaces_service_;
   rclcpp::Service<controller_manager_msgs::srv::SetHardwareComponentState>::SharedPtr
     set_hardware_component_state_service_;
+
+  // services for distributed control
+  std::mutex central_controller_manager_srv_lock_;
+  rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr
+    register_sub_controller_manager_srv_;
 
   std::vector<std::string> activate_request_, deactivate_request_;
   std::vector<std::string> to_chained_mode_request_, from_chained_mode_request_;
