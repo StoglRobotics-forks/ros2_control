@@ -361,7 +361,6 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
     request,
   std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response)
 {
-  RCLCPP_WARN(get_logger(), "ControllerManager: Got registration callback.");
   std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
   try
   {
@@ -372,7 +371,7 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
       std::pair{sub_ctrl_mng_wrapper->get_full_qualified_name(), sub_ctrl_mng_wrapper});
     response->ok = true;
 
-    RCLCPP_WARN_STREAM(
+    RCLCPP_INFO_STREAM(
       get_logger(), "ControllerManager: Registered sub controller manager <"
                       << sub_ctrl_mng_wrapper->get_full_qualified_name() << ">.");
   }
@@ -450,7 +449,6 @@ void ControllerManager::register_sub_controller_manager()
       "waiting again...");
   }
 
-  RCLCPP_WARN(get_logger(), "SubControllerManager: Send request.");
   auto result = client->async_send_request(request);
   if (
     (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
