@@ -12,6 +12,7 @@
   <depend>control_msgs</depend>
   <depend>lifecycle_msgs</depend>
   <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>rcpputils</depend>
   <depend>tinyxml2_vendor</depend>

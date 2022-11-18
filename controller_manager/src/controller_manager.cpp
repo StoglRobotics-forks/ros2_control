@@ -361,6 +361,7 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
     request,
   std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response)
 {
+  RCLCPP_WARN(get_logger(), "ControllerManager: Got registration callback.");
   std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
   try
   {
@@ -371,16 +372,15 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
       std::pair{sub_ctrl_mng_wrapper->get_full_qualified_name(), sub_ctrl_mng_wrapper});
     response->ok = true;
 
-    RCLCPP_INFO(
-      get_logger(), "ControllerManager: Registered sub controller manager '%s'.",
-      sub_ctrl_mng_wrapper->get_full_qualified_name());
+    RCLCPP_WARN_STREAM(
+      get_logger(), "ControllerManager: Registered sub controller manager <"
+                      << sub_ctrl_mng_wrapper->get_full_qualified_name() << ">.");
   }
-  catch (const std::runtime_error & e)
+  catch (const std::logic_error & e)
   {
     response->ok = false;
     RCLCPP_ERROR(
-      get_logger(), "ControllerManager:Cannot register sub controller manager:</%s/%s>.: %s",
-      request->sub_controller_manager_namespace, request->sub_controller_manager_name, e.what());
+      get_logger(), "ControllerManager: Cannot register sub controller manager. %s", e.what());
   }
 }
 
@@ -393,7 +393,8 @@ void ControllerManager::create_hardware_state_publisher()
     try
     {
       RCLCPP_INFO(
-        get_logger(), "Creating StatePublisher for interface:<%s>.", state_interface.c_str());
+        get_logger(), "ControllerManager: Creating StatePublisher for interface:<%s>.",
+        state_interface.c_str());
       auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
         get_namespace(), std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
                            resource_manager_->claim_state_interface(state_interface))));
@@ -403,7 +404,8 @@ void ControllerManager::create_hardware_state_publisher()
     catch (const std::exception & e)
     {
       RCLCPP_ERROR(
-        get_logger(), "Can't create StatePublisher<%s> : %s", state_interface.c_str(), e.what());
+        get_logger(), "ControllerManager: Can't create StatePublisher<%s> : %s",
+        state_interface.c_str(), e.what());
       break;
     }
   }
@@ -411,6 +413,7 @@ void ControllerManager::create_hardware_state_publisher()
 
 void ControllerManager::register_sub_controller_manager()
 {
+  RCLCPP_INFO(get_logger(), "SubControllerManager:Trying to register StatePublishers.");
   rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr client =
     create_client<controller_manager_msgs::srv::RegisterSubControllerManager>(
       "/register_sub_controller_manager");
@@ -436,10 +439,29 @@ void ControllerManager::register_sub_controller_manager()
     if (!rclcpp::ok())
     {
       RCLCPP_ERROR(
-        rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+        get_logger(),
+        "SubControllerManager: Interrupted while waiting for central controller managers "
+        "registration service. Exiting.");
       return;
     }
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+    RCLCPP_INFO(
+      get_logger(),
+      "SubControllerManager:Central controller managers registration service not available, "
+      "waiting again...");
+  }
+
+  RCLCPP_WARN(get_logger(), "SubControllerManager: Send request.");
+  auto result = client->async_send_request(request);
+  if (
+    (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
+     rclcpp::FutureReturnCode::SUCCESS) &&
+    result.get()->ok)
+  {
+    RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
+  }
+  else
+  {
+    RCLCPP_WARN(get_logger(), "SubControllerManager: Registration of StatePublishers failed.");
   }
 }
 

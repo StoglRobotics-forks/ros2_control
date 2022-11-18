@@ -2,6 +2,7 @@
 #define DISTRIBUTED_CONTROL__SUB_CONTROLLER_MANAGER_WRAPPER_HPP_
 
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,7 @@ public:
 
   std::string get_name() const { return NAME_; }
 
-  std::string get_full_qualified_name() const { return "/" + get_namespace() + "/" + get_name(); }
+  std::string get_full_qualified_name() const { return get_namespace() + "/" + get_name(); }
 
   std::vector<std::string> get_topic_names() const {}
 

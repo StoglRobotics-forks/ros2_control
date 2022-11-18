@@ -1,4 +1,4 @@
-#include "controller_manager/distributed_control/state_publisher.hpp"
+#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 
 #include <algorithm>
 #include <chrono>

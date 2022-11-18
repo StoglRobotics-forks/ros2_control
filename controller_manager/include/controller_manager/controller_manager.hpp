@@ -29,7 +29,6 @@
 #include "distributed_control/sub_controller_manager_wrapper.hpp"
 
 #include "controller_manager/controller_spec.hpp"
-#include "controller_manager/distributed_control/state_publisher.hpp"
 #include "controller_manager/visibility_control.h"
 #include "controller_manager_msgs/srv/configure_controller.hpp"
 #include "controller_manager_msgs/srv/list_controller_types.hpp"
@@ -44,6 +43,7 @@
 #include "controller_manager_msgs/srv/unload_controller.hpp"
 
 #include "diagnostic_updater/diagnostic_updater.hpp"
+#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/resource_manager.hpp"
 
