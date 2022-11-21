@@ -20,7 +20,9 @@
 
 #include "hardware_interface/macros.hpp"
 #include "hardware_interface/visibility_control.h"
-
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "std_msgs/msg/float64.hpp"
 namespace hardware_interface
 {
 /// A handle used to get and set a value on a given interface.
@@ -113,6 +115,64 @@ public:
   }
 };
 
+class DistributedReadOnlyHandle : public ReadOnlyHandle
+{
+public:
+  // TODO(Manuel): We should pass the initial value via service call, so that the value_ of ReadOnlyHandle
+  // is initialized with a feasible value.
+  DistributedReadOnlyHandle(
+    const std::string & prefix_name, const std::string & interface_name,
+    const std::string & topic_name)
+  : ReadOnlyHandle(prefix_name, interface_name, &value_), topic_name_(topic_name)
+  {
+    rclcpp::NodeOptions node_options;
+    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      get_interface_name() + "_node", get_prefix_name(), node_options, false);
+    state_value_subscription_ = node_->create_subscription<std_msgs::msg::Float64>(
+      topic_name, 10,
+      std::bind(&DistributedReadOnlyHandle::set_value_cb, this, std::placeholders::_1));
+  }
+
+  explicit DistributedReadOnlyHandle(const std::string & interface_name)
+  : ReadOnlyHandle(interface_name)
+  {
+  }
+
+  explicit DistributedReadOnlyHandle(const char * interface_name) : ReadOnlyHandle(interface_name)
+  {
+  }
+
+  DistributedReadOnlyHandle(const DistributedReadOnlyHandle & other) = default;
+
+  DistributedReadOnlyHandle(DistributedReadOnlyHandle && other) = default;
+
+  DistributedReadOnlyHandle & operator=(const DistributedReadOnlyHandle & other) = default;
+
+  DistributedReadOnlyHandle & operator=(DistributedReadOnlyHandle && other) = default;
+
+  virtual ~DistributedReadOnlyHandle() = default;
+
+  /// Returns true if handle references a value.
+  inline operator bool() const { return value_ptr_ != nullptr; }
+
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node() const
+  {
+    if (!node_.get())
+    {
+      throw std::runtime_error("DistributedReadOnlyHandle: Node not initialized!");
+    }
+    return node_;
+  }
+
+protected:
+  void set_value_cb(const std_msgs::msg::Float64 & msg) { value_ = msg.data; }
+
+  std::string topic_name_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_value_subscription_;
+  double value_;
+};
+
 class StateInterface : public ReadOnlyHandle
 {
 public:
@@ -121,6 +181,15 @@ public:
   StateInterface(StateInterface && other) = default;
 
   using ReadOnlyHandle::ReadOnlyHandle;
+};
+
+class DistributedStateInterface : public DistributedReadOnlyHandle
+{
+  DistributedStateInterface(const DistributedStateInterface & other) = default;
+
+  DistributedStateInterface(DistributedStateInterface && other) = default;
+
+  using DistributedReadOnlyHandle::DistributedReadOnlyHandle;
 };
 
 class CommandInterface : public ReadWriteHandle
@@ -138,7 +207,6 @@ public:
 
   using ReadWriteHandle::ReadWriteHandle;
 };
-
 }  // namespace hardware_interface
 
 #endif  // HARDWARE_INTERFACE__HANDLE_HPP_

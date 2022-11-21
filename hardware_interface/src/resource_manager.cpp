@@ -417,7 +417,8 @@ public:
     for (auto & interface : interfaces)
     {
       auto key = interface.get_name();
-      state_interface_map_.emplace(std::make_pair(key, std::move(interface)));
+      state_interface_map_.emplace(
+        std::make_pair(key, std::make_shared<StateInterface>(interface)));
       interface_names.push_back(key);
     }
     hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
@@ -557,7 +558,7 @@ public:
   std::unordered_map<std::string, std::vector<std::string>> controllers_reference_interfaces_map_;
 
   /// Storage of all available state interfaces
-  std::map<std::string, StateInterface> state_interface_map_;
+  std::map<std::string, std::shared_ptr<StateInterface>> state_interface_map_;
   /// Storage of all available command interfaces
   std::map<std::string, CommandInterface> command_interface_map_;
 
