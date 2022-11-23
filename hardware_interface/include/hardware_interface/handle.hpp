@@ -26,35 +26,47 @@
 namespace hardware_interface
 {
 /// A handle used to get and set a value on a given interface.
-class ReadOnlyHandle
+class ReadHandleInterface
 {
 public:
-  ReadOnlyHandle(
+  virtual double get_value() const = 0;
+};
+
+class WriteHandleInterface
+{
+public:
+  virtual void set_value(double value) = 0;
+};
+
+class HandleInterface
+{
+public:
+  HandleInterface(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr)
+    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr), node_(node)
   {
   }
 
-  explicit ReadOnlyHandle(const std::string & interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
+  explicit HandleInterface(const std::string & interface_name)
+  : interface_name_(interface_name), value_ptr_(nullptr), node_(nullptr)
   {
   }
 
-  explicit ReadOnlyHandle(const char * interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
+  explicit HandleInterface(const char * interface_name)
+  : interface_name_(interface_name), value_ptr_(nullptr), node_(nullptr)
   {
   }
 
-  ReadOnlyHandle(const ReadOnlyHandle & other) = default;
+  HandleInterface(const HandleInterface & other) = default;
 
-  ReadOnlyHandle(ReadOnlyHandle && other) = default;
+  HandleInterface(HandleInterface && other) = default;
 
-  ReadOnlyHandle & operator=(const ReadOnlyHandle & other) = default;
+  HandleInterface & operator=(const HandleInterface & other) = default;
 
-  ReadOnlyHandle & operator=(ReadOnlyHandle && other) = default;
+  HandleInterface & operator=(HandleInterface && other) = default;
 
-  virtual ~ReadOnlyHandle() = default;
+  virtual ~HandleInterface() = default;
 
   /// Returns true if handle references a value.
   inline operator bool() const { return value_ptr_ != nullptr; }
@@ -70,33 +82,69 @@ public:
     return get_name();
   }
 
-  const std::string & get_prefix_name() const { return prefix_name_; }
-
-  double get_value() const
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node() const
   {
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
+    THROW_ON_NULLPTR(node_);
+    if (!node_.get())
+    {
+      throw std::runtime_error("DistributedReadOnlyHandle: Node not initialized!");
+    }
+    return node_;
   }
+
+  const std::string & get_prefix_name() const { return prefix_name_; }
 
 protected:
   std::string prefix_name_;
   std::string interface_name_;
   double * value_ptr_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
-class ReadWriteHandle : public ReadOnlyHandle
+class ReadOnlyHandle : public HandleInterface, ReadHandleInterface
+{
+public:
+  ReadOnlyHandle(
+    const std::string & prefix_name, const std::string & interface_name,
+    double * value_ptr = nullptr)
+  : HandleInterface(prefix_name, interface_name, value_ptr)
+  {
+  }
+
+  explicit ReadOnlyHandle(const std::string & interface_name) : HandleInterface(interface_name) {}
+
+  explicit ReadOnlyHandle(const char * interface_name) : HandleInterface(interface_name) {}
+
+  ReadOnlyHandle(const ReadOnlyHandle & other) = default;
+
+  ReadOnlyHandle(ReadOnlyHandle && other) = default;
+
+  ReadOnlyHandle & operator=(const ReadOnlyHandle & other) = default;
+
+  ReadOnlyHandle & operator=(ReadOnlyHandle && other) = default;
+
+  virtual ~ReadOnlyHandle() = default;
+
+  double get_value() const override
+  {
+    THROW_ON_NULLPTR(value_ptr_);
+    return *value_ptr_;
+  }
+};
+
+class ReadWriteHandle : public HandleInterface, ReadHandleInterface, WriteHandleInterface
 {
 public:
   ReadWriteHandle(
     const std::string & prefix_name, const std::string & interface_name,
     double * value_ptr = nullptr)
-  : ReadOnlyHandle(prefix_name, interface_name, value_ptr)
+  : HandleInterface(prefix_name, interface_name, value_ptr)
   {
   }
 
-  explicit ReadWriteHandle(const std::string & interface_name) : ReadOnlyHandle(interface_name) {}
+  explicit ReadWriteHandle(const std::string & interface_name) : HandleInterface(interface_name) {}
 
-  explicit ReadWriteHandle(const char * interface_name) : ReadOnlyHandle(interface_name) {}
+  explicit ReadWriteHandle(const char * interface_name) : HandleInterface(interface_name) {}
 
   ReadWriteHandle(const ReadWriteHandle & other) = default;
 
@@ -108,7 +156,13 @@ public:
 
   virtual ~ReadWriteHandle() = default;
 
-  void set_value(double value)
+  double get_value() const override
+  {
+    THROW_ON_NULLPTR(value_ptr_);
+    return *value_ptr_;
+  }
+
+  void set_value(double value) override
   {
     THROW_ON_NULLPTR(this->value_ptr_);
     *this->value_ptr_ = value;
@@ -152,23 +206,10 @@ public:
 
   virtual ~DistributedReadOnlyHandle() = default;
 
-  /// Returns true if handle references a value.
-  inline operator bool() const { return value_ptr_ != nullptr; }
-
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node() const
-  {
-    if (!node_.get())
-    {
-      throw std::runtime_error("DistributedReadOnlyHandle: Node not initialized!");
-    }
-    return node_;
-  }
-
 protected:
   void set_value_cb(const std_msgs::msg::Float64 & msg) { value_ = msg.data; }
 
   std::string topic_name_;
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_value_subscription_;
   double value_;
 };

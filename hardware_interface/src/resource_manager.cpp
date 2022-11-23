@@ -558,7 +558,7 @@ public:
   std::unordered_map<std::string, std::vector<std::string>> controllers_reference_interfaces_map_;
 
   /// Storage of all available state interfaces
-  std::map<std::string, std::shared_ptr<StateInterface>> state_interface_map_;
+  std::map<std::string, std::shared_ptr<ReadOnlyHandle>> state_interface_map_;
   /// Storage of all available command interfaces
   std::map<std::string, CommandInterface> command_interface_map_;
 
