@@ -31,8 +31,10 @@
 #include "hardware_interface/system.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
 #include "pluginlib/class_loader.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rcutils/logging_macros.h"
 
 namespace hardware_interface
@@ -476,6 +478,30 @@ public:
     }
   }
 
+  void add_state_publisher(std::shared_ptr<distributed_control::StatePublisher> state_publisher)
+  {
+    state_interface_state_publisher_map_.insert(
+      std::pair{state_publisher->get_state_interface_name(), state_publisher});
+  }
+
+  std::shared_ptr<distributed_control::StatePublisher> get_state_publisher(
+    std::string state_interface_name) const
+  {
+    return state_interface_state_publisher_map_.at(state_interface_name);
+  }
+
+  std::vector<std::shared_ptr<distributed_control::StatePublisher>> get_state_publishers() const
+  {
+    std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
+    state_publishers_vec.reserve(state_interface_state_publisher_map_.size());
+
+    for (auto state_publisher : state_interface_state_publisher_map_)
+    {
+      state_publishers_vec.push_back(state_publisher.second);
+    }
+    return state_publishers_vec;
+  }
+
   void check_for_duplicates(const HardwareInfo & hardware_info)
   {
     // Check for identical names
@@ -568,6 +594,10 @@ public:
 
   /// List of all claimed command interfaces
   std::unordered_map<std::string, bool> claimed_command_interface_map_;
+
+protected:
+  std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>>
+    state_interface_state_publisher_map_;
 };
 
 ResourceManager::ResourceManager() : resource_storage_(std::make_unique<ResourceStorage>()) {}
@@ -671,6 +701,34 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
            resource_storage_->available_state_interfaces_.begin(),
            resource_storage_->available_state_interfaces_.end(),
            name) != resource_storage_->available_state_interfaces_.end();
+}
+
+std::vector<std::shared_ptr<distributed_control::StatePublisher>>
+ResourceManager::create_hardware_state_publishers(const std::string & ns)
+{
+  std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
+  state_publishers_vec.reserve(available_state_interfaces().size());
+
+  for (const auto & state_interface : available_state_interfaces())
+  {
+    RCLCPP_INFO(
+      rclcpp::get_logger("ResourceManager"), "Creating StatePublisher for interface:<%s>.",
+      state_interface.c_str());
+    auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
+      ns, std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
+            claim_state_interface(state_interface))));
+
+    resource_storage_->add_state_publisher(state_publisher);
+    state_publishers_vec.push_back(state_publisher);
+  }
+  
+  return state_publishers_vec;
+}
+
+std::vector<std::shared_ptr<distributed_control::StatePublisher>>
+ResourceManager::get_state_publishers() const
+{
+  return resource_storage_->get_state_publishers();
 }
 
 // CM API: Called in "callback/slow"-thread

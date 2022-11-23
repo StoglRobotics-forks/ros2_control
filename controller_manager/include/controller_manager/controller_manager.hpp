@@ -210,7 +210,7 @@ protected:
     std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
 
   CONTROLLER_MANAGER_PUBLIC
-  void create_hardware_state_publisher();
+  void add_hardware_state_publishers();
 
   CONTROLLER_MANAGER_PUBLIC
   void register_sub_controller_manager();
@@ -422,8 +422,7 @@ private:
 
   bool distributed_ = false;
   bool sub_controller_manager_ = false;
-  std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>>
-    state_interface_state_publisher_map_;
+
   std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
     sub_controller_manager_map_;
   rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;

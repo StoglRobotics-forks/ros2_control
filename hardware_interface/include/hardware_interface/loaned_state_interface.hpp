@@ -27,25 +27,13 @@ class LoanedStateInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedStateInterface(std::shared_ptr<StateInterface> state_interface)
+  explicit LoanedStateInterface(std::shared_ptr<ReadOnlyHandle> state_interface)
   : LoanedStateInterface(state_interface, nullptr)
   {
   }
 
-  LoanedStateInterface(std::shared_ptr<StateInterface> state_interface, Deleter && deleter)
+  LoanedStateInterface(std::shared_ptr<ReadOnlyHandle> state_interface, Deleter && deleter)
   : state_interface_(state_interface), deleter_(std::forward<Deleter>(deleter))
-  {
-  }
-
-  explicit LoanedStateInterface(
-    std::shared_ptr<DistributedStateInterface> & distributed_state_interface)
-  : LoanedStateInterface(distributed_state_interface, nullptr)
-  {
-  }
-
-  LoanedStateInterface(
-    std::shared_ptr<DistributedStateInterface> & distributed_state_interface, Deleter && deleter)
-  : state_interface_(distributed_state_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
 

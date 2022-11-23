@@ -31,7 +31,9 @@ std::shared_ptr<rclcpp_lifecycle::LifecycleNode> StatePublisher::get_node() cons
 {
   if (!node_.get())
   {
-    throw std::runtime_error("Lifecycle node hasn't been configured yet!");
+    std::string msg(
+      "StatePublisher<" + get_state_interface_name() + ">: Node hasn't been configured yet!");
+    throw std::runtime_error(msg);
   }
   return node_;
 }

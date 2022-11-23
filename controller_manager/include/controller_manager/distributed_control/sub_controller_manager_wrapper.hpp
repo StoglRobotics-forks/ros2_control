@@ -24,8 +24,8 @@ public:
     if (state_interface_names_.size() != topic_names_.size())
     {
       throw std::logic_error(
-        "SubControllerManagerWrapper: state_interfaces_names.size() != topic_names.size(). They "
-        "must be equal.");
+        "SubControllerManagerWrapper: state_interfaces_names.size() != topic_names.size(). "
+        "Must be equal.");
     }
     for (size_t i = 0; i < state_interface_names_.size(); ++i)
     {
@@ -35,7 +35,7 @@ public:
       {
         throw std::logic_error(
           "SubControllerManagerWrapper: Duplicate of given state_interface_name:'" + it->first +
-          "'. They must be unique.");
+          "'. Must be unique.");
       }
     }
   }
@@ -44,9 +44,9 @@ public:
 
   std::string get_namespace() const { return NAMESPACE_; }
 
-  std::string get_name() const { return NAME_; }
+  std::string get_controller_manager_name() const { return NAME_; }
 
-  std::string get_full_qualified_name() const { return get_namespace() + "/" + get_name(); }
+  std::string get_name() const { return get_namespace() + "/" + get_name(); }
 
   std::vector<std::string> get_state_interface_names() const { return state_interface_names_; }
 

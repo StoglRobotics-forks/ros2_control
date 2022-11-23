@@ -295,6 +295,10 @@ void ControllerManager::init_services()
       qos_services, best_effort_callback_group_);
 }
 
+// TODO(Manuel) don't like this, this is for fast poc
+// probably better to create factory and handle creation of correct controller manager type
+// there. Since asynchronous control should be supported im the future as well and we don't
+// want dozen of ifs.
 void ControllerManager::configure_controller_manager()
 {
   if (!get_parameter("distributed", distributed_))
@@ -311,18 +315,12 @@ void ControllerManager::configure_controller_manager()
       sub_controller_manager_ ? "true" : "false");
   }
 
-  // TODO(Manuel) don't like this, this is for fast poc
-  // probably better to create factory and handle creation of correct controller manager type
-  // there. Since asynchronous control should be supported im the future as well and we don't
-  // want dozen of ifs.
-
-  // This means we are a sub controller manager
   bool std_controller_manager = !distributed_ && !sub_controller_manager_;
   bool distributed_sub_controller_manager = distributed_ && sub_controller_manager_;
   bool central_controller_manager = distributed_ && !sub_controller_manager_;
   if (distributed_sub_controller_manager)
   {
-    create_hardware_state_publisher();
+    add_hardware_state_publishers();
     register_sub_controller_manager();
   }
   // This means we are the central controller manager
@@ -368,12 +366,12 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
       request->sub_controller_manager_namespace, request->sub_controller_manager_name,
       request->state_interface_names, request->state_publisher_topics);
     sub_controller_manager_map_.insert(
-      std::pair{sub_ctrl_mng_wrapper->get_full_qualified_name(), sub_ctrl_mng_wrapper});
+      std::pair{sub_ctrl_mng_wrapper->get_name(), sub_ctrl_mng_wrapper});
     response->ok = true;
 
     RCLCPP_INFO_STREAM(
       get_logger(), "ControllerManager: Registered sub controller manager <"
-                      << sub_ctrl_mng_wrapper->get_full_qualified_name() << ">.");
+                      << sub_ctrl_mng_wrapper->get_name() << ">.");
   }
   catch (const std::logic_error & e)
   {
@@ -383,29 +381,23 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
   }
 }
 
-void ControllerManager::create_hardware_state_publisher()
+void ControllerManager::add_hardware_state_publishers()
 {
-  auto state_interface_names = resource_manager_->available_state_interfaces();
+  std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
+  state_publishers_vec.reserve(resource_manager_->available_state_interfaces().size());
+  state_publishers_vec = resource_manager_->create_hardware_state_publishers(get_namespace());
 
-  for (const auto & state_interface : state_interface_names)
+  for (auto const & state_publisher : state_publishers_vec)
   {
     try
     {
-      RCLCPP_INFO(
-        get_logger(), "ControllerManager: Creating StatePublisher for interface:<%s>.",
-        state_interface.c_str());
-      auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
-        get_namespace(), std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
-                           resource_manager_->claim_state_interface(state_interface))));
-      state_interface_state_publisher_map_.insert(std::pair{state_interface, state_publisher});
       executor_->add_node(state_publisher->get_node()->get_node_base_interface());
     }
-    catch (const std::exception & e)
+    catch (const std::runtime_error & e)
     {
       RCLCPP_ERROR(
-        get_logger(), "ControllerManager: Can't create StatePublisher<%s> : %s",
-        state_interface.c_str(), e.what());
-      break;
+        get_logger(), "ControllerManager: Can't create StatePublishers<%s>",
+        state_publisher->get_state_interface_name(), e.what());
     }
   }
 }
@@ -418,11 +410,11 @@ void ControllerManager::register_sub_controller_manager()
       "/register_sub_controller_manager");
 
   std::vector<std::string> state_interface_names, topic_names;
-  for (auto it = state_interface_state_publisher_map_.begin();
-       it != state_interface_state_publisher_map_.end(); ++it)
+
+  for (auto const & state_publsiher : resource_manager_->get_state_publishers())
   {
-    state_interface_names.push_back(it->second->get_state_interface_name());
-    topic_names.push_back(it->second->get_topic_name());
+    state_interface_names.push_back(state_publsiher->get_state_interface_name());
+    topic_names.push_back(state_publsiher->get_topic_name());
   }
 
   auto request =
