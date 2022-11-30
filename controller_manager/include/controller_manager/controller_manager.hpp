@@ -26,7 +26,6 @@
 #include "controller_interface/chainable_controller_interface.hpp"
 #include "controller_interface/controller_interface.hpp"
 #include "controller_interface/controller_interface_base.hpp"
-#include "distributed_control/sub_controller_manager_wrapper.hpp"
 
 #include "controller_manager/controller_spec.hpp"
 #include "controller_manager/visibility_control.h"
@@ -54,7 +53,6 @@
 #include "rclcpp/node_interfaces/node_logging_interface.hpp"
 #include "rclcpp/node_interfaces/node_parameters_interface.hpp"
 #include "rclcpp/parameter.hpp"
-
 namespace controller_manager
 {
 using ControllersListIterator = std::vector<controller_manager::ControllerSpec>::const_iterator;
@@ -423,8 +421,6 @@ private:
   bool distributed_ = false;
   bool sub_controller_manager_ = false;
 
-  std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
-    sub_controller_manager_map_;
   rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**
    * The RTControllerListWrapper class wraps a double-buffered list of controllers

@@ -7,6 +7,7 @@ endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   control_msgs
+    controller_manager_msgs
   lifecycle_msgs
   pluginlib
     rclcpp

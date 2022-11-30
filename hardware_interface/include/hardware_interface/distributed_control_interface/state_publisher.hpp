@@ -9,6 +9,8 @@
 
 #include "hardware_interface/loaned_state_interface.hpp"
 
+#include "controller_manager_msgs/msg/state_publisher_description.hpp"
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -17,7 +19,7 @@
 namespace distributed_control
 {
 
-class StatePublisher final : public rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
+class StatePublisher final 
 {
 public:
   explicit StatePublisher(
@@ -30,10 +32,25 @@ public:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node() const;
 
   STATE_PUBLISHER_PUBLIC
-  std::string get_topic_name() const;
+  std::string get_namespace() const;
 
   STATE_PUBLISHER_PUBLIC
-  std::string get_state_interface_name() const;
+  std::string topic_name() const;
+
+  STATE_PUBLISHER_PUBLIC
+  std::string topic_name_relative_to_namespace() const;
+
+  STATE_PUBLISHER_PUBLIC
+  std::string state_interface_name() const;
+
+  STATE_PUBLISHER_PUBLIC
+  std::string state_interface_prefix_name() const;
+
+  STATE_PUBLISHER_PUBLIC
+  std::string state_interface_interface_name() const;
+
+  STATE_PUBLISHER_PUBLIC
+  controller_manager_msgs::msg::StatePublisherDescription create_description_msg() const;
 
 private:
   void publish_value_on_timer();

@@ -49,9 +49,9 @@ public:
     }
   }
 
-  const std::string get_name() const { return state_interface_->get_name(); }
+  std::string get_interface_name() const { return state_interface_->get_interface_name(); }
 
-  const std::string & get_interface_name() const { return state_interface_->get_interface_name(); }
+  std::string get_name() const { return state_interface_->get_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
@@ -60,19 +60,12 @@ public:
     return state_interface_->get_name();
   }
 
-  const std::string get_underscore_separated_name() const
+  std::string get_prefix_name() const { return state_interface_->get_prefix_name(); }
+
+  std::string get_underscore_separated_name() const
   {
-    std::string prefix = get_prefix_name();
-    std::string interface = get_interface_name();
-
-    if (prefix.empty())
-    {
-      return interface;
-    }
-    return prefix + "_" + interface;
+    return state_interface_->get_underscore_separated_name();
   }
-
-  const std::string & get_prefix_name() const { return state_interface_->get_prefix_name(); }
 
   double get_value() const { return state_interface_->get_value(); }
 

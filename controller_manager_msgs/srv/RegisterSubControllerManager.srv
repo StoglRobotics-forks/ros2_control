@@ -5,7 +5,7 @@
 # To register a controller the distributed sub controller manager has to 
 # define:
 #   * the full namespace it operates in 
-#   * the StatePublisher it has
+#   * all statePublishers the sub controller provides
 
 # Res:
 # The response includes:
@@ -13,7 +13,6 @@
 
 string sub_controller_manager_namespace
 string sub_controller_manager_name
-string[] state_interface_names
-string[] state_publisher_topics
+controller_manager_msgs/StatePublisherDescription[] state_publishers
 ---
 bool ok

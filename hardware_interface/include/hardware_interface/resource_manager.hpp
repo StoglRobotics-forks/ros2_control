@@ -22,11 +22,14 @@
 #include <vector>
 
 #include "hardware_interface/distributed_control_interface/state_publisher.hpp"
+#include "hardware_interface/distributed_control_interface/sub_controller_manager_wrapper.hpp"
+#include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+
 #include "rclcpp/duration.hpp"
 #include "rclcpp/time.hpp"
 
@@ -115,10 +118,14 @@ public:
    */
   bool state_interface_is_available(const std::string & name) const;
 
+  std::vector<std::shared_ptr<DistributedReadOnlyHandle>> register_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+
   std::vector<std::shared_ptr<distributed_control::StatePublisher>>
   create_hardware_state_publishers(const std::string & ns);
 
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> get_state_publishers() const;
+
   /// Add controllers' reference interfaces to resource manager.
   /**
    * Interface for transferring management of reference interfaces to resource manager.

@@ -23,7 +23,10 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+
+#include "hardware_interface/handle.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -360,25 +363,36 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
   std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response)
 {
   std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
-  try
-  {
-    auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
-      request->sub_controller_manager_namespace, request->sub_controller_manager_name,
-      request->state_interface_names, request->state_publisher_topics);
-    sub_controller_manager_map_.insert(
-      std::pair{sub_ctrl_mng_wrapper->get_name(), sub_ctrl_mng_wrapper});
-    response->ok = true;
 
-    RCLCPP_INFO_STREAM(
-      get_logger(), "ControllerManager: Registered sub controller manager <"
-                      << sub_ctrl_mng_wrapper->get_name() << ">.");
-  }
-  catch (const std::logic_error & e)
+  auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
+    request->sub_controller_manager_namespace, request->sub_controller_manager_name,
+    request->state_publishers);
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>> state_interfaces;
+  state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
+  state_interfaces = resource_manager_->register_sub_controller_manager(sub_ctrl_mng_wrapper);
+
+  for (const auto & state_interface : state_interfaces)
   {
-    response->ok = false;
-    RCLCPP_ERROR(
-      get_logger(), "ControllerManager: Cannot register sub controller manager. %s", e.what());
+    try
+    {
+      executor_->add_node(state_interface->get_node()->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      response->ok = false;
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: Caught exception while trying to register sub controller manager. "
+        "Exception:"
+          << e.what());
+    }
   }
+
+  response->ok = true;
+  RCLCPP_INFO_STREAM(
+    get_logger(), "ControllerManager: Registered sub controller manager <"
+                    << sub_ctrl_mng_wrapper->get_name() << ">.");
 }
 
 void ControllerManager::add_hardware_state_publishers()
@@ -395,9 +409,9 @@ void ControllerManager::add_hardware_state_publishers()
     }
     catch (const std::runtime_error & e)
     {
-      RCLCPP_ERROR(
-        get_logger(), "ControllerManager: Can't create StatePublishers<%s>",
-        state_publisher->get_state_interface_name(), e.what());
+      RCLCPP_WARN_STREAM(
+        get_logger(), "ControllerManager: Can't create StatePublishers<"
+                        << state_publisher->state_interface_name() << ">." << e.what());
     }
   }
 }
@@ -409,20 +423,19 @@ void ControllerManager::register_sub_controller_manager()
     create_client<controller_manager_msgs::srv::RegisterSubControllerManager>(
       "/register_sub_controller_manager");
 
-  std::vector<std::string> state_interface_names, topic_names;
-
-  for (auto const & state_publsiher : resource_manager_->get_state_publishers())
-  {
-    state_interface_names.push_back(state_publsiher->get_state_interface_name());
-    topic_names.push_back(state_publsiher->get_topic_name());
-  }
-
   auto request =
     std::make_shared<controller_manager_msgs::srv::RegisterSubControllerManager::Request>();
   request->sub_controller_manager_namespace = get_namespace();
   request->sub_controller_manager_name = get_name();
-  request->state_interface_names = std::move(state_interface_names);
-  request->state_publisher_topics = std::move(topic_names);
+
+  // export the provided StatePublishers
+  for (auto const & state_publisher : resource_manager_->get_state_publishers())
+  {
+    // create description of StatePublisher including: prefix_name, interface_name and topic.
+    // So that receiver is able to create a DistributedStateInterface which subscribes to the
+    // topics provided by this sub controller manager
+    request->state_publishers.push_back(state_publisher->create_description_msg());
+  }
 
   using namespace std::chrono_literals;
   while (!client->wait_for_service(1s))

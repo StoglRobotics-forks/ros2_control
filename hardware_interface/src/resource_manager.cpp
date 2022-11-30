@@ -410,18 +410,42 @@ public:
     return result;
   }
 
+  void add_state_interface(std::shared_ptr<ReadOnlyHandle> state_interface)
+  {
+    const auto [it, success] =
+      state_interface_map_.insert(std::make_pair(state_interface->get_name(), state_interface));
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert StateInterface with already existing key. Insert[" +
+        state_interface->get_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
+  void add_state_interface(const StateInterface & state_interface)
+  {
+    const auto [it, success] = state_interface_map_.emplace(std::make_pair(
+      state_interface.get_name(), std::make_shared<StateInterface>(state_interface)));
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert StateInterface with already existing key. Insert[" +
+        state_interface.get_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
   template <class HardwareT>
   void import_state_interfaces(HardwareT & hardware)
   {
     auto interfaces = hardware.export_state_interfaces();
     std::vector<std::string> interface_names;
     interface_names.reserve(interfaces.size());
-    for (auto & interface : interfaces)
+    for (auto const & interface : interfaces)
     {
-      auto key = interface.get_name();
-      state_interface_map_.emplace(
-        std::make_pair(key, std::make_shared<StateInterface>(interface)));
-      interface_names.push_back(key);
+      add_state_interface(interface);
+      interface_names.push_back(interface.get_name());
     }
     hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
     available_state_interfaces_.reserve(
@@ -480,8 +504,15 @@ public:
 
   void add_state_publisher(std::shared_ptr<distributed_control::StatePublisher> state_publisher)
   {
-    state_interface_state_publisher_map_.insert(
-      std::pair{state_publisher->get_state_interface_name(), state_publisher});
+    const auto [it, success] = state_interface_state_publisher_map_.insert(
+      std::pair{state_publisher->state_interface_name(), state_publisher});
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert StatePublisher with already existing key. Insert[" +
+        state_publisher->state_interface_name() + "]");
+      throw std::runtime_error(msg);
+    }
   }
 
   std::shared_ptr<distributed_control::StatePublisher> get_state_publisher(
@@ -566,6 +597,40 @@ public:
     import_command_interfaces(systems_.back());
   }
 
+  void add_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+  {
+    const auto [it, success] = sub_controller_manager_map_.insert(
+      std::pair{sub_controller_manager->get_name(), sub_controller_manager});
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to add sub ControllerManager with already existing key. Insert[" +
+        sub_controller_manager->get_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
+  std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
+  import_state_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+  {
+    std::vector<std::shared_ptr<DistributedReadOnlyHandle>> distributed_state_interfaces;
+    distributed_state_interfaces.reserve(sub_controller_manager->get_state_publisher_count());
+
+    for (const auto & state_publisher_description :
+         sub_controller_manager->get_state_publisher_descriptions())
+    {
+      // create StateInterface from the Description and store in ResourceStorage.
+      auto state_interface =
+        std::make_shared<DistributedReadOnlyHandle>(state_publisher_description);
+      add_state_interface(state_interface);
+      // add to return vector, node needs to added to executor.
+      distributed_state_interfaces.push_back(state_interface);
+    }
+    return distributed_state_interfaces;
+  }
+
   // hardware plugins
   pluginlib::ClassLoader<ActuatorInterface> actuator_loader_;
   pluginlib::ClassLoader<SensorInterface> sensor_loader_;
@@ -595,9 +660,12 @@ public:
   /// List of all claimed command interfaces
   std::unordered_map<std::string, bool> claimed_command_interface_map_;
 
-protected:
+private:
   std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>>
     state_interface_state_publisher_map_;
+
+  std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
+    sub_controller_manager_map_;
 };
 
 ResourceManager::ResourceManager() : resource_storage_(std::make_unique<ResourceStorage>()) {}
@@ -703,9 +771,20 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
            name) != resource_storage_->available_state_interfaces_.end();
 }
 
+std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
+ResourceManager::register_sub_controller_manager(
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  resource_storage_->add_sub_controller_manager(sub_controller_manager);
+  return resource_storage_->import_state_interfaces_of_sub_controller_manager(
+    sub_controller_manager);
+}
+
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
 ResourceManager::create_hardware_state_publishers(const std::string & ns)
 {
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
   state_publishers_vec.reserve(available_state_interfaces().size());
 
@@ -721,13 +800,14 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
     resource_storage_->add_state_publisher(state_publisher);
     state_publishers_vec.push_back(state_publisher);
   }
-  
+
   return state_publishers_vec;
 }
 
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
 ResourceManager::get_state_publishers() const
 {
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->get_state_publishers();
 }
 
