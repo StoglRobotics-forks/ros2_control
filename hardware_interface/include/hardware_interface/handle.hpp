@@ -261,7 +261,8 @@ public:
       return str;
     };
     // remove first "/" from namespace and replace all follow occurrences with "_"
-    std::string ns = removeCharsFromString(erase_slash_at_begin(interface_namespace_), '/', '_');
+    std::string ns =
+      replace_all_chars_from_string(erase_slash_at_begin(interface_namespace_), '/', '_');
     // concatenate: interface_namespace + _ + namespace_prefix + _ + name_interface_name
     return append_underscore(ns) + append_underscore(get_prefix_name()) + get_interface_name();
   }
@@ -285,7 +286,7 @@ protected:
     return str;
   }
 
-  std::string removeCharsFromString(
+  std::string replace_all_chars_from_string(
     std::string str, const char & char_to_replace, const char & replace_with_char) const
   {
     std::replace(str.begin(), str.end(), char_to_replace, replace_with_char);
