@@ -1,32 +1,32 @@
 #ifndef DISTRIBUTED_CONTROL__STATE_PUBLISHER_DESCRIPTION_HPP_
 #define DISTRIBUTED_CONTROL__STATE_PUBLISHER_DESCRIPTION_HPP_
 
-#include "controller_manager_msgs/msg/state_publisher_description.hpp"
+#include "controller_manager_msgs/msg/publisher_description.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
 namespace distributed_control
 {
 
-class StatePublisherDescription final
+class PublisherDescription final
 {
 public:
-  explicit StatePublisherDescription(
-    const controller_manager_msgs::msg::StatePublisherDescription & description)
+  explicit PublisherDescription(
+    const controller_manager_msgs::msg::PublisherDescription & description)
   : namespace_(description.ns),
     prefix_name_(description.name.prefix_name),
     interface_name_(description.name.interface_name),
-    topic_name_(description.state_publisher_topic)
+    topic_name_(description.publisher_topic)
   {
   }
 
-  StatePublisherDescription() = delete;
+  PublisherDescription() = delete;
 
-  StatePublisherDescription(const StatePublisherDescription & other) = default;
+  PublisherDescription(const PublisherDescription & other) = default;
 
-  StatePublisherDescription(StatePublisherDescription && other) = default;
+  PublisherDescription(PublisherDescription && other) = default;
 
-  ~StatePublisherDescription() {}
+  ~PublisherDescription() {}
 
   std::string get_namespace() const { return namespace_; }
 

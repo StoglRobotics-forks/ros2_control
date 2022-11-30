@@ -9,7 +9,7 @@
 
 #include "hardware_interface/loaned_state_interface.hpp"
 
-#include "controller_manager_msgs/msg/state_publisher_description.hpp"
+#include "controller_manager_msgs/msg/publisher_description.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
@@ -19,7 +19,7 @@
 namespace distributed_control
 {
 
-class StatePublisher final 
+class StatePublisher final
 {
 public:
   explicit StatePublisher(
@@ -50,7 +50,7 @@ public:
   std::string state_interface_interface_name() const;
 
   STATE_PUBLISHER_PUBLIC
-  controller_manager_msgs::msg::StatePublisherDescription create_description_msg() const;
+  controller_manager_msgs::msg::PublisherDescription create_description_msg() const;
 
 private:
   void publish_value_on_timer();

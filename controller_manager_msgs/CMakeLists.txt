@@ -12,7 +12,7 @@ set(msg_files
   msg/HandleName.msg
   msg/HardwareComponentState.msg
   msg/HardwareInterface.msg
-  msg/StatePublisherDescription.msg
+  msg/PublisherDescription.msg
 )
 set(srv_files
   srv/ConfigureController.srv

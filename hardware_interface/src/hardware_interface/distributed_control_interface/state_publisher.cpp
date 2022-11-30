@@ -62,17 +62,16 @@ std::string StatePublisher::state_interface_interface_name() const
   return loaned_state_interface_ptr_->get_interface_name();
 }
 
-controller_manager_msgs::msg::StatePublisherDescription StatePublisher::create_description_msg()
-  const
+controller_manager_msgs::msg::PublisherDescription StatePublisher::create_description_msg() const
 {
-  auto msg = controller_manager_msgs::msg::StatePublisherDescription();
+  auto msg = controller_manager_msgs::msg::PublisherDescription();
   // we want a unique name for every StatePublisher. This gets relevant in the central ControllerManager
   // where multiple sub ControllerManager are registering. Therefor we add the namespace to the prefix.
   // However since that e.g. joint1/positions becomes /sub_namespace/joint1/position
   msg.ns = get_namespace();
   msg.name.prefix_name = state_interface_prefix_name();
   msg.name.interface_name = state_interface_interface_name();
-  msg.state_publisher_topic = topic_name_relative_to_namespace();
+  msg.publisher_topic = topic_name_relative_to_namespace();
 
   return msg;
 }

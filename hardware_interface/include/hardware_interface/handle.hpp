@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "hardware_interface/distributed_control_interface/state_publisher_description.hpp"
+#include "hardware_interface/distributed_control_interface/publisher_description.hpp"
 #include "hardware_interface/macros.hpp"
 #include "hardware_interface/visibility_control.h"
 
@@ -151,41 +151,14 @@ public:
   }
 };
 
-class ReadWriteHandle : public HandleInterface, ReadHandleInterface, WriteHandleInterface
+class StateInterface : public ReadOnlyHandle
 {
 public:
-  ReadWriteHandle(
-    const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : HandleInterface(prefix_name, interface_name, value_ptr)
-  {
-  }
+  StateInterface(const StateInterface & other) = default;
 
-  explicit ReadWriteHandle(const std::string & interface_name) : HandleInterface(interface_name) {}
+  StateInterface(StateInterface && other) = default;
 
-  explicit ReadWriteHandle(const char * interface_name) : HandleInterface(interface_name) {}
-
-  ReadWriteHandle(const ReadWriteHandle & other) = default;
-
-  ReadWriteHandle(ReadWriteHandle && other) = default;
-
-  ReadWriteHandle & operator=(const ReadWriteHandle & other) = default;
-
-  ReadWriteHandle & operator=(ReadWriteHandle && other) = default;
-
-  virtual ~ReadWriteHandle() = default;
-
-  double get_value() const override
-  {
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
-  }
-
-  void set_value(double value) override
-  {
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
-  }
+  using ReadOnlyHandle::ReadOnlyHandle;
 };
 
 class DistributedReadOnlyHandle : public ReadOnlyHandle
@@ -194,8 +167,7 @@ public:
   // TODO(Manuel): We should pass the initial value via service call, so that the value_ of ReadOnlyHandle
   // is initialized with a feasible value.
   DistributedReadOnlyHandle(
-    const distributed_control::StatePublisherDescription & description,
-    const std::string & ns = "/")
+    const distributed_control::PublisherDescription & description, const std::string & ns = "/")
   : ReadOnlyHandle(description.prefix_name(), description.interface_name(), &value_),
     topic_name_(description.topic_name()),
     namespace_(ns),
@@ -303,16 +275,6 @@ protected:
   double value_;
 };
 
-class StateInterface : public ReadOnlyHandle
-{
-public:
-  StateInterface(const StateInterface & other) = default;
-
-  StateInterface(StateInterface && other) = default;
-
-  using ReadOnlyHandle::ReadOnlyHandle;
-};
-
 class DistributedStateInterface : public DistributedReadOnlyHandle
 {
 public:
@@ -321,6 +283,43 @@ public:
   DistributedStateInterface(DistributedStateInterface && other) = default;
 
   using DistributedReadOnlyHandle::DistributedReadOnlyHandle;
+};
+
+class ReadWriteHandle : public HandleInterface, ReadHandleInterface, WriteHandleInterface
+{
+public:
+  ReadWriteHandle(
+    const std::string & prefix_name, const std::string & interface_name,
+    double * value_ptr = nullptr)
+  : HandleInterface(prefix_name, interface_name, value_ptr)
+  {
+  }
+
+  explicit ReadWriteHandle(const std::string & interface_name) : HandleInterface(interface_name) {}
+
+  explicit ReadWriteHandle(const char * interface_name) : HandleInterface(interface_name) {}
+
+  ReadWriteHandle(const ReadWriteHandle & other) = default;
+
+  ReadWriteHandle(ReadWriteHandle && other) = default;
+
+  ReadWriteHandle & operator=(const ReadWriteHandle & other) = default;
+
+  ReadWriteHandle & operator=(ReadWriteHandle && other) = default;
+
+  virtual ~ReadWriteHandle() = default;
+
+  double get_value() const override
+  {
+    THROW_ON_NULLPTR(value_ptr_);
+    return *value_ptr_;
+  }
+
+  void set_value(double value) override
+  {
+    THROW_ON_NULLPTR(this->value_ptr_);
+    *this->value_ptr_ = value;
+  }
 };
 
 class CommandInterface : public ReadWriteHandle
@@ -338,6 +337,65 @@ public:
 
   using ReadWriteHandle::ReadWriteHandle;
 };
+
+class DistributedReadWriteHandle : public ReadWriteHandle
+{
+public:
+  DistributedReadWriteHandle(
+    const std::string & prefix_name, const std::string & interface_name,
+    double * value_ptr = nullptr)
+  : ReadWriteHandle(prefix_name, interface_name, value_ptr)
+  {
+  }
+
+  explicit DistributedReadWriteHandle(const std::string & interface_name)
+  : ReadWriteHandle(interface_name)
+  {
+  }
+
+  explicit DistributedReadWriteHandle(const char * interface_name) : ReadWriteHandle(interface_name)
+  {
+  }
+
+  DistributedReadWriteHandle(const DistributedReadWriteHandle & other) = default;
+
+  DistributedReadWriteHandle(DistributedReadWriteHandle && other) = default;
+
+  DistributedReadWriteHandle & operator=(const DistributedReadWriteHandle & other) = default;
+
+  DistributedReadWriteHandle & operator=(DistributedReadWriteHandle && other) = default;
+
+  virtual ~DistributedReadWriteHandle() = default;
+
+  double get_value() const override
+  {
+    THROW_ON_NULLPTR(value_ptr_);
+    return *value_ptr_;
+  }
+
+  void set_value(double value) override
+  {
+    THROW_ON_NULLPTR(this->value_ptr_);
+    *this->value_ptr_ = value;
+  }
+};
+
+class DistributedCommandInterface : public DistributedReadWriteHandle
+{
+public:
+  /// CommandInterface copy constructor is actively deleted.
+  /**
+   * Command interfaces are having a unique ownership and thus
+   * can't be copied in order to avoid simultaneous writes to
+   * the same resource.
+   */
+  DistributedCommandInterface(const DistributedCommandInterface & other) = delete;
+
+  DistributedCommandInterface(DistributedCommandInterface && other) = default;
+
+  using DistributedReadWriteHandle::DistributedReadWriteHandle;
+};
+
 }  // namespace hardware_interface
 
 #endif  // HARDWARE_INTERFACE__HANDLE_HPP_
