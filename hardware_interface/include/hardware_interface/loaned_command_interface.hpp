@@ -67,6 +67,11 @@ public:
 
   double get_value() const { return command_interface_.get_value(); }
 
+  std::string get_underscore_separated_name() const
+  {
+    return command_interface_.get_underscore_separated_name();
+  }
+
 protected:
   CommandInterface & command_interface_;
   Deleter deleter_;

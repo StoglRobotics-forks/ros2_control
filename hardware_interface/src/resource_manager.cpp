@@ -515,6 +515,20 @@ public:
     }
   }
 
+  void add_command_forwarder(
+    std::shared_ptr<distributed_control::CommandForwarder> command_forwarder)
+  {
+    const auto [it, success] = command_interface_command_forwarder_map_.insert(
+      std::pair{command_forwarder->command_interface_name(), command_forwarder});
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert CommandForwarder with already existing key. Insert[" +
+        command_forwarder->command_interface_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
   std::shared_ptr<distributed_control::StatePublisher> get_state_publisher(
     std::string state_interface_name) const
   {
@@ -531,6 +545,30 @@ public:
       state_publishers_vec.push_back(state_publisher.second);
     }
     return state_publishers_vec;
+  }
+
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> get_command_forwarders() const
+  {
+    std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarders_vec;
+    command_forwarders_vec.reserve(command_interface_command_forwarder_map_.size());
+
+    for (auto command_forwarder : command_interface_command_forwarder_map_)
+    {
+      command_forwarders_vec.push_back(command_forwarder.second);
+    }
+    return command_forwarders_vec;
+  }
+
+  std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
+    const std::string & key)
+  {
+    // auto command_forwarder = state_interface_state_publisher_map_.find(key);
+    // // we could not find a command forwarder for the provided key
+    // if (command_forwarder == state_interface_state_publisher_map_.end())
+    // {
+    //   return std::make_pair(false, nullptr);
+    // }
+    // return std::make_pair(true, command_forwarder->second);
   }
 
   void check_for_duplicates(const HardwareInfo & hardware_info)
@@ -611,8 +649,7 @@ public:
     }
   }
 
-  std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
-  import_state_interfaces_of_sub_controller_manager(
+  std::vector<std::shared_ptr<DistributedReadOnlyHandle>> import_distributed_state_interfaces(
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
   {
     std::vector<std::shared_ptr<DistributedReadOnlyHandle>> distributed_state_interfaces;
@@ -629,6 +666,25 @@ public:
       distributed_state_interfaces.push_back(state_interface);
     }
     return distributed_state_interfaces;
+  }
+
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>> import_distributed_command_interfaces(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+  {
+    std::vector<std::shared_ptr<DistributedReadWriteHandle>> distributed_command_interfaces;
+    distributed_command_interfaces.reserve(sub_controller_manager->get_command_forwarder_count());
+
+    for (const auto & command_forwarder_description :
+         sub_controller_manager->get_command_forwarder_descriptions())
+    {
+      // create StateInterface from the Description and store in ResourceStorage.
+      auto command_interface =
+        std::make_shared<DistributedReadWriteHandle>(command_forwarder_description);
+      //add_command_interface(command_interface);
+      // add to return vector, node needs to added to executor.
+      distributed_command_interfaces.push_back(command_interface);
+    }
+    return distributed_command_interfaces;
   }
 
   // hardware plugins
@@ -663,6 +719,9 @@ public:
 private:
   std::map<std::string, std::shared_ptr<distributed_control::StatePublisher>>
     state_interface_state_publisher_map_;
+
+  std::map<std::string, std::shared_ptr<distributed_control::CommandForwarder>>
+    command_interface_command_forwarder_map_;
 
   std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
     sub_controller_manager_map_;
@@ -771,14 +830,27 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
            name) != resource_storage_->available_state_interfaces_.end();
 }
 
-std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
-ResourceManager::register_sub_controller_manager(
+void ResourceManager::register_sub_controller_manager(
   std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   resource_storage_->add_sub_controller_manager(sub_controller_manager);
-  return resource_storage_->import_state_interfaces_of_sub_controller_manager(
-    sub_controller_manager);
+}
+
+std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
+ResourceManager::import_state_interfaces_of_sub_controller_manager(
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->import_distributed_state_interfaces(sub_controller_manager);
+}
+
+std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+ResourceManager::import_command_interfaces_of_sub_controller_manager(
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->import_distributed_command_interfaces(sub_controller_manager);
 }
 
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
@@ -794,8 +866,9 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
       rclcpp::get_logger("ResourceManager"), "Creating StatePublisher for interface:<%s>.",
       state_interface.c_str());
     auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
-      ns, std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
-            claim_state_interface(state_interface))));
+      std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
+        claim_state_interface(state_interface))),
+      ns);
 
     resource_storage_->add_state_publisher(state_publisher);
     state_publishers_vec.push_back(state_publisher);
@@ -804,11 +877,48 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
   return state_publishers_vec;
 }
 
+std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
+ResourceManager::create_hardware_command_forwarders(const std::string & ns)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarders_vec;
+  command_forwarders_vec.reserve(available_command_interfaces().size());
+
+  for (const auto & command_interface : available_command_interfaces())
+  {
+    RCLCPP_INFO(
+      rclcpp::get_logger("ResourceManager"), "Creating CommandForwarder for interface:<%s>.",
+      command_interface.c_str());
+    auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
+      std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
+        claim_command_interface(command_interface))),
+      ns);
+
+    resource_storage_->add_command_forwarder(command_forwarder);
+    command_forwarders_vec.push_back(command_forwarder);
+  }
+
+  return command_forwarders_vec;
+}
+
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
 ResourceManager::get_state_publishers() const
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->get_state_publishers();
+}
+
+std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
+ResourceManager::get_command_forwarders() const
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->get_command_forwarders();
+}
+
+std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>>
+ResourceManager::find_command_forwarder(const std::string & key)
+{
+  // return resource_storage_->find_command_forwarder(key);
 }
 
 // CM API: Called in "callback/slow"-thread

@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
 #include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/distributed_control_interface/sub_controller_manager_wrapper.hpp"
 #include "hardware_interface/handle.hpp"
@@ -118,13 +119,30 @@ public:
    */
   bool state_interface_is_available(const std::string & name) const;
 
-  std::vector<std::shared_ptr<DistributedReadOnlyHandle>> register_sub_controller_manager(
+  void register_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+
+  std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
+  import_state_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+  import_command_interfaces_of_sub_controller_manager(
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
 
   std::vector<std::shared_ptr<distributed_control::StatePublisher>>
   create_hardware_state_publishers(const std::string & ns);
 
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
+  create_hardware_command_forwarders(const std::string & ns);
+
+  std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
+    const std::string & key);
+
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> get_state_publishers() const;
+
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> get_command_forwarders()
+    const;
 
   /// Add controllers' reference interfaces to resource manager.
   /**

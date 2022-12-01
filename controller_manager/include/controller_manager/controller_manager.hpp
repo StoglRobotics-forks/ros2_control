@@ -42,7 +42,6 @@
 #include "controller_manager_msgs/srv/unload_controller.hpp"
 
 #include "diagnostic_updater/diagnostic_updater.hpp"
-#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/resource_manager.hpp"
 
@@ -209,6 +208,9 @@ protected:
 
   CONTROLLER_MANAGER_PUBLIC
   void add_hardware_state_publishers();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void add_hardware_command_forwarders();
 
   CONTROLLER_MANAGER_PUBLIC
   void register_sub_controller_manager();

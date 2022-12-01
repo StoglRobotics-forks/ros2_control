@@ -17,10 +17,12 @@ class SubControllerManagerWrapper final
 public:
   explicit SubControllerManagerWrapper(
     const std::string & ns, const std::string & name,
-    const std::vector<controller_manager_msgs::msg::PublisherDescription> & state_publishers)
+    const std::vector<controller_manager_msgs::msg::PublisherDescription> & state_publishers,
+    std::vector<controller_manager_msgs::msg::PublisherDescription> & command_forwarders)
   : NAMESPACE_(ns),
     NAME_(name),
-    state_publisher_descriptions_({state_publishers.begin(), state_publishers.end()})
+    state_publisher_descriptions_({state_publishers.begin(), state_publishers.end()}),
+    command_forwarder_descriptions_({command_forwarders.begin(), command_forwarders.end()})
   {
   }
 
@@ -41,12 +43,20 @@ public:
     return state_publisher_descriptions_;
   }
 
+  std::vector<PublisherDescription> get_command_forwarder_descriptions() const
+  {
+    return command_forwarder_descriptions_;
+  }
+
   size_t get_state_publisher_count() const { return state_publisher_descriptions_.size(); }
+
+  size_t get_command_forwarder_count() const { return command_forwarder_descriptions_.size(); }
 
 private:
   const std::string NAMESPACE_;
   const std::string NAME_;
   std::vector<PublisherDescription> state_publisher_descriptions_;
+  std::vector<PublisherDescription> command_forwarder_descriptions_;
 };
 
 }  // namespace distributed_control

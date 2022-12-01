@@ -27,6 +27,7 @@ endforeach()
 add_library(hardware_interface SHARED
   src/actuator.cpp
   src/component_parser.cpp
+  src/hardware_interface/distributed_control_interface/command_forwarder.cpp
   src/hardware_interface/distributed_control_interface/state_publisher.cpp
   src/resource_manager.cpp
   src/sensor.cpp

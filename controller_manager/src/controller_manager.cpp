@@ -24,6 +24,8 @@
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
 
+#include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
+#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 
@@ -324,6 +326,7 @@ void ControllerManager::configure_controller_manager()
   if (distributed_sub_controller_manager)
   {
     add_hardware_state_publishers();
+    add_hardware_command_forwarders();
     register_sub_controller_manager();
   }
   // This means we are the central controller manager
@@ -366,17 +369,50 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
 
   auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
     request->sub_controller_manager_namespace, request->sub_controller_manager_name,
-    request->state_publishers);
+    request->state_publishers, request->command_state_publishers);
 
-  std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>> state_interfaces;
-  state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
-  state_interfaces = resource_manager_->register_sub_controller_manager(sub_ctrl_mng_wrapper);
+  resource_manager_->register_sub_controller_manager(sub_ctrl_mng_wrapper);
 
-  for (const auto & state_interface : state_interfaces)
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>>
+    distributed_state_interfaces;
+  distributed_state_interfaces =
+    resource_manager_->import_state_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
+
+  for (const auto & state_interface : distributed_state_interfaces)
   {
     try
     {
       executor_->add_node(state_interface->get_node()->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      response->ok = false;
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: Caught exception while trying to register sub controller manager. "
+        "Exception:"
+          << e.what());
+    }
+  }
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
+    distributed_command_interfaces;
+  distributed_command_interfaces =
+    resource_manager_->import_command_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
+
+  for (const auto & command_interface : distributed_command_interfaces)
+  {
+    try
+    {
+      executor_->add_node(command_interface->get_node()->get_node_base_interface());
+      auto msg = controller_manager_msgs::msg::PublisherDescription();
+      msg.ns = get_namespace();
+      msg.name.prefix_name = command_interface->get_prefix_name();
+      msg.name.interface_name = command_interface->get_interface_name();
+      // want topic name relative to namespace
+      msg.publisher_topic = std::string(get_namespace()) + std::string("/") +
+                            command_interface->forward_command_topic_name();
+      response->command_state_publishers.push_back(msg);
     }
     catch (const std::runtime_error & e)
     {
@@ -416,6 +452,27 @@ void ControllerManager::add_hardware_state_publishers()
   }
 }
 
+void ControllerManager::add_hardware_command_forwarders()
+{
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarder_vec;
+  command_forwarder_vec.reserve(resource_manager_->available_command_interfaces().size());
+  command_forwarder_vec = resource_manager_->create_hardware_command_forwarders(get_namespace());
+
+  for (auto const & command_forwarder : command_forwarder_vec)
+  {
+    try
+    {
+      executor_->add_node(command_forwarder->get_node()->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(), "ControllerManager: Can't create StatePublishers<"
+                        << command_forwarder->command_interface_name() << ">." << e.what());
+    }
+  }
+}
+
 void ControllerManager::register_sub_controller_manager()
 {
   RCLCPP_INFO(get_logger(), "SubControllerManager:Trying to register StatePublishers.");
@@ -434,7 +491,17 @@ void ControllerManager::register_sub_controller_manager()
     // create description of StatePublisher including: prefix_name, interface_name and topic.
     // So that receiver is able to create a DistributedStateInterface which subscribes to the
     // topics provided by this sub controller manager
-    request->state_publishers.push_back(state_publisher->create_description_msg());
+    request->state_publishers.push_back(state_publisher->create_publisher_description_msg());
+  }
+
+  // export the provided CommandForwarders
+  for (auto const & command_forwarders : resource_manager_->get_command_forwarders())
+  {
+    // create description of StatePublisher including: prefix_name, interface_name and topic.
+    // So that receiver is able to create a DistributedStateInterface which subscribes to the
+    // topics provided by this sub controller manager
+    request->command_state_publishers.push_back(
+      command_forwarders->create_publisher_description_msg());
   }
 
   using namespace std::chrono_literals;
@@ -460,6 +527,15 @@ void ControllerManager::register_sub_controller_manager()
      rclcpp::FutureReturnCode::SUCCESS) &&
     result.get()->ok)
   {
+    // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
+    // send keys with request
+    for (auto command_state_publisher : result.get()->command_state_publishers)
+    {
+      std::string key = command_state_publisher.name.prefix_name + "/" +
+                        command_state_publisher.name.interface_name;
+      // auto command_forwarder = resource_manager_->find_command_forwarder(key);
+      // command_forwarder->subscribe_to_command(command_state_publisher);
+    }
     RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
   }
   else

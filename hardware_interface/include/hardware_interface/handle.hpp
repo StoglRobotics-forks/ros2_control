@@ -84,8 +84,7 @@ public:
 
   virtual std::string get_name() const { return prefix_name_ + "/" + interface_name_; }
 
-  // TODO(Manuel): Maybe not the best place to put... But if put in DistributedHandles we
-  // violate Liskov
+  // TODO(Manuel): Maybe not the best place to put...
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> get_node() const
   {
     THROW_ON_NULLPTR(node_);
@@ -106,14 +105,38 @@ public:
    */
   virtual std::string get_underscore_separated_name() const
   {
-    if (get_prefix_name().empty())
-    {
-      return get_interface_name();
-    }
-    return get_prefix_name() + "_" + get_interface_name();
+    return append_char(get_prefix_name(), '_') + get_interface_name();
   }
 
 protected:
+  std::string append_char(std::string str, const char & char_to_append) const
+  {
+    if (!str.empty())
+    {
+      return str + char_to_append;
+    }
+    return str;
+  }
+
+  std::string erase_slash_at_start(std::string str) const
+  {
+    if (!str.empty())
+    {
+      if (str.at(0) == '/')
+      {
+        return str.erase(0, 1);
+      }
+    }
+    return str;
+  }
+
+  std::string replace_all_chars_from_string(
+    std::string str, const char & char_to_replace, const char & replace_with_char) const
+  {
+    std::replace(str.begin(), str.end(), char_to_replace, replace_with_char);
+    return str;
+  }
+
   std::string prefix_name_;
   std::string interface_name_;
   double * value_ptr_;
@@ -169,19 +192,20 @@ public:
   DistributedReadOnlyHandle(
     const distributed_control::PublisherDescription & description, const std::string & ns = "/")
   : ReadOnlyHandle(description.prefix_name(), description.interface_name(), &value_),
-    topic_name_(description.topic_name()),
+    get_value_topic_name_(description.topic_name()),
     namespace_(ns),
     interface_namespace_(description.get_namespace())
   {
     rclcpp::NodeOptions node_options;
     // create node for subscribing to StatePublisher described in StatePublisherDescription
     node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-      get_underscore_separated_name() + "_subscriber", namespace_, node_options, false);
+      get_underscore_separated_name() + "_state_interface_subscriber", namespace_, node_options,
+      false);
 
     // subscribe to topic provided by StatePublisher
-    state_value_subscription_ = node_->create_subscription<std_msgs::msg::Float64>(
-      topic_name_, 10,
-      std::bind(&DistributedReadOnlyHandle::set_value_cb, this, std::placeholders::_1));
+    state_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+      get_value_topic_name_, 10,
+      std::bind(&DistributedReadOnlyHandle::get_value_cb, this, std::placeholders::_1));
   }
 
   explicit DistributedReadOnlyHandle(const std::string & interface_name)
@@ -207,71 +231,35 @@ public:
 
   virtual std::string get_name() const override
   {
-    // append '/' to input string if not empty
-    auto append_slash = [](std::string str)
-    {
-      if (!str.empty())
-      {
-        return str + "/";
-      }
-      return str;
-    };
-    // concatenate: interface_namespace/prefix_name/interface_name
-    return append_slash(interface_namespace_) + append_slash(get_prefix_name()) +
+    // concatenate: interface_namespace/prefix_name/interface_name to obtain
+    // a unique name.
+    return append_char(interface_namespace_, '/') + append_char(get_prefix_name(), '/') +
            get_interface_name();
   }
 
   virtual std::string get_underscore_separated_name() const override
   {
-    // append '_' to input string if not empty
-    auto append_underscore = [](std::string str)
-    {
-      if (!str.empty())
-      {
-        return str + "_";
-      }
-      return str;
-    };
-    // remove first "/" from namespace and replace all follow occurrences with "_"
+    // remove first "/" from namespace and replace all follow occurrences of "/" with "_"
     std::string ns =
-      replace_all_chars_from_string(erase_slash_at_begin(interface_namespace_), '/', '_');
+      replace_all_chars_from_string(erase_slash_at_start(interface_namespace_), '/', '_');
     // concatenate: interface_namespace + _ + namespace_prefix + _ + name_interface_name
-    return append_underscore(ns) + append_underscore(get_prefix_name()) + get_interface_name();
+    return append_char(ns, '_') + append_char(get_prefix_name(), '_') + get_interface_name();
   }
 
 protected:
-  void set_value_cb(const std_msgs::msg::Float64 & msg)
+  void get_value_cb(const std_msgs::msg::Float64 & msg)
   {
     value_ = msg.data;
     RCLCPP_WARN_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
   }
 
-  std::string erase_slash_at_begin(std::string str) const
-  {
-    if (!str.empty())
-    {
-      if (str.at(0) == '/')
-      {
-        return str.erase(0, 1);
-      }
-    }
-    return str;
-  }
-
-  std::string replace_all_chars_from_string(
-    std::string str, const char & char_to_replace, const char & replace_with_char) const
-  {
-    std::replace(str.begin(), str.end(), char_to_replace, replace_with_char);
-    return str;
-  }
-
-  std::string topic_name_;
+  std::string get_value_topic_name_;
   // the current namespace we are in. Needed to create the node in the correct namespace
   std::string namespace_;
   // the namespace the actual StateInterface we subscribe to is in.
   // We need this to create unique names for the StateInterface.
   std::string interface_namespace_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_value_subscription_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_value_sub_;
   double value_;
 };
 
@@ -309,13 +297,13 @@ public:
 
   virtual ~ReadWriteHandle() = default;
 
-  double get_value() const override
+  virtual double get_value() const override
   {
     THROW_ON_NULLPTR(value_ptr_);
     return *value_ptr_;
   }
 
-  void set_value(double value) override
+  virtual void set_value(double value) override
   {
     THROW_ON_NULLPTR(this->value_ptr_);
     *this->value_ptr_ = value;
@@ -342,10 +330,27 @@ class DistributedReadWriteHandle : public ReadWriteHandle
 {
 public:
   DistributedReadWriteHandle(
-    const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : ReadWriteHandle(prefix_name, interface_name, value_ptr)
+    const distributed_control::PublisherDescription & description, const std::string & ns = "/")
+  : ReadWriteHandle(description.prefix_name(), description.interface_name(), &value_),
+    get_value_topic_name_(description.topic_name()),
+    namespace_(ns),
+    interface_namespace_(description.get_namespace()),
+    forward_command_topic_name_(get_underscore_separated_name() + "_command_forwarding")
   {
+    // create node for subscribing to StatePublisher described in StatePublisherDescription
+    rclcpp::NodeOptions node_options;
+    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      get_underscore_separated_name() + "_distributed_command_interface", namespace_, node_options,
+      false);
+
+    // subscribe to topic provided by StatePublisher
+    command_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+      get_value_topic_name_, 10,
+      std::bind(&DistributedReadWriteHandle::get_value_cb, this, std::placeholders::_1));
+
+    // create publisher so that we can forward the commands
+    command_value_pub_ =
+      node_->create_publisher<std_msgs::msg::Float64>(forward_command_topic_name_, 10);
   }
 
   explicit DistributedReadWriteHandle(const std::string & interface_name)
@@ -367,17 +372,54 @@ public:
 
   virtual ~DistributedReadWriteHandle() = default;
 
-  double get_value() const override
+  virtual std::string get_name() const override
   {
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
+    // concatenate: interface_namespace/prefix_name/interface_name to obtain
+    // a unique name.
+    return append_char(interface_namespace_, '/') + append_char(get_prefix_name(), '/') +
+           get_interface_name();
+  }
+
+  virtual std::string get_underscore_separated_name() const override
+  {
+    // remove first "/" from namespace and replace all follow occurrences with "_"
+    std::string ns =
+      replace_all_chars_from_string(erase_slash_at_start(interface_namespace_), '/', '_');
+    // concatenate: interface_namespace + _ + namespace_prefix + _ + name_interface_name
+    return append_char(ns, '_') + append_char(get_prefix_name(), '_') + get_interface_name();
   }
 
   void set_value(double value) override
   {
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
+    auto msg = std::make_unique<std_msgs::msg::Float64>();
+    msg->data = value;
+
+    RCLCPP_INFO(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
+    std::flush(std::cout);
+
+    command_value_pub_->publish(std::move(msg));
   }
+
+  std::string forward_command_topic_name() const { return forward_command_topic_name_; }
+
+protected:
+  void get_value_cb(const std_msgs::msg::Float64 & msg)
+  {
+    value_ = msg.data;
+    RCLCPP_WARN_STREAM(
+      node_->get_logger(), "DistributedCommandInterface Receiving:[" << value_ << "].");
+  }
+
+  std::string get_value_topic_name_;
+  // the current namespace we are in. Needed to create the node in the correct namespace
+  std::string namespace_;
+  // the namespace the actual CommandInterface we subscribe to is in.
+  // We need this to create unique names for the CommandInterface.
+  std::string interface_namespace_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr command_value_sub_;
+  std::string forward_command_topic_name_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr command_value_pub_;
+  double value_;
 };
 
 class DistributedCommandInterface : public DistributedReadWriteHandle
