@@ -28,12 +28,12 @@ class LoanedCommandInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedCommandInterface(CommandInterface & command_interface)
+  explicit LoanedCommandInterface(std::shared_ptr<ReadWriteHandle> command_interface)
   : LoanedCommandInterface(command_interface, nullptr)
   {
   }
 
-  LoanedCommandInterface(CommandInterface & command_interface, Deleter && deleter)
+  LoanedCommandInterface(std::shared_ptr<ReadWriteHandle> command_interface, Deleter && deleter)
   : command_interface_(command_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
@@ -50,30 +50,30 @@ public:
     }
   }
 
-  std::string get_name() const { return command_interface_.get_name(); }
+  std::string get_name() const { return command_interface_->get_name(); }
 
-  std::string get_interface_name() const { return command_interface_.get_interface_name(); }
+  std::string get_interface_name() const { return command_interface_->get_interface_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
   get_full_name() const
   {
-    return command_interface_.get_name();
+    return command_interface_->get_name();
   }
 
-  std::string get_prefix_name() const { return command_interface_.get_prefix_name(); }
+  std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
 
-  void set_value(double val) { command_interface_.set_value(val); }
+  void set_value(double val) { command_interface_->set_value(val); }
 
-  double get_value() const { return command_interface_.get_value(); }
+  double get_value() const { return command_interface_->get_value(); }
 
   std::string get_underscore_separated_name() const
   {
-    return command_interface_.get_underscore_separated_name();
+    return command_interface_->get_underscore_separated_name();
   }
 
 protected:
-  CommandInterface & command_interface_;
+  std::shared_ptr<ReadWriteHandle> command_interface_;
   Deleter deleter_;
 };
 

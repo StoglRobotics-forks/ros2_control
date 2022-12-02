@@ -78,10 +78,9 @@ CommandForwarder::create_publisher_description_msg() const
   return msg;
 }
 
-void CommandForwarder::subscribe_to_command(
-  const distributed_control::PublisherDescription & description)
+void CommandForwarder::subscribe_to_command_publisher(const std::string & topic_name)
 {
-  subscription_topic_name_ = description.topic_name();
+  subscription_topic_name_ = topic_name;
   command_subscription_ = node_->create_subscription<std_msgs::msg::Float64>(
     subscription_topic_name_, 10,
     std::bind(&CommandForwarder::forward_command, this, std::placeholders::_1));

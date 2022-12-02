@@ -459,6 +459,33 @@ public:
     hardware_info_map_[hardware.get_name()].command_interfaces = add_command_interfaces(interfaces);
   }
 
+  void add_command_interface(std::shared_ptr<ReadWriteHandle> command_interface)
+  {
+    const auto [it, success] = command_interface_map_.insert(
+      std::make_pair(command_interface->get_name(), command_interface));
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert CommandInterface with already existing key. Insert[" +
+        command_interface->get_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
+  void add_command_interface(CommandInterface && command_interface)
+  {
+    const auto [it, success] = command_interface_map_.emplace(std::make_pair(
+      command_interface.get_name(),
+      std::make_shared<CommandInterface>(std::move(command_interface))));
+    if (!success)
+    {
+      std::string msg(
+        "ResourceStorage: Tried to insert CommandInterface with already existing key. Insert[" +
+        command_interface.get_name() + "]");
+      throw std::runtime_error(msg);
+    }
+  }
+
   /// Adds exported command interfaces into internal storage.
   /**
    * Add command interfaces to the internal storage. Command interfaces exported from hardware or
@@ -477,7 +504,7 @@ public:
     for (auto & interface : interfaces)
     {
       auto key = interface.get_name();
-      command_interface_map_.emplace(std::make_pair(key, std::move(interface)));
+      add_command_interface(std::move(interface));
       claimed_command_interface_map_.emplace(std::make_pair(key, false));
       interface_names.push_back(key);
     }
@@ -562,13 +589,13 @@ public:
   std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
     const std::string & key)
   {
-    // auto command_forwarder = state_interface_state_publisher_map_.find(key);
-    // // we could not find a command forwarder for the provided key
-    // if (command_forwarder == state_interface_state_publisher_map_.end())
-    // {
-    //   return std::make_pair(false, nullptr);
-    // }
-    // return std::make_pair(true, command_forwarder->second);
+    auto command_forwarder = command_interface_command_forwarder_map_.find(key);
+    // we could not find a command forwarder for the provided key
+    if (command_forwarder == command_interface_command_forwarder_map_.end())
+    {
+      return std::make_pair(false, nullptr);
+    }
+    return std::make_pair(true, command_forwarder->second);
   }
 
   void check_for_duplicates(const HardwareInfo & hardware_info)
@@ -707,7 +734,7 @@ public:
   /// Storage of all available state interfaces
   std::map<std::string, std::shared_ptr<ReadOnlyHandle>> state_interface_map_;
   /// Storage of all available command interfaces
-  std::map<std::string, CommandInterface> command_interface_map_;
+  std::map<std::string, std::shared_ptr<ReadWriteHandle>> command_interface_map_;
 
   /// Vectors with interfaces available to controllers (depending on hardware component state)
   std::vector<std::string> available_state_interfaces_;
@@ -918,7 +945,7 @@ ResourceManager::get_command_forwarders() const
 std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>>
 ResourceManager::find_command_forwarder(const std::string & key)
 {
-  // return resource_storage_->find_command_forwarder(key);
+  return resource_storage_->find_command_forwarder(key);
 }
 
 // CM API: Called in "callback/slow"-thread

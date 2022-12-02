@@ -529,12 +529,21 @@ void ControllerManager::register_sub_controller_manager()
   {
     // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
     // send keys with request
-    for (auto command_state_publisher : result.get()->command_state_publishers)
+    for (const auto & command_state_publisher : result.get()->command_state_publishers)
     {
       std::string key = command_state_publisher.name.prefix_name + "/" +
                         command_state_publisher.name.interface_name;
-      // auto command_forwarder = resource_manager_->find_command_forwarder(key);
-      // command_forwarder->subscribe_to_command(command_state_publisher);
+      auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
+      if (found)
+      {
+        command_forwarder->subscribe_to_command_publisher(command_state_publisher.publisher_topic);
+      }
+      else
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "SubControllerManager: Could not find a CommandForwarder for key["
+                          << key << "]. No subscription to command state possible.");
+      }
     }
     RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
   }

@@ -45,7 +45,7 @@ public:
 
   controller_manager_msgs::msg::PublisherDescription create_publisher_description_msg() const;
 
-  void subscribe_to_command(const distributed_control::PublisherDescription & description);
+  void subscribe_to_command_publisher(const std::string & topic_name);
 
 private:
   void publish_value_on_timer();
