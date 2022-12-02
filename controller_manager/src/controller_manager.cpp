@@ -47,6 +47,10 @@ rclcpp::QoS qos_services =
     .reliable()
     .durability_volatile();
 
+rclcpp::QoSInitialization qos_profile_services_keep_all_persist_init(
+  RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1);
+rclcpp::QoS qos_profile_services_keep_all(qos_profile_services_keep_all_persist_init);
+
 inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
@@ -357,7 +361,7 @@ void ControllerManager::init_distributed_main_controller_services()
       std::bind(
         &ControllerManager::register_sub_controller_manager_srv_cb, this, std::placeholders::_1,
         std::placeholders::_2),
-      rmw_qos_profile_services_hist_keep_all, distributed_system_srv_callback_group_);
+      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
 }
 
 void ControllerManager::register_sub_controller_manager_srv_cb(
@@ -375,6 +379,7 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
 
   std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>>
     distributed_state_interfaces;
+  distributed_state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
   distributed_state_interfaces =
     resource_manager_->import_state_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
 
@@ -397,6 +402,7 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
 
   std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
     distributed_command_interfaces;
+  distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
   distributed_command_interfaces =
     resource_manager_->import_command_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
 
@@ -405,14 +411,6 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
     try
     {
       executor_->add_node(command_interface->get_node()->get_node_base_interface());
-      auto msg = controller_manager_msgs::msg::PublisherDescription();
-      msg.ns = get_namespace();
-      msg.name.prefix_name = command_interface->get_prefix_name();
-      msg.name.interface_name = command_interface->get_interface_name();
-      // want topic name relative to namespace
-      msg.publisher_topic = std::string(get_namespace()) + std::string("/") +
-                            command_interface->forward_command_topic_name();
-      response->command_state_publishers.push_back(msg);
     }
     catch (const std::runtime_error & e)
     {
@@ -423,6 +421,13 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
         "Exception:"
           << e.what());
     }
+    auto msg = controller_manager_msgs::msg::PublisherDescription();
+    msg.ns = get_namespace();
+    msg.name.prefix_name = command_interface->get_prefix_name();
+    msg.name.interface_name = command_interface->get_interface_name();
+    // TODO(Manuel) want topic name relative to namespace, but have to treat "root" namespace separate
+    msg.publisher_topic = std::string("/") + command_interface->forward_command_topic_name();
+    response->command_state_publishers.push_back(msg);
   }
 
   response->ok = true;
@@ -475,7 +480,7 @@ void ControllerManager::add_hardware_command_forwarders()
 
 void ControllerManager::register_sub_controller_manager()
 {
-  RCLCPP_INFO(get_logger(), "SubControllerManager:Trying to register StatePublishers.");
+  RCLCPP_INFO(get_logger(), "SubControllerManager: Trying to register StatePublishers.");
   rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr client =
     create_client<controller_manager_msgs::srv::RegisterSubControllerManager>(
       "/register_sub_controller_manager");
@@ -523,29 +528,42 @@ void ControllerManager::register_sub_controller_manager()
 
   auto result = client->async_send_request(request);
   if (
-    (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
-     rclcpp::FutureReturnCode::SUCCESS) &&
-    result.get()->ok)
+    rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
+    rclcpp::FutureReturnCode::SUCCESS)
   {
-    // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
-    // send keys with request
-    for (const auto & command_state_publisher : result.get()->command_state_publishers)
+    // can call get only once
+    auto res = result.get();
+    if (res->ok)
     {
-      std::string key = command_state_publisher.name.prefix_name + "/" +
-                        command_state_publisher.name.interface_name;
-      auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
-      if (found)
+      auto command_state_publishers = res->command_state_publishers;
+      // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
+      // send keys with request
+      for (const auto & command_state_publisher : command_state_publishers)
       {
-        command_forwarder->subscribe_to_command_publisher(command_state_publisher.publisher_topic);
+        std::string key = command_state_publisher.name.prefix_name + "/" +
+                          command_state_publisher.name.interface_name;
+        auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
+        if (found)
+        {
+          command_forwarder->subscribe_to_command_publisher(
+            command_state_publisher.publisher_topic);
+        }
+        else
+        {
+          RCLCPP_WARN_STREAM(
+            get_logger(), "SubControllerManager: Could not find a CommandForwarder for key["
+                            << key << "]. No subscription to command state possible.");
+        }
       }
-      else
-      {
-        RCLCPP_WARN_STREAM(
-          get_logger(), "SubControllerManager: Could not find a CommandForwarder for key["
-                          << key << "]. No subscription to command state possible.");
-      }
+      RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
     }
-    RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
+    else
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "SubControllerManager: Registration of StatePublishers failed. Central ControllerManager "
+        "returned error code.");
+    }
   }
   else
   {

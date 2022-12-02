@@ -474,14 +474,14 @@ public:
 
   void add_command_interface(CommandInterface && command_interface)
   {
-    const auto [it, success] = command_interface_map_.emplace(std::make_pair(
-      command_interface.get_name(),
-      std::make_shared<CommandInterface>(std::move(command_interface))));
+    std::string key = command_interface.get_name();
+    const auto [it, success] = command_interface_map_.emplace(
+      std::make_pair(key, std::make_shared<CommandInterface>(std::move(command_interface))));
     if (!success)
     {
       std::string msg(
         "ResourceStorage: Tried to insert CommandInterface with already existing key. Insert[" +
-        command_interface.get_name() + "]");
+        key + "]");
       throw std::runtime_error(msg);
     }
   }
@@ -889,9 +889,6 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
 
   for (const auto & state_interface : available_state_interfaces())
   {
-    RCLCPP_INFO(
-      rclcpp::get_logger("ResourceManager"), "Creating StatePublisher for interface:<%s>.",
-      state_interface.c_str());
     auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
       std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
         claim_state_interface(state_interface))),
@@ -913,9 +910,6 @@ ResourceManager::create_hardware_command_forwarders(const std::string & ns)
 
   for (const auto & command_interface : available_command_interfaces())
   {
-    RCLCPP_INFO(
-      rclcpp::get_logger("ResourceManager"), "Creating CommandForwarder for interface:<%s>.",
-      command_interface.c_str());
     auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
       std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
         claim_command_interface(command_interface))),
