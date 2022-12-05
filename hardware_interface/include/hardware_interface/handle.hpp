@@ -143,7 +143,7 @@ protected:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
-class ReadOnlyHandle : public HandleInterface, ReadHandleInterface
+class ReadOnlyHandle : public HandleInterface, public ReadHandleInterface
 {
 public:
   ReadOnlyHandle(
@@ -273,7 +273,9 @@ public:
   using DistributedReadOnlyHandle::DistributedReadOnlyHandle;
 };
 
-class ReadWriteHandle : public HandleInterface, ReadHandleInterface, WriteHandleInterface
+class ReadWriteHandle : public HandleInterface,
+                        public ReadHandleInterface,
+                        public WriteHandleInterface
 {
 public:
   ReadWriteHandle(
