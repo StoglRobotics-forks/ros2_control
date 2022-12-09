@@ -1,3 +1,4 @@
+
 // Copyright 2020 PAL Robotics S.L.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +16,13 @@
 #ifndef HARDWARE_INTERFACE__HANDLE_HPP_
 #define HARDWARE_INTERFACE__HANDLE_HPP_
 
+#include <limits>
 #include <string>
 #include <utility>
 
 #include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/publisher_description.hpp"
+#include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/macros.hpp"
 #include "hardware_interface/visibility_control.h"
 
@@ -33,7 +36,7 @@ namespace hardware_interface
 class ReadHandleInterface
 {
 public:
-  virtual double get_value() const = 0;
+  virtual double get_value() = 0;
 };
 
 class WriteHandleInterface
@@ -47,18 +50,31 @@ class HandleInterface
 public:
   HandleInterface(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
-  : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr), node_(node)
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : prefix_name_(prefix_name),
+    interface_name_(interface_name),
+    has_new_value_(false),
+    is_valid_(false),
+    value_(std::numeric_limits<double>::quiet_NaN()),
+    node_(node)
   {
   }
 
   explicit HandleInterface(const std::string & interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr), node_(nullptr)
+  : interface_name_(interface_name),
+    has_new_value_(false),
+    is_valid_(false),
+    value_(std::numeric_limits<double>::quiet_NaN()),
+    node_(nullptr)
   {
   }
 
   explicit HandleInterface(const char * interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr), node_(nullptr)
+  : interface_name_(interface_name),
+    has_new_value_(false),
+    is_valid_(false),
+    value_(std::numeric_limits<double>::quiet_NaN()),
+    node_(nullptr)
   {
   }
 
@@ -101,14 +117,35 @@ public:
 
   /**
    * @brief Create the full name consisting of prefix and interface name separated by an underscore.
-   * Used for e.g. name generation of nodes, where "/" are not allowed. 
-   * 
+   * Used for e.g. name generation of nodes, where "/" are not allowed.
+   *
    * @return std::string prefix_name + _ + interface_name.
    */
   virtual std::string get_underscore_separated_name() const
   {
     return append_char(get_prefix_name(), '_') + get_interface_name();
   }
+
+  /**
+   * @brief Set the new value of the handle and mark the Handle as "has_new_value_ = true".
+   * This indicates that new data has been set since last read access.
+   *
+   * @param value current stored value in the handle.
+   */
+  virtual void set_value(const double & value)
+  {
+    value_ = value;
+    has_new_value_ = true;
+  }
+
+  /**
+   * @brief Indicates if new value has been stored in the handle since the last
+   * read access.
+   *
+   * @return true => new value has been stored since last read access to the handle.
+   * @return false => no new value has been stored since last read access to the handle.
+   */
+  virtual bool has_new_value() const { return has_new_value_; }
 
 protected:
   std::string append_char(std::string str, const char & char_to_append) const
@@ -141,7 +178,12 @@ protected:
 
   std::string prefix_name_;
   std::string interface_name_;
-  double * value_ptr_;
+  // marks if value is new or has already been read
+  bool has_new_value_;
+  // stores if the stored value is valid
+  bool is_valid_;
+  // the current stored value of the handle
+  double value_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
 };
 
@@ -150,8 +192,8 @@ class ReadOnlyHandle : public HandleInterface, public ReadHandleInterface
 public:
   ReadOnlyHandle(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
-  : HandleInterface(prefix_name, interface_name, value_ptr, node)
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : HandleInterface(prefix_name, interface_name, node)
   {
   }
 
@@ -169,10 +211,16 @@ public:
 
   virtual ~ReadOnlyHandle() = default;
 
-  double get_value() const override
+  /**
+   * @brief Get the value of the handle an mark the handle as "has_new_value_ = false"
+   * since the value has been read and not be changed since last read access.
+   *
+   * @return HandleValue is the current stored value of the handle.
+   */
+  double get_value() override
   {
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
+    has_new_value_ = false;
+    return value_;
   }
 };
 
@@ -189,12 +237,10 @@ public:
 class DistributedReadOnlyHandle : public ReadOnlyHandle
 {
 public:
-  // TODO(Manuel): We should pass the initial value via service call, so that the value_ of ReadOnlyHandle
-  // is initialized with a feasible value.
   DistributedReadOnlyHandle(
     const distributed_control::PublisherDescription & description, const std::string & ns,
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
-  : ReadOnlyHandle(description.prefix_name(), description.interface_name(), &value_, node),
+  : ReadOnlyHandle(description.prefix_name(), description.interface_name(), node),
     get_value_topic_name_(description.topic_name()),
     namespace_(ns),
     interface_namespace_(description.get_namespace())
@@ -216,7 +262,7 @@ public:
     // subscribe to topic provided by StatePublisher
     state_value_sub_ = node_->create_subscription<controller_manager_msgs::msg::InterfaceData>(
       get_value_topic_name_, qos_profile,
-      std::bind(&DistributedReadOnlyHandle::get_value_cb, this, std::placeholders::_1));
+      std::bind(&DistributedReadOnlyHandle::receive_value_cb, this, std::placeholders::_1));
   }
 
   explicit DistributedReadOnlyHandle(const std::string & interface_name)
@@ -258,9 +304,10 @@ public:
   }
 
 protected:
-  void get_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
+  void receive_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
   {
     value_ = msg.data;
+    has_new_value_ = true;
     RCLCPP_DEBUG_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
   }
 
@@ -271,7 +318,6 @@ protected:
   // We need this to create unique names for the StateInterface.
   std::string interface_namespace_;
   rclcpp::Subscription<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_sub_;
-  double value_;
 };
 
 class DistributedStateInterface : public DistributedReadOnlyHandle
@@ -291,8 +337,8 @@ class ReadWriteHandle : public HandleInterface,
 public:
   ReadWriteHandle(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
-  : HandleInterface(prefix_name, interface_name, value_ptr, node)
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : HandleInterface(prefix_name, interface_name, node)
   {
   }
 
@@ -310,16 +356,28 @@ public:
 
   virtual ~ReadWriteHandle() = default;
 
-  virtual double get_value() const override
+  /**
+   * @brief Get the value of the handle an mark the handle as "has_new_value_ = false"
+   * since the value has been read and not be changed since last read access.
+   *
+   * @return HandleValue is the current stored value of the handle.
+   */
+  double get_value() override
   {
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
+    has_new_value_ = false;
+    return value_;
   }
 
-  virtual void set_value(double value) override
+  /**
+   * @brief Set the new value of the handle and mark the Handle as "has_new_value_ = true".
+   * This indicates that new data has been set since last read access.
+   *
+   * @param value current stored value in the handle.
+   */
+  virtual void set_value(const double & value)
   {
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
+    value_ = value;
+    has_new_value_ = true;
   }
 };
 
@@ -345,7 +403,7 @@ public:
   DistributedReadWriteHandle(
     const distributed_control::PublisherDescription & description, const std::string & ns,
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
-  : ReadWriteHandle(description.prefix_name(), description.interface_name(), &value_, node),
+  : ReadWriteHandle(description.prefix_name(), description.interface_name(), node),
     get_value_topic_name_(description.topic_name()),
     namespace_(ns),
     interface_namespace_(description.get_namespace()),
@@ -368,7 +426,7 @@ public:
     // subscribe to topic provided by CommandForwarder
     command_value_sub_ = node_->create_subscription<controller_manager_msgs::msg::InterfaceData>(
       get_value_topic_name_, qos_profile,
-      std::bind(&DistributedReadWriteHandle::get_value_cb, this, std::placeholders::_1));
+      std::bind(&DistributedReadWriteHandle::receive_value_cb, this, std::placeholders::_1));
 
     // create publisher so that we can forward the commands
     command_value_pub_ = node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(
@@ -413,22 +471,24 @@ public:
 
   void set_value(double value) override
   {
+    has_new_value_ = true;
+
     auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
     msg->data = value;
     msg->header.seq = seq_number_;
     ++seq_number_;
 
     RCLCPP_DEBUG(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
-
     command_value_pub_->publish(std::move(msg));
   }
 
   std::string forward_command_topic_name() const { return forward_command_topic_name_; }
 
 protected:
-  void get_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
+  void receive_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
   {
     value_ = msg.data;
+    has_new_value_ = true;
     RCLCPP_DEBUG_STREAM(
       node_->get_logger(), "DistributedCommandInterface Receiving:[" << value_ << "].");
   }

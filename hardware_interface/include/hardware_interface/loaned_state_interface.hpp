@@ -20,6 +20,8 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
+
 namespace hardware_interface
 {
 class LoanedStateInterface
@@ -68,6 +70,10 @@ public:
   }
 
   double get_value() const { return state_interface_->get_value(); }
+
+  bool has_new_value() const { return state_interface_->has_new_value(); }
+
+  bool value_is_valid() const { return state_interface_->value_is_valid(); }
 
 protected:
   std::shared_ptr<ReadOnlyHandle> state_interface_;

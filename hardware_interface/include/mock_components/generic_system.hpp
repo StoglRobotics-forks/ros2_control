@@ -22,6 +22,8 @@
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/loaned_hw_command_interface.hpp"
+#include "hardware_interface/loaned_hw_state_interface.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -40,6 +42,19 @@ public:
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+
+  virtual std::vector<hardware_interface::InterfaceDescription>
+  export_state_interfaces_descriptions() override;
+
+  virtual std::vector<hardware_interface::InterfaceDescription>
+  export_command_interfaces_descriptions() override;
+
+  virtual void import_loaned_hw_state_interfaces(
+    std::vector<hardware_interface::LoanedHwStateInterface> loaned_hw_state_interfaces) override;
+
+  virtual void import_loaned_hw_command_interfaces(
+    std::vector<hardware_interface::LoanedHwCommandInterface> loaned_hw_command_interfaces)
+    override;
 
   return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) override;
 

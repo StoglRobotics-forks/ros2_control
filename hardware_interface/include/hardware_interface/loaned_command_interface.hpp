@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 namespace hardware_interface
 {
@@ -63,14 +64,20 @@ public:
 
   std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
 
-  void set_value(double val) { command_interface_->set_value(val); }
+  double get_value() const { return command_interface_.get_value(); }
 
-  double get_value() const { return command_interface_->get_value(); }
+  void set_value(double value) { command_interface_->set_value(value); }
 
   std::string get_underscore_separated_name() const
   {
     return command_interface_->get_underscore_separated_name();
   }
+
+  bool has_new_value() const { return command_interface_->has_new_value(); }
+
+  void set_value(const double & value) { command_interface_->set_value(value); }
+
+  bool value_is_valid() const { return command_interface_->value_is_valid(); }
 
 protected:
   std::shared_ptr<ReadWriteHandle> command_interface_;
