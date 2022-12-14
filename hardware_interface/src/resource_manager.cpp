@@ -681,6 +681,8 @@ public:
   {
     std::vector<std::shared_ptr<DistributedReadOnlyHandle>> distributed_state_interfaces;
     distributed_state_interfaces.reserve(sub_controller_manager->get_state_publisher_count());
+    std::vector<std::string> interface_names;
+    interface_names.reserve(sub_controller_manager->get_state_publisher_count());
 
     for (const auto & state_publisher_description :
          sub_controller_manager->get_state_publisher_descriptions())
@@ -688,9 +690,41 @@ public:
       // create StateInterface from the Description and store in ResourceStorage.
       auto state_interface =
         std::make_shared<DistributedReadOnlyHandle>(state_publisher_description);
+
       add_state_interface(state_interface);
       // add to return vector, node needs to added to executor.
       distributed_state_interfaces.push_back(state_interface);
+      interface_names.push_back(state_interface->get_name());
+    }
+    // TODO(Manuel) this should be handled at one point DRY (adding, hardware_info_map, make available...), key should be made explicit
+    hardware_info_map_[sub_controller_manager->get_name()].state_interfaces = interface_names;
+    available_state_interfaces_.reserve(
+      available_state_interfaces_.capacity() + interface_names.size());
+
+    for (const auto & interface :
+         hardware_info_map_[sub_controller_manager->get_name()].state_interfaces)
+    {
+      // add all state interfaces to available list
+      auto found_it = std::find(
+        available_state_interfaces_.begin(), available_state_interfaces_.end(), interface);
+
+      if (found_it == available_state_interfaces_.end())
+      {
+        available_state_interfaces_.emplace_back(interface);
+        RCUTILS_LOG_DEBUG_NAMED(
+          "resource_manager", "(hardware '%s'): '%s' state interface added into available list",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
+      else
+      {
+        // TODO(destogl): do here error management if interfaces are only partially added into
+        // "available" list - this should never be the case!
+        RCUTILS_LOG_WARN_NAMED(
+          "resource_manager",
+          "(hardware '%s'): '%s' state interface already in available list."
+          " This can happen due to multiple calls to 'configure'",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
     }
     return distributed_state_interfaces;
   }
@@ -700,6 +734,8 @@ public:
   {
     std::vector<std::shared_ptr<DistributedReadWriteHandle>> distributed_command_interfaces;
     distributed_command_interfaces.reserve(sub_controller_manager->get_command_forwarder_count());
+    std::vector<std::string> interface_names;
+    interface_names.reserve(sub_controller_manager->get_command_forwarder_count());
 
     for (const auto & command_forwarder_description :
          sub_controller_manager->get_command_forwarder_descriptions())
@@ -707,10 +743,44 @@ public:
       // create StateInterface from the Description and store in ResourceStorage.
       auto command_interface =
         std::make_shared<DistributedReadWriteHandle>(command_forwarder_description);
-      //add_command_interface(command_interface);
+      add_command_interface(command_interface);
       // add to return vector, node needs to added to executor.
       distributed_command_interfaces.push_back(command_interface);
+      // TODO(Manuel) this should be handled at one point DRY (adding, claimed ....), key should be made explicit
+      claimed_command_interface_map_.emplace(std::make_pair(command_interface->get_name(), false));
+      interface_names.push_back(command_interface->get_name());
     }
+    // TODO(Manuel) this should be handled at one point DRY(adding, claimed,make available....), key should be made explicit
+    available_command_interfaces_.reserve(
+      available_command_interfaces_.capacity() + interface_names.size());
+    hardware_info_map_[sub_controller_manager->get_name()].command_interfaces = interface_names;
+
+    for (const auto & interface :
+         hardware_info_map_[sub_controller_manager->get_name()].command_interfaces)
+    {
+      // TODO(destogl): check if interface should be available on configure
+      auto found_it = std::find(
+        available_command_interfaces_.begin(), available_command_interfaces_.end(), interface);
+
+      if (found_it == available_command_interfaces_.end())
+      {
+        available_command_interfaces_.emplace_back(interface);
+        RCUTILS_LOG_DEBUG_NAMED(
+          "resource_manager", "(hardware '%s'): '%s' command interface added into available list",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
+      else
+      {
+        // TODO(destogl): do here error management if interfaces are only partially added into
+        // "available" list - this should never be the case!
+        RCUTILS_LOG_WARN_NAMED(
+          "resource_manager",
+          "(hardware '%s'): '%s' command interface already in available list."
+          " This can happen due to multiple calls to 'configure'",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
+    }
+
     return distributed_command_interfaces;
   }
 
