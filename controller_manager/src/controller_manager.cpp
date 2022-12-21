@@ -472,7 +472,7 @@ void ControllerManager::add_hardware_command_forwarders()
     catch (const std::runtime_error & e)
     {
       RCLCPP_WARN_STREAM(
-        get_logger(), "ControllerManager: Can't create StatePublishers<"
+        get_logger(), "ControllerManager: Can't create CommandForwarder<"
                         << command_forwarder->command_interface_name() << ">." << e.what());
     }
   }
@@ -480,7 +480,9 @@ void ControllerManager::add_hardware_command_forwarders()
 
 void ControllerManager::register_sub_controller_manager()
 {
-  RCLCPP_INFO(get_logger(), "SubControllerManager: Trying to register StatePublishers.");
+  RCLCPP_INFO_STREAM(
+    get_logger(),
+    "SubControllerManager:<" << get_namespace() << "/" << get_name() << "> trying to register.");
   rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr client =
     create_client<controller_manager_msgs::srv::RegisterSubControllerManager>(
       "/register_sub_controller_manager");
@@ -514,16 +516,18 @@ void ControllerManager::register_sub_controller_manager()
   {
     if (!rclcpp::ok())
     {
-      RCLCPP_ERROR(
-        get_logger(),
-        "SubControllerManager: Interrupted while waiting for central controller managers "
-        "registration service. Exiting.");
+      RCLCPP_ERROR_STREAM(
+        get_logger(), "SubControllerManager:<"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Interrupted while waiting for central controller managers "
+                           "registration service. Exiting.");
       return;
     }
-    RCLCPP_INFO(
-      get_logger(),
-      "SubControllerManager:Central controller managers registration service not available, "
-      "waiting again...");
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Central controller managers registration service not available, "
+                         "waiting again...");
   }
 
   auto result = client->async_send_request(request);
@@ -551,23 +555,30 @@ void ControllerManager::register_sub_controller_manager()
         else
         {
           RCLCPP_WARN_STREAM(
-            get_logger(), "SubControllerManager: Could not find a CommandForwarder for key["
-                            << key << "]. No subscription to command state possible.");
+            get_logger(), "SubControllerManager:<"
+                            << get_namespace() << "/" << get_name()
+                            << ">. Could not find a CommandForwarder for key[" << key
+                            << "]. No subscription to command state possible.");
         }
       }
-      RCLCPP_INFO(get_logger(), "SubControllerManager: Successfully registered StatePublishers.");
+      RCLCPP_INFO_STREAM(
+        get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                               << ">. Successfully registered.");
     }
     else
     {
-      RCLCPP_WARN(
-        get_logger(),
-        "SubControllerManager: Registration of StatePublishers failed. Central ControllerManager "
-        "returned error code.");
+      RCLCPP_WARN_STREAM(
+        get_logger(), "SubControllerManager: <"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Registration of StatePublishers failed. Central ControllerManager "
+                           "returned error code.");
     }
   }
   else
   {
-    RCLCPP_WARN(get_logger(), "SubControllerManager: Registration of StatePublishers failed.");
+    RCLCPP_WARN_STREAM(
+      get_logger(), "SubControllerManager: <" << get_namespace() << "/" << get_name()
+                                              << ">. Registration of StatePublishers failed.");
   }
 }
 

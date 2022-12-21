@@ -98,7 +98,7 @@ void CommandForwarder::publish_value_on_timer()
   {
     msg->data = std::numeric_limits<double>::quiet_NaN();
   }
-  RCLCPP_INFO(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
+  RCLCPP_WARN(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
   std::flush(std::cout);
 
   // Put the message into a queue to be processed by the middleware.

@@ -396,7 +396,7 @@ public:
     auto msg = std::make_unique<std_msgs::msg::Float64>();
     msg->data = value;
 
-    RCLCPP_INFO(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
+    RCLCPP_WARN(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
     std::flush(std::cout);
 
     command_value_pub_->publish(std::move(msg));
