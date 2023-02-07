@@ -13,8 +13,10 @@ find_package(rosidl_default_generators REQUIRED)
 set(msg_files
   msg/ControllerState.msg
   msg/ChainConnection.msg
+  msg/HandleName.msg
   msg/HardwareComponentState.msg
   msg/HardwareInterface.msg
+  msg/PublisherDescription.msg
 )
 set(srv_files
   srv/ConfigureController.srv
@@ -23,6 +25,7 @@ set(srv_files
   srv/ListHardwareComponents.srv
   srv/ListHardwareInterfaces.srv
   srv/LoadController.srv
+  srv/RegisterSubControllerManager.srv
   srv/ReloadControllerLibraries.srv
   srv/SetHardwareComponentState.srv
   srv/SwitchController.srv

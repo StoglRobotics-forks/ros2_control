@@ -27,12 +27,12 @@ endforeach()
 add_library(${PROJECT_NAME} SHARED
   src/controller_manager.cpp
 )
+
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 ament_target_dependencies(${PROJECT_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "CONTROLLER_MANAGER_BUILDING_DLL")
-
 add_executable(ros2_control_node src/ros2_control_node.cpp)
 target_include_directories(ros2_control_node PRIVATE include)
 target_link_libraries(ros2_control_node

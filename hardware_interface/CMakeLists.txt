@@ -7,11 +7,14 @@ endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
     control_msgs
+    controller_manager_msgs
     lifecycle_msgs
     pluginlib
+    rclcpp
     rclcpp_lifecycle
     rcpputils
     rcutils
+    std_msgs
     tinyxml2_vendor
     TinyXML2
 )
@@ -26,6 +29,8 @@ add_library(
   SHARED
   src/actuator.cpp
   src/component_parser.cpp
+  src/hardware_interface/distributed_control_interface/command_forwarder.cpp
+  src/hardware_interface/distributed_control_interface/state_publisher.cpp
   src/resource_manager.cpp
   src/sensor.cpp
   src/system.cpp

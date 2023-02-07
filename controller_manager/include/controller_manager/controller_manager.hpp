@@ -35,6 +35,7 @@
 #include "controller_manager_msgs/srv/list_hardware_components.hpp"
 #include "controller_manager_msgs/srv/list_hardware_interfaces.hpp"
 #include "controller_manager_msgs/srv/load_controller.hpp"
+#include "controller_manager_msgs/srv/register_sub_controller_manager.hpp"
 #include "controller_manager_msgs/srv/reload_controller_libraries.hpp"
 #include "controller_manager_msgs/srv/set_hardware_component_state.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
@@ -51,7 +52,6 @@
 #include "rclcpp/node_interfaces/node_logging_interface.hpp"
 #include "rclcpp/node_interfaces/node_parameters_interface.hpp"
 #include "rclcpp/parameter.hpp"
-
 namespace controller_manager
 {
 using ControllersListIterator = std::vector<controller_manager::ControllerSpec>::const_iterator;
@@ -189,6 +189,27 @@ public:
 protected:
   CONTROLLER_MANAGER_PUBLIC
   void init_services();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void configure_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void init_distributed_main_controller_services();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager_srv_cb(
+    const std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Request>
+      request,
+    std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void add_hardware_state_publishers();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void add_hardware_command_forwarders();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
   controller_interface::ControllerInterfaceBaseSharedPtr add_controller_impl(
@@ -395,6 +416,10 @@ private:
    */
   rclcpp::CallbackGroup::SharedPtr best_effort_callback_group_;
 
+  bool distributed_ = false;
+  bool sub_controller_manager_ = false;
+
+  rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**
    * The RTControllerListWrapper class wraps a double-buffered list of controllers
    * to avoid needing to lock the real-time thread when switching controllers in
@@ -491,6 +516,11 @@ private:
     list_hardware_interfaces_service_;
   rclcpp::Service<controller_manager_msgs::srv::SetHardwareComponentState>::SharedPtr
     set_hardware_component_state_service_;
+
+  // services for distributed control
+  std::mutex central_controller_manager_srv_lock_;
+  rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr
+    register_sub_controller_manager_srv_;
 
   std::vector<std::string> activate_request_, deactivate_request_;
   std::vector<std::string> to_chained_mode_request_, from_chained_mode_request_;
