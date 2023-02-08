@@ -30,8 +30,10 @@ __all__ = [
     "list_controller_types",
     "list_controllers",
     "list_hardware_interfaces",
-    "list_hardware_components" "load_controller",
+    "list_hardware_components",
+    "load_controller",
     "reload_controller_libraries",
-    "set_hardware_component_state" "switch_controllers",
+    "set_hardware_component_state",
+    "switch_controllers",
     "unload_controller",
 ]
