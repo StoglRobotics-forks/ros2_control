@@ -51,10 +51,7 @@ def configure_controller(node, controller_manager_name, controller_name):
     request = ConfigureController.Request()
     request.name = controller_name
     return service_caller(
-        node,
-        f"{controller_manager_name}/configure_controller",
-        ConfigureController,
-        request,
+        node, f"{controller_manager_name}/configure_controller", ConfigureController, request
     )
 
 
@@ -68,10 +65,14 @@ def list_controllers(node, controller_manager_name):
 def list_controller_types(node, controller_manager_name):
     request = ListControllerTypes.Request()
     return service_caller(
-        node,
-        f"{controller_manager_name}/list_controller_types",
-        ListControllerTypes,
-        request,
+        node, f"{controller_manager_name}/list_controller_types", ListControllerTypes, request
+    )
+
+
+def list_controller_types(node, controller_manager_name):
+    request = ListControllerTypes.Request()
+    return service_caller(
+        node, f"{controller_manager_name}/list_controller_types", ListControllerTypes, request
     )
 
 
@@ -83,12 +84,6 @@ def list_hardware_components(node, controller_manager_name):
         ListHardwareComponents,
         request,
     )
-
-
-def list_hardware_components(node, controller_manager_name):
-    request = ListHardwareComponents.Request()
-    return service_caller(node, f'{controller_manager_name}/list_hardware_components',
-                          ListHardwareComponents, request)
 
 
 def list_hardware_interfaces(node, controller_manager_name):
