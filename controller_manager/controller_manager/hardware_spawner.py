@@ -123,12 +123,12 @@ def handle_set_component_state_service_call(
     response = set_hardware_component_state(
         node, controller_manager_name, component, target_state
     )
-    if response.ok == True and response.state == target_state:
+    if response.ok and response.state == target_state:
         node.get_logger().info(
             bcolors.OKGREEN
             + f"{action} component '{component}'. Hardware now in state: {response.state}."
         )
-    elif response.ok == True and not response.state == target_state:
+    elif response.ok and not response.state == target_state:
         node.get_logger().warn(
             bcolors.WARNING
             + f"Could not {action} component '{component}'. Service call returned ok=True, but state: {response.state} is not equal to target state '{target_state}'."
