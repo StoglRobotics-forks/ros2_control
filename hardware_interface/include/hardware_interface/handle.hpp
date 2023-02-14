@@ -27,7 +27,7 @@ namespace hardware_interface
 /// A handle used to get and set a value on a given interface.
 class StateHandle
 {
-  virtual double read_state() = 0;
+  virtual double read_state() const = 0;
 };
 
 class CommandHandle
@@ -86,7 +86,7 @@ protected:
 class StateInterface : public Handle, public StateHandle
 {
 public:
-  StateInterface(const InterfaceDescription & interface_description)
+  explicit StateInterface(const InterfaceDescription & interface_description)
   : Handle(interface_description.prefix_name, interface_description.interface_info.name)
   {
   }
@@ -95,7 +95,7 @@ public:
 
   StateInterface(StateInterface && other) = default;
 
-  double read_state() override { return value_; }
+  double read_state() const override { return value_; }
 
   using Handle::Handle;
 };
@@ -103,7 +103,7 @@ public:
 class CommandInterface : public Handle, public CommandHandle, public StateHandle
 {
 public:
-  CommandInterface(const InterfaceDescription & interface_description)
+  explicit CommandInterface(const InterfaceDescription & interface_description)
   : Handle(interface_description.prefix_name, interface_description.interface_info.name)
   {
   }
@@ -117,7 +117,7 @@ public:
 
   CommandInterface(CommandInterface && other) = default;
 
-  double read_state() override { return value_; }
+  double read_state() const override { return value_; }
 
   void write_command(const double & command) override { value_ = command; }
 

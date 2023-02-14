@@ -21,12 +21,16 @@
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/hardware_interface.hpp"
 #include "hardware_interface/loaned_hw_command_interface.hpp"
 #include "hardware_interface/loaned_hw_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
+
 #include "rclcpp/duration.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -101,42 +105,61 @@ public:
     return CallbackReturn::SUCCESS;
   };
 
-  // Could be possible to provide default implementation and parse the hardware_info here. Only if
-  // user wants to export subset or special cases he needs to override.
-
   /**
    * @brief Only export information describing the interfaces. Handle construction
    * and management internally. No need for the user to initialize and manage shared memory.
-   * 
-   * @return std::vector<InterfaceConfiguration> A vector containing all the information 
-   *  needed to create the interfaces exported by the hardware.
-   */
-  virtual std::vector<InterfaceDescription> export_state_interfaces_descriptions() = 0;
-
-  /**
-   * @brief Only export information describing the interfaces. Handle construction
-   * and management internally. No need for the user to initialize and manage shared memory.
-   * 
+   *
    * @return std::vector<InterfaceConfiguration> A vector containing all the information
    *  needed to create the interfaces exported by the hardware.
    */
-  virtual std::vector<InterfaceDescription> export_command_interfaces_descriptions() = 0;
+  virtual std::vector<InterfaceDescription> export_state_interfaces_descriptions()
+  {
+    RCLCPP_INFO_STREAM(
+      rclcpp::get_logger(info_.name), "Exporting following StateInterface description:");
+    std::vector<InterfaceDescription> state_interface_descriptions;
+    for (const auto & joint : info_.joints)
+    {
+      for (const auto & state_interface : joint.state_interfaces)
+      {
+        InterfaceDescription description(joint.name, state_interface);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(info_.name), description);
+        state_interface_descriptions.push_back(description);
+      }
+    }
 
-  // Could be possible to provide default implementation and store the loans in the interface itself.
-  // user could then set/get states via function calls. Ordering could be made explicit.
+    return state_interface_descriptions;
+  }
+
+  virtual void import_loaned_hw_state_interfaces(
+    std::vector<LoanedHwStateInterface> && loaned_hw_state_interfaces) = 0;
 
   /**
-   * @brief Import the LoanedHwStateInterface to the before exported StateInterface InterfaceDescription.
-   * 
+   * @brief Only export information describing the interfaces. Handle construction
+   * and management internally. No need for the user to initialize and manage shared memory.
+   *
+   * @return std::vector<InterfaceConfiguration> A vector containing all the information
+   *  needed to create the interfaces exported by the hardware.
    */
-  virtual void import_loaned_hw_state_interfaces(std::vector<LoanedHwStateInterface>) = 0;
+  virtual std::vector<InterfaceDescription> export_command_interfaces_descriptions()
+  {
+    RCLCPP_INFO_STREAM(
+      rclcpp::get_logger(info_.name), "Exporting following CommandInterface description:");
+    std::vector<InterfaceDescription> command_interface_descriptions;
+    for (const auto & joint : info_.joints)
+    {
+      for (const auto & command_interface : joint.command_interfaces)
+      {
+        InterfaceDescription description(joint.name, command_interface);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(info_.name), description);
+        command_interface_descriptions.push_back(description);
+      }
+    }
 
-  /**
-   * @brief Import the LoanedHwCommandInterface to the before exported CommandInterface InterfaceDescription.
-   * 
-   */
-  virtual void import_loaned_hw_command_interfaces(std::vector<LoanedHwCommandInterface>) = 0;
+    return command_interface_descriptions;
+  }
 
+  virtual void import_loaned_hw_command_interfaces(
+    std::vector<LoanedHwCommandInterface> && loaned_hw_command_interfaces) = 0;
   /// Prepare for a new command interface switch.
   /**
    * Prepare for any mode-switching required by the new command interface combination.

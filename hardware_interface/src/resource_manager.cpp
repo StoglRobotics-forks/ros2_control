@@ -411,26 +411,38 @@ public:
   }
 
   template <class HardwareT>
+  std::vector<std::string> get_state_interface_names(const HardwareT & hardware)
+  {
+    return hardware_info_map_[hardware.get_name()].state_interfaces;
+  }
+
+  template <class HardwareT>
   void import_state_interfaces(HardwareT & hardware)
   {
     auto interfaces = hardware.export_state_interfaces();
     std::vector<std::string> interface_names;
-    std::vector<LoanedHwStateInterface> state_interfaces_for_hw;
     interface_names.reserve(interfaces.size());
     for (auto & interface : interfaces)
     {
       auto key = interface.get_name();
       state_interface_map_.emplace(std::make_pair(key, std::move(interface)));
-      // if implemented like this (reference to StateInterface) the interfaces mustn't ever be (re)moved
-      state_interfaces_for_hw.emplace_back(LoanedHwStateInterface(state_interface_map_.at(key)));
       interface_names.push_back(key);
     }
-    // needs to be done for command interfaces as well
-    // sensor and actuator need to be adjusted the same way.
-    hardware.assign_command_interface_loans_to_hw(state_interfaces_for_hw);
     hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
     available_state_interfaces_.reserve(
       available_state_interfaces_.capacity() + interface_names.size());
+  }
+
+  template <class HardwareT>
+  void assign_state_interface_loans_to_hw(HardwareT & hardware)
+  {
+    std::vector<LoanedHwStateInterface> hw_state_interface_loans;
+    for (const auto & state_interface_name : get_state_interface_names(hardware))
+    {
+      // TODO(Manuel): should we mark as hw claimed???
+      hw_state_interface_loans.emplace_back(state_interface_map_.at(state_interface_name));
+    }
+    hardware.assign_state_interface_loans_to_hw(std::move(hw_state_interface_loans));
   }
 
   template <class HardwareT>
@@ -466,6 +478,25 @@ public:
       available_command_interfaces_.capacity() + interface_names.size());
 
     return interface_names;
+  }
+
+  template <class HardwareT>
+  std::vector<std::string> get_command_interfaces(const HardwareT & hardware)
+  {
+    return hardware_info_map_[hardware.get_name()].command_interfaces;
+  }
+
+  template <class HardwareT>
+  void assign_command_interface_loans_to_hw(HardwareT & hardware)
+  {
+    std::vector<LoanedHwCommandInterface> hw_command_interface_loans;
+    for (const auto & command_interface : get_command_interfaces(hardware))
+    {
+      // TODO(Manuel): should we mark as hw claimed???
+      hw_command_interface_loans.emplace_back(
+        LoanedHwCommandInterface(command_interface_map_.at(command_interface)));
+    }
+    hardware.assign_command_interface_loans_to_hw(std::move(hw_command_interface_loans));
   }
 
   /// Removes command interfaces from internal storage.
@@ -518,7 +549,9 @@ public:
     load_hardware<System, SystemInterface>(hardware_info, system_loader_, systems_);
     initialize_hardware(hardware_info, systems_.back());
     import_state_interfaces(systems_.back());
+    assign_state_interface_loans_to_hw(systems_.back());
     import_command_interfaces(systems_.back());
+    assign_command_interface_loans_to_hw(systems_.back());
   }
 
   void initialize_actuator(
@@ -544,7 +577,9 @@ public:
     this->systems_.emplace_back(System(std::move(system)));
     initialize_hardware(hardware_info, systems_.back());
     import_state_interfaces(systems_.back());
+    assign_state_interface_loans_to_hw(systems_.back());
     import_command_interfaces(systems_.back());
+    assign_command_interface_loans_to_hw(systems_.back());
   }
 
   // hardware plugins

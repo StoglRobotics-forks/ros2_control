@@ -65,6 +65,8 @@ public:
 
   void set_state(const double & value) const { return state_interface_.hw_set_state(value); }
 
+  double get_state() const { return state_interface_.read_state(); }
+
 protected:
   StateInterface & state_interface_;
   Deleter deleter_;

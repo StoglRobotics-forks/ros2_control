@@ -25,7 +25,10 @@
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
+
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
@@ -187,36 +190,38 @@ const rclcpp_lifecycle::State & System::error()
 
 std::vector<StateInterface> System::export_state_interfaces()
 {
-  const auto state_interface_description = impl_->export_state_interfaces_descriptions();
   std::vector<StateInterface> state_interfaces;
-  for (const auto & interface_description : state_interface_description)
+
+  for (const auto & state_interface_descr : impl_->export_state_interfaces_descriptions())
   {
-    state_interfaces.emplace_back(StateInterface(interface_description));
+    state_interfaces.emplace_back(StateInterface(state_interface_descr));
   }
+
   return state_interfaces;
 }
 
 void System::assign_state_interface_loans_to_hw(
-  std::vector<LoanedHwStateInterface> state_intefaces_for_hw)
+  std::vector<LoanedHwStateInterface> && state_intefaces_for_hw)
 {
-  impl_->import_loaned_hw_state_interfaces(state_intefaces_for_hw);
+  impl_->import_loaned_hw_state_interfaces(std::move(state_intefaces_for_hw));
 }
 
 std::vector<CommandInterface> System::export_command_interfaces()
 {
-  const auto command_interface_description = impl_->export_command_interfaces_descriptions();
   std::vector<CommandInterface> command_interfaces;
-  for (const auto & interface_description : command_interface_description)
+
+  for (const auto & command_interface_descr : impl_->export_command_interfaces_descriptions())
   {
-    command_interfaces.emplace_back(CommandInterface(interface_description));
+    command_interfaces.emplace_back(CommandInterface(command_interface_descr));
   }
+
   return command_interfaces;
 }
 
 void System::assign_command_interface_loans_to_hw(
-  std::vector<LoanedHwCommandInterface> command_intefaces_for_hw)
+  std::vector<LoanedHwCommandInterface> && command_intefaces_for_hw)
 {
-  impl_->import_loaned_hw_command_interfaces(command_intefaces_for_hw);
+  impl_->import_loaned_hw_command_interfaces(std::move(command_intefaces_for_hw));
 }
 
 return_type System::prepare_command_mode_switch(
