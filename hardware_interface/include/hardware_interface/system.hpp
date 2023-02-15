@@ -15,6 +15,7 @@
 #ifndef HARDWARE_INTERFACE__SYSTEM_HPP_
 #define HARDWARE_INTERFACE__SYSTEM_HPP_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -70,14 +71,14 @@ public:
 
   HARDWARE_INTERFACE_PUBLIC
   void assign_state_interface_loans_to_hw(
-    std::vector<LoanedHwStateInterface> && loaned_hw_state_interfaces);
+    std::map<std::string, LoanedHwStateInterface> && loaned_hw_state_interfaces);
 
   HARDWARE_INTERFACE_PUBLIC
   std::vector<CommandInterface> export_command_interfaces();
 
   HARDWARE_INTERFACE_PUBLIC
   void assign_command_interface_loans_to_hw(
-    std::vector<LoanedHwCommandInterface> && loaned_hw_command_interfaces);
+    std::map<std::string, LoanedHwCommandInterface> && loaned_hw_command_interfaces);
 
   HARDWARE_INTERFACE_PUBLIC
   return_type prepare_command_mode_switch(

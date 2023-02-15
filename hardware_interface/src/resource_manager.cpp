@@ -33,6 +33,7 @@
 #include "hardware_interface/system.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
 #include "pluginlib/class_loader.hpp"
 #include "rcutils/logging_macros.h"
@@ -436,11 +437,14 @@ public:
   template <class HardwareT>
   void assign_state_interface_loans_to_hw(HardwareT & hardware)
   {
-    std::vector<LoanedHwStateInterface> hw_state_interface_loans;
+    std::map<std::string, LoanedHwStateInterface> hw_state_interface_loans;
     for (const auto & state_interface_name : get_state_interface_names(hardware))
     {
       // TODO(Manuel): should we mark as hw claimed???
-      hw_state_interface_loans.emplace_back(state_interface_map_.at(state_interface_name));
+      LoanedHwStateInterface loaned_hw_state_interface(
+        state_interface_map_.at(state_interface_name));
+      hw_state_interface_loans.emplace(
+        loaned_hw_state_interface.get_name(), std::move(loaned_hw_state_interface));
     }
     hardware.assign_state_interface_loans_to_hw(std::move(hw_state_interface_loans));
   }
@@ -481,7 +485,7 @@ public:
   }
 
   template <class HardwareT>
-  std::vector<std::string> get_command_interfaces(const HardwareT & hardware)
+  std::vector<std::string> get_command_interface_names(const HardwareT & hardware)
   {
     return hardware_info_map_[hardware.get_name()].command_interfaces;
   }
@@ -489,12 +493,14 @@ public:
   template <class HardwareT>
   void assign_command_interface_loans_to_hw(HardwareT & hardware)
   {
-    std::vector<LoanedHwCommandInterface> hw_command_interface_loans;
-    for (const auto & command_interface : get_command_interfaces(hardware))
+    std::map<std::string, LoanedHwCommandInterface> hw_command_interface_loans;
+    for (const auto & command_interface_name : get_command_interface_names(hardware))
     {
       // TODO(Manuel): should we mark as hw claimed???
-      hw_command_interface_loans.emplace_back(
-        LoanedHwCommandInterface(command_interface_map_.at(command_interface)));
+      LoanedHwCommandInterface loaned_hw_command_interface(
+        command_interface_map_.at(command_interface_name));
+      hw_command_interface_loans.emplace(
+        loaned_hw_command_interface.get_name(), std::move(loaned_hw_command_interface));
     }
     hardware.assign_command_interface_loans_to_hw(std::move(hw_command_interface_loans));
   }

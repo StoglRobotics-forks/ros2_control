@@ -201,7 +201,7 @@ std::vector<StateInterface> System::export_state_interfaces()
 }
 
 void System::assign_state_interface_loans_to_hw(
-  std::vector<LoanedHwStateInterface> && state_intefaces_for_hw)
+  std::map<std::string, LoanedHwStateInterface> && state_intefaces_for_hw)
 {
   impl_->import_loaned_hw_state_interfaces(std::move(state_intefaces_for_hw));
 }
@@ -219,7 +219,7 @@ std::vector<CommandInterface> System::export_command_interfaces()
 }
 
 void System::assign_command_interface_loans_to_hw(
-  std::vector<LoanedHwCommandInterface> && command_intefaces_for_hw)
+  std::map<std::string, LoanedHwCommandInterface> && command_intefaces_for_hw)
 {
   impl_->import_loaned_hw_command_interfaces(std::move(command_intefaces_for_hw));
 }

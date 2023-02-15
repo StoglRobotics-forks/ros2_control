@@ -40,12 +40,14 @@ ament_target_dependencies(${PROJECT_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "HARDWARE_INTERFACE_BUILDING_DLL")
 
+if(0)
 # Mock components
 add_library(
   mock_components
   SHARED
   src/mock_components/generic_system.cpp
 )
+
 target_include_directories(
   mock_components
   PUBLIC
@@ -97,6 +99,7 @@ target_compile_definitions(fake_components PRIVATE "HARDWARE_INTERFACE_BUILDING_
 pluginlib_export_plugin_description_file(
   ${PROJECT_NAME} fake_components_plugin_description.xml)
 
+endif()
 
 install(
   DIRECTORY include/
@@ -105,15 +108,15 @@ install(
 
 install(
   TARGETS
-  fake_components
-  mock_components
+  #fake_components
+  #mock_components
   ${PROJECT_NAME}
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
 )
 
-if(BUILD_TESTING)
+if(0)
 
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)

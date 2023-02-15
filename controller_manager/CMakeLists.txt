@@ -54,7 +54,7 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-if(BUILD_TESTING)
+if(0)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)
 

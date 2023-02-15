@@ -15,6 +15,7 @@
 #ifndef HARDWARE_INTERFACE__SYSTEM_INTERFACE_HPP_
 #define HARDWARE_INTERFACE__SYSTEM_INTERFACE_HPP_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -130,8 +131,14 @@ public:
     return state_interface_descriptions;
   }
 
+  /**
+   * @brief Import the loans for the internally stored and managed StateInterfaces.
+   *
+   * @param loaned_hw_state_interfaces The StateInterfaces are stored in a map where the
+   * key is the loaned interfaces's name and the value is the loaned interface.
+   */
   virtual void import_loaned_hw_state_interfaces(
-    std::vector<LoanedHwStateInterface> && loaned_hw_state_interfaces) = 0;
+    std::map<std::string, LoanedHwStateInterface> && loaned_hw_state_interfaces) = 0;
 
   /**
    * @brief Only export information describing the interfaces. Handle construction
@@ -158,8 +165,15 @@ public:
     return command_interface_descriptions;
   }
 
+  /**
+   * @brief Import the loans for the internally stored and managed CommandInterfaces.
+   *
+   * @param loaned_hw_command_interfaces The CommandInterfaces are stored in a map where the
+   * key is the loaned interfaces's name and the value is the loaned interface.
+   */
   virtual void import_loaned_hw_command_interfaces(
-    std::vector<LoanedHwCommandInterface> && loaned_hw_command_interfaces) = 0;
+    std::map<std::string, LoanedHwCommandInterface> && loaned_hw_command_interfaces) = 0;
+
   /// Prepare for a new command interface switch.
   /**
    * Prepare for any mode-switching required by the new command interface combination.

@@ -345,6 +345,26 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
   return command_interfaces;
 }
 
+std::vector<hardware_interface::InterfaceDescription>
+GenericSystem::export_state_interfaces_descriptions()
+{
+}
+
+std::vector<hardware_interface::InterfaceDescription>
+GenericSystem::export_command_interfaces_descriptions()
+{
+}
+
+void GenericSystem::import_loaned_hw_state_interfaces(
+  std::vector<hardware_interface::LoanedHwStateInterface> loaned_hw_state_interfaces)
+{
+}
+
+void GenericSystem::import_loaned_hw_command_interfaces(
+  std::vector<hardware_interface::LoanedHwCommandInterface> loaned_hw_command_interfaces)
+{
+}
+
 return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   auto mirror_command_to_state = [](auto & states_, auto commands_, size_t start_index = 0)
