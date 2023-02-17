@@ -25,15 +25,6 @@
 namespace hardware_interface
 {
 /// A handle used to get and set a value on a given interface.
-class StateHandle
-{
-  virtual double read_state() const = 0;
-};
-
-class CommandHandle
-{
-  virtual void write_command(const double & command) = 0;
-};
 class Handle
 {
 public:
@@ -70,12 +61,10 @@ public:
 
   const std::string & get_prefix_name() const { return prefix_name_; }
 
-  // only expose to hw => we could add functionality which keeps track
-  // if values have been read/are new for ctrls.
-  // Same from ctrl -> hw via State-/CommandHandle
-  void hw_set_state(const double & value) { value_ = value; }
+  // expose/hide set/get_value via loans
+  virtual void set_value(const double & value) { value_ = value; }
 
-  double hw_get_command() const { return value_; }
+  virtual double get_value() const { return value_; }
 
 protected:
   std::string prefix_name_;
@@ -83,7 +72,7 @@ protected:
   double value_;
 };
 
-class StateInterface : public Handle, public StateHandle
+class StateInterface : public Handle
 {
 public:
   explicit StateInterface(const InterfaceDescription & interface_description)
@@ -95,12 +84,10 @@ public:
 
   StateInterface(StateInterface && other) = default;
 
-  double read_state() const override { return value_; }
-
   using Handle::Handle;
 };
 
-class CommandInterface : public Handle, public CommandHandle, public StateHandle
+class CommandInterface : public Handle
 {
 public:
   explicit CommandInterface(const InterfaceDescription & interface_description)
@@ -116,10 +103,6 @@ public:
   CommandInterface(const CommandInterface & other) = delete;
 
   CommandInterface(CommandInterface && other) = default;
-
-  double read_state() const override { return value_; }
-
-  void write_command(const double & command) override { value_ = command; }
 
   using Handle::Handle;
 };

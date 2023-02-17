@@ -63,9 +63,9 @@ public:
 
   const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
 
-  void set_state(const double & value) const { return state_interface_.hw_set_state(value); }
+  void set_value(const double & value) const { return state_interface_.set_value(value); }
 
-  double get_state() const { return state_interface_.read_state(); }
+  double get_value() const { return state_interface_.get_value(); }
 
 protected:
   StateInterface & state_interface_;

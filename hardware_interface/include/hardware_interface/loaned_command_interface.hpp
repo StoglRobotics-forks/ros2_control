@@ -63,9 +63,12 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  void set_value(double val) { command_interface_.write_command(val); }
+  // (TODO Manuel) Think should be renamed to set_command()
+  void set_value(double val) { command_interface_.set_value(val); }
 
-  double get_value() const { return command_interface_.read_state(); }
+  // (TODO Manuel) Think should be renamed to get_command()/get_current_command()
+  // Do controllers really need read access to command_interfaces?
+  double get_value() const { return command_interface_.get_value(); }
 
 protected:
   CommandInterface & command_interface_;

@@ -63,9 +63,13 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  void set_state(double val) { command_interface_.hw_set_state(val); }
+  // (TODO Manuel)
+  // Do we really want this? Why should command interfaces be writeable by hw?
+  // Shouldn't we instead take care that commandinterfaces are initialized
+  // to a valid state and not doing this later?
+  void reset(double val) { command_interface_.set_value(val); }
 
-  double get_command() const { return command_interface_.hw_get_command(); }
+  double get_command() const { return command_interface_.get_value(); }
 
 protected:
   CommandInterface & command_interface_;
