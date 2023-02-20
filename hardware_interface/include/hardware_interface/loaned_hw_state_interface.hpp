@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 namespace hardware_interface
 {
@@ -63,9 +64,23 @@ public:
 
   const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
 
-  void set_value(const double & value) const { return state_interface_.set_value(value); }
+  hardware_interface::HandleValue get_value() const { return state_interface_.get_value(); }
 
-  double get_value() const { return state_interface_.get_value(); }
+  // Should we provide this?
+  double get_plain_value() const { return state_interface_.get_value().value(); }
+
+  bool has_new_data() const { return state_interface_.has_new_data(); }
+
+  // Should we provide this?
+  void set_value(const double & value) const
+  {
+    return state_interface_.set_value(hardware_interface::HandleValue(value));
+  }
+
+  void set_value(const hardware_interface::HandleValue & value) const
+  {
+    return state_interface_.set_value(value);
+  }
 
 protected:
   StateInterface & state_interface_;

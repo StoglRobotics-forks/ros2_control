@@ -15,11 +15,13 @@
 #ifndef HARDWARE_INTERFACE__HANDLE_HPP_
 #define HARDWARE_INTERFACE__HANDLE_HPP_
 
+#include <limits>
 #include <string>
 #include <utility>
 
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/macros.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/visibility_control.h"
 
 namespace hardware_interface
@@ -29,13 +31,29 @@ class Handle
 {
 public:
   Handle(const std::string & prefix_name, const std::string & interface_name)
-  : prefix_name_(prefix_name), interface_name_(interface_name)
+  : prefix_name_(prefix_name),
+    interface_name_(interface_name),
+    has_new_data_(false),
+    value_(HandleValue(
+      std::numeric_limits<double>::quiet_NaN(), hardware_interface::return_type::INVALID))
   {
   }
 
-  explicit Handle(const std::string & interface_name) : interface_name_(interface_name) {}
+  explicit Handle(const std::string & interface_name)
+  : interface_name_(interface_name),
+    has_new_data_(false),
+    value_(HandleValue(
+      std::numeric_limits<double>::quiet_NaN(), hardware_interface::return_type::INVALID))
+  {
+  }
 
-  explicit Handle(const char * interface_name) : interface_name_(interface_name) {}
+  explicit Handle(const char * interface_name)
+  : interface_name_(interface_name),
+    has_new_data_(false),
+    value_(HandleValue(
+      std::numeric_limits<double>::quiet_NaN(), hardware_interface::return_type::INVALID))
+  {
+  }
 
   // Handle should be unique
   Handle(const Handle & other) = delete;
@@ -61,15 +79,46 @@ public:
 
   const std::string & get_prefix_name() const { return prefix_name_; }
 
-  // expose/hide set/get_value via loans
-  virtual void set_value(const double & value) { value_ = value; }
+  /**
+   * @brief Set the new value of the handle and mark the Handle as "has_new_data_ = true".
+   * This indicates that new data has been set since last read access.
+   *
+   * @param value current stored value in the handle.
+   */
+  virtual void set_value(const HandleValue & value)
+  {
+    value_ = value;
+    has_new_data_ = true;
+  }
 
-  virtual double get_value() const { return value_; }
+  /**
+   * @brief Get the value of the handle an mark the handle as "has_new_data_ = false"
+   * since the value has been read and not be changed since last read access.
+   *
+   * @return HandleValue is the current stored value of the handle.
+   */
+  virtual HandleValue get_value()
+  {
+    has_new_data_ = false;
+    return value_;
+  }
+
+  /**
+   * @brief Indicates if new value has been stored in the handle since the last
+   * read access.
+   *
+   * @return true => new value has been stored since last read access to the handle.
+   * @return false => no new value has been stored since last read access to the handle.
+   */
+  virtual bool has_new_data() const { return has_new_data_; }
 
 protected:
   std::string prefix_name_;
   std::string interface_name_;
-  double value_;
+  // marks if data is new or has already been read
+  bool has_new_data_;
+  // the current stored value of the handle
+  HandleValue value_;
 };
 
 class StateInterface : public Handle

@@ -50,57 +50,57 @@ public:
 
   /// Return orientation.
   /**
-   * Return orientation reported by an IMU
-   *
-   * \return array of size 4 with orientation quaternion (x,y,z,w)
-   */
+     * Return orientation reported by an IMU
+     *
+     * \return array of size 4 with orientation quaternion (x,y,z,w)
+     */
   std::array<double, 4> get_orientation()
   {
     size_t interface_offset = 0;
     for (size_t i = 0; i < orientation_.size(); ++i)
     {
-      orientation_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      orientation_[i] = state_interfaces_[interface_offset + i].get().get_plain_value();
     }
     return orientation_;
   }
 
   /// Return angular velocity.
   /**
-   * Return angular velocity reported by an IMU
-   *
-   * \return array of size 3 with angular velocity values.
-   */
+     * Return angular velocity reported by an IMU
+     *
+     * \return array of size 3 with angular velocity values.
+     */
   std::array<double, 3> get_angular_velocity()
   {
     size_t interface_offset = orientation_.size();
     for (size_t i = 0; i < angular_velocity_.size(); ++i)
     {
-      angular_velocity_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      angular_velocity_[i] = state_interfaces_[interface_offset + i].get().get_plain_value();
     }
     return angular_velocity_;
   }
 
   /// Return linear acceleration.
   /**
-   * Return linear acceleration reported by an IMU
-   *
-   * \return array of size 3 with linear acceleration values.
-   */
+     * Return linear acceleration reported by an IMU
+     *
+     * \return array of size 3 with linear acceleration values.
+     */
   std::array<double, 3> get_linear_acceleration()
   {
     size_t interface_offset = orientation_.size() + angular_velocity_.size();
     for (size_t i = 0; i < linear_acceleration_.size(); ++i)
     {
-      linear_acceleration_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      linear_acceleration_[i] = state_interfaces_[interface_offset + i].get().get_plain_value();
     }
     return linear_acceleration_;
   }
 
   /// Return Imu message with orientation, angular velocity and linear acceleration
   /**
-   * Constructs and return a IMU message from the current values.
-   * \return imu message from values;
-   */
+     * Constructs and return a IMU message from the current values.
+     * \return imu message from values;
+     */
   bool get_values_as_message(sensor_msgs::msg::Imu & message)
   {
     // call get_orientation() and get_angular_velocity()  get_linear_acceleration() to

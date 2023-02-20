@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 namespace hardware_interface
 {
@@ -63,12 +64,24 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  // (TODO Manuel) Think should be renamed to set_command()
-  void set_value(double val) { command_interface_.set_value(val); }
+  hardware_interface::HandleValue get_value() const { return command_interface_.get_value(); }
 
-  // (TODO Manuel) Think should be renamed to get_command()/get_current_command()
-  // Do controllers really need read access to command_interfaces?
-  double get_value() const { return command_interface_.get_value(); }
+  // Should we provide this?
+  double get_plain_value() const { return command_interface_.get_value().value(); }
+
+  bool has_new_data() const { return command_interface_.has_new_data(); }
+
+  // (TODO Manuel) Think should be renamed to set_command()
+  void set_value(const hardware_interface::HandleValue & value)
+  {
+    command_interface_.set_value(hardware_interface::HandleValue(value));
+  }
+
+  // Should we provide this?
+  void set_value(double value)
+  {
+    command_interface_.set_value(hardware_interface::HandleValue(value));
+  }
 
 protected:
   CommandInterface & command_interface_;

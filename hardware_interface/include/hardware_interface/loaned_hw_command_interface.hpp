@@ -16,10 +16,12 @@
 #define HARDWARE_INTERFACE__LOANED_HW_COMMAND_INTERFACE_HPP_
 
 #include <functional>
+#include <limits>
 #include <string>
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 namespace hardware_interface
 {
@@ -63,13 +65,31 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  // (TODO Manuel)
-  // Do we really want this? Why should command interfaces be writeable by hw?
-  // Shouldn't we instead take care that commandinterfaces are initialized
-  // to a valid state and not doing this later?
-  void reset(double val) { command_interface_.set_value(val); }
+  hardware_interface::HandleValue get_command() const { return command_interface_.get_value(); }
 
-  double get_command() const { return command_interface_.get_value(); }
+  // Should we provide this?
+  double get_plain_command() const { return command_interface_.get_value().value(); }
+
+  bool has_new_data() const { return command_interface_.has_new_data(); }
+
+  void reset_command()
+  {
+    command_interface_.set_value(hardware_interface::HandleValue(
+      std::numeric_limits<double>::quiet_NaN(), hardware_interface::return_type::INVALID));
+  }
+
+  // Should we provide this?
+  void reset_command(const double & value)
+  {
+    command_interface_.set_value(
+      hardware_interface::HandleValue(value, hardware_interface::return_type::INVALID));
+  }
+
+  // Should we provide this?
+  void reset_command(const hardware_interface::HandleValue & value)
+  {
+    command_interface_.set_value(value);
+  }
 
 protected:
   CommandInterface & command_interface_;

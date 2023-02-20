@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
@@ -138,7 +139,10 @@ public:
    * key is the loaned interfaces's name and the value is the loaned interface.
    */
   virtual void import_loaned_hw_state_interfaces(
-    std::map<std::string, LoanedHwStateInterface> && loaned_hw_state_interfaces) = 0;
+    std::map<std::string, LoanedHwStateInterface> && loaned_hw_state_interfaces)
+  {
+    hw_states_ = std::move(loaned_hw_state_interfaces);
+  }
 
   /**
    * @brief Only export information describing the interfaces. Handle construction
@@ -172,7 +176,10 @@ public:
    * key is the loaned interfaces's name and the value is the loaned interface.
    */
   virtual void import_loaned_hw_command_interfaces(
-    std::map<std::string, LoanedHwCommandInterface> && loaned_hw_command_interfaces) = 0;
+    std::map<std::string, LoanedHwCommandInterface> && loaned_hw_command_interfaces)
+  {
+    hw_commands_ = std::move(loaned_hw_command_interfaces);
+  }
 
   /// Prepare for a new command interface switch.
   /**
@@ -255,8 +262,63 @@ public:
   void set_state(const rclcpp_lifecycle::State & new_state) { lifecycle_state_ = new_state; }
 
 protected:
+  virtual hardware_interface::HandleValue state_interface_get_value(
+    const std::string & state_interface_name)
+  {
+    return hw_states_.at(state_interface_name).get_value();
+  }
+
+  virtual double state_interface_get_plain_value(const std::string & state_interface_name)
+  {
+    return hw_states_.at(state_interface_name).get_plain_value();
+  }
+
+  virtual void state_interface_set_value(
+    const std::string & state_interface_name, const hardware_interface::HandleValue & value)
+  {
+    hw_states_.at(state_interface_name).set_value(value);
+  }
+
+  virtual void state_interface_set_value(
+    const std::string & state_interface_name, const double & value)
+  {
+    hw_states_.at(state_interface_name).set_value(value);
+  }
+
+  virtual hardware_interface::HandleValue command_interface_get_command(
+    const std::string & command_interface_name)
+  {
+    return hw_commands_.at(command_interface_name).get_command();
+  }
+
+  virtual double command_interface_get_plain_command(const std::string & command_interface_name)
+  {
+    return hw_commands_.at(command_interface_name).get_plain_command();
+  }
+
+  virtual void command_interface_reset_command(const std::string & command_interface_name)
+  {
+    hw_commands_.at(command_interface_name).reset_command();
+  }
+
+  virtual void command_interface_reset_command(
+    const std::string & command_interface_name, const double & value)
+  {
+    hw_commands_.at(command_interface_name).reset_command(value);
+  }
+
+  virtual void command_interface_reset_command(
+    const std::string & command_interface_name, const hardware_interface::HandleValue & value)
+  {
+    hw_commands_.at(command_interface_name).reset_command(value);
+  }
+
   HardwareInfo info_;
   rclcpp_lifecycle::State lifecycle_state_;
+
+private:
+  std::map<std::string, hardware_interface::LoanedHwStateInterface> hw_states_;
+  std::map<std::string, hardware_interface::LoanedHwCommandInterface> hw_commands_;
 };
 
 }  // namespace hardware_interface
