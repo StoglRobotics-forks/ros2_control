@@ -64,23 +64,13 @@ public:
 
   const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
 
-  hardware_interface::HandleValue get_value() const { return state_interface_.get_value(); }
+  double get_value() const { return state_interface_.get_value(); }
 
-  // Should we provide this?
-  double get_plain_value() const { return state_interface_.get_value().value(); }
+  bool has_new_value() const { return state_interface_.has_new_value(); }
 
-  bool has_new_data() const { return state_interface_.has_new_data(); }
+  void set_value(const double & value) const { return state_interface_.set_value(value); }
 
-  // Should we provide this?
-  void set_value(const double & value) const
-  {
-    return state_interface_.set_value(hardware_interface::HandleValue(value));
-  }
-
-  void set_value(const hardware_interface::HandleValue & value) const
-  {
-    return state_interface_.set_value(value);
-  }
+  bool value_is_valid() const { return state_interface_.value_is_valid(); }
 
 protected:
   StateInterface & state_interface_;

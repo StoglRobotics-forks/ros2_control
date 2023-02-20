@@ -64,24 +64,13 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  hardware_interface::HandleValue get_value() const { return command_interface_.get_value(); }
+  double get_value() const { return command_interface_.get_value(); }
 
-  // Should we provide this?
-  double get_plain_value() const { return command_interface_.get_value().value(); }
+  bool has_new_value() const { return command_interface_.has_new_value(); }
 
-  bool has_new_data() const { return command_interface_.has_new_data(); }
+  void set_value(const double & value) { command_interface_.set_value(value); }
 
-  // (TODO Manuel) Think should be renamed to set_command()
-  void set_value(const hardware_interface::HandleValue & value)
-  {
-    command_interface_.set_value(hardware_interface::HandleValue(value));
-  }
-
-  // Should we provide this?
-  void set_value(double value)
-  {
-    command_interface_.set_value(hardware_interface::HandleValue(value));
-  }
+  bool value_is_valid() const { return command_interface_.value_is_valid(); }
 
 protected:
   CommandInterface & command_interface_;

@@ -65,31 +65,13 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  hardware_interface::HandleValue get_command() const { return command_interface_.get_value(); }
+  double get_value() const { return command_interface_.get_value(); }
 
-  // Should we provide this?
-  double get_plain_command() const { return command_interface_.get_value().value(); }
+  bool has_new_value() const { return command_interface_.has_new_value(); }
 
-  bool has_new_data() const { return command_interface_.has_new_data(); }
+  void reset_command() { command_interface_.set_value(std::numeric_limits<double>::quiet_NaN()); }
 
-  void reset_command()
-  {
-    command_interface_.set_value(hardware_interface::HandleValue(
-      std::numeric_limits<double>::quiet_NaN(), hardware_interface::return_type::INVALID));
-  }
-
-  // Should we provide this?
-  void reset_command(const double & value)
-  {
-    command_interface_.set_value(
-      hardware_interface::HandleValue(value, hardware_interface::return_type::INVALID));
-  }
-
-  // Should we provide this?
-  void reset_command(const hardware_interface::HandleValue & value)
-  {
-    command_interface_.set_value(value);
-  }
+  bool value_is_valid() const { return command_interface_.value_is_valid(); }
 
 protected:
   CommandInterface & command_interface_;

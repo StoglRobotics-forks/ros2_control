@@ -262,21 +262,9 @@ public:
   void set_state(const rclcpp_lifecycle::State & new_state) { lifecycle_state_ = new_state; }
 
 protected:
-  virtual hardware_interface::HandleValue state_interface_get_value(
-    const std::string & state_interface_name)
+  virtual double state_interface_get_value(const std::string & state_interface_name)
   {
     return hw_states_.at(state_interface_name).get_value();
-  }
-
-  virtual double state_interface_get_plain_value(const std::string & state_interface_name)
-  {
-    return hw_states_.at(state_interface_name).get_plain_value();
-  }
-
-  virtual void state_interface_set_value(
-    const std::string & state_interface_name, const hardware_interface::HandleValue & value)
-  {
-    hw_states_.at(state_interface_name).set_value(value);
   }
 
   virtual void state_interface_set_value(
@@ -285,32 +273,14 @@ protected:
     hw_states_.at(state_interface_name).set_value(value);
   }
 
-  virtual hardware_interface::HandleValue command_interface_get_command(
-    const std::string & command_interface_name)
+  virtual double command_interface_get_command(const std::string & command_interface_name)
   {
-    return hw_commands_.at(command_interface_name).get_command();
-  }
-
-  virtual double command_interface_get_plain_command(const std::string & command_interface_name)
-  {
-    return hw_commands_.at(command_interface_name).get_plain_command();
+    return hw_commands_.at(command_interface_name).get_value();
   }
 
   virtual void command_interface_reset_command(const std::string & command_interface_name)
   {
     hw_commands_.at(command_interface_name).reset_command();
-  }
-
-  virtual void command_interface_reset_command(
-    const std::string & command_interface_name, const double & value)
-  {
-    hw_commands_.at(command_interface_name).reset_command(value);
-  }
-
-  virtual void command_interface_reset_command(
-    const std::string & command_interface_name, const hardware_interface::HandleValue & value)
-  {
-    hw_commands_.at(command_interface_name).reset_command(value);
   }
 
   HardwareInfo info_;

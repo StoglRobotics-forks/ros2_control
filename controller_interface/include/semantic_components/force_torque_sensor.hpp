@@ -49,13 +49,13 @@ public:
 
   /// Constructor for 6D FTS with custom interface names.
   /**
-     * Constructor for 6D FTS with custom interface names or FTS with less then six measurement axes,
-     * e.g., 1D and 2D force load cells.
-     * For non existing axes interface is empty string, i.e., ("");
-     *
-     * The name should be in the following order:
-     *   force X, force Y, force Z, torque X, torque Y, torque Z.
-     */
+   * Constructor for 6D FTS with custom interface names or FTS with less then six measurement axes,
+   * e.g., 1D and 2D force load cells.
+   * For non existing axes interface is empty string, i.e., ("");
+   *
+   * The name should be in the following order:
+   *   force X, force Y, force Z, torque X, torque Y, torque Z.
+   */
   ForceTorqueSensor(
     const std::string & interface_force_x, const std::string & interface_force_y,
     const std::string & interface_force_z, const std::string & interface_torque_x,
@@ -91,10 +91,10 @@ public:
 
   /// Return forces.
   /**
-     * Return forces of a FTS.
-     *
-     * \return array of size 3 with force values.
-     */
+   * Return forces of a FTS.
+   *
+   * \return array of size 3 with force values.
+   */
   std::array<double, 3> get_forces()
   {
     size_t interface_counter = 0;
@@ -102,7 +102,7 @@ public:
     {
       if (existing_axes_[i])
       {
-        forces_[i] = state_interfaces_[interface_counter].get().get_plain_value();
+        forces_[i] = state_interfaces_[interface_counter].get().get_value();
         ++interface_counter;
       }
     }
@@ -111,10 +111,10 @@ public:
 
   /// Return torque.
   /**
-     * Return torques of a FTS.
-     *
-     * \return array of size 3 with torque values.
-     */
+   * Return torques of a FTS.
+   *
+   * \return array of size 3 with torque values.
+   */
   std::array<double, 3> get_torques()
   {
     // find out how many force interfaces are being used
@@ -126,7 +126,7 @@ public:
     {
       if (existing_axes_[i])
       {
-        torques_[i - 3] = state_interfaces_[torque_interface_counter].get().get_plain_value();
+        torques_[i - 3] = state_interfaces_[torque_interface_counter].get().get_value();
         ++torque_interface_counter;
       }
     }
@@ -135,12 +135,12 @@ public:
 
   /// Return Wrench message with forces and torques.
   /**
-     * Constructs and return a wrench message from the current values.
-     * The method assumes that the interface names on the construction are in the following order:
-     *   force X, force Y, force Z, torque X, torque Y, torque Z.
-     *
-     * \return wrench message from values;
-     */
+   * Constructs and return a wrench message from the current values.
+   * The method assumes that the interface names on the construction are in the following order:
+   *   force X, force Y, force Z, torque X, torque Y, torque Z.
+   *
+   * \return wrench message from values;
+   */
   bool get_values_as_message(geometry_msgs::msg::Wrench & message)
   {
     // call get_forces() and get_troque() to update with the latest values
