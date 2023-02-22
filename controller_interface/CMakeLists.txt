@@ -39,7 +39,7 @@ install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
 )
 
-if(0)
+if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
 
   find_package(hardware_interface REQUIRED)
