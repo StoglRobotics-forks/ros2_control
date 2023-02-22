@@ -46,7 +46,6 @@ add_library(
   SHARED
   src/mock_components/generic_system.cpp
 )
-
 target_include_directories(
   mock_components
   PUBLIC
@@ -97,6 +96,7 @@ target_compile_definitions(fake_components PRIVATE "HARDWARE_INTERFACE_BUILDING_
 
 pluginlib_export_plugin_description_file(
   ${PROJECT_NAME} fake_components_plugin_description.xml)
+
 
 install(
   DIRECTORY include/
