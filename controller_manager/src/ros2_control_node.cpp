@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
 
         // wait until we hit the end of the period
         next_iteration_time += period;
-        std::this_thread::sleep_until(next_iteration_time);
+        //std::this_thread::sleep_until(next_iteration_time);
       }
     });
 
