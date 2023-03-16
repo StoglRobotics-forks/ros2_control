@@ -15,6 +15,7 @@
 #include <gmock/gmock.h>
 
 #include <array>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
