@@ -43,7 +43,7 @@ int main(int argc, char ** argv)
 
   auto cm = std::make_shared<controller_manager::ControllerManager>(executor, manager_node_name);
 
-  RCLCPP_INFO(cm->get_logger(), "update rate is %d Hz", cm->get_update_rate());
+  RCLCPP_INFO(cm->get_logger(), "Update rate not used! Updating with maximum possible rate.");
 
   std::thread cm_thread(
     [cm]()
