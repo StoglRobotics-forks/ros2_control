@@ -162,6 +162,7 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  RCLCPP_ERROR_STREAM(get_logger(), "Using clock:" << this->get_clock()->get_clock_type());
 }
 
 ControllerManager::ControllerManager(
@@ -186,6 +187,7 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  RCLCPP_ERROR_STREAM(get_logger(), "Using clock:" << this->get_clock()->get_clock_type());
 }
 
 void ControllerManager::init_resource_manager(const std::string & robot_description)

@@ -48,6 +48,20 @@ target_link_libraries(ros2_control_node_max_update_rate PRIVATE
   controller_manager
 )
 
+add_executable(ros2_control_node_fixed_period src/ros2_control_node_fixed_period.cpp)
+target_link_libraries(ros2_control_node_fixed_period PRIVATE
+  controller_manager
+)
+add_executable(ros2_control_node_max_update_rate_sc src/ros2_control_node_max_update_rate_sc.cpp)
+target_link_libraries(ros2_control_node_max_update_rate_sc PRIVATE
+  controller_manager
+)
+
+add_executable(ros2_control_node_fixed_period_sc src/ros2_control_node_fixed_period_sc.cpp)
+target_link_libraries(ros2_control_node_fixed_period_sc PRIVATE
+  controller_manager
+)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)
@@ -214,6 +228,19 @@ install(
   TARGETS ros2_control_node_max_update_rate
   RUNTIME DESTINATION lib/controller_manager
 )
+install(
+  TARGETS ros2_control_node_fixed_period
+  RUNTIME DESTINATION lib/controller_manager
+)
+install(
+  TARGETS ros2_control_node_max_update_rate_sc
+  RUNTIME DESTINATION lib/controller_manager
+)
+install(
+  TARGETS ros2_control_node_fixed_period_sc
+  RUNTIME DESTINATION lib/controller_manager
+)
+
 
 ament_python_install_package(controller_manager
   SCRIPTS_DESTINATION lib/controller_manager
