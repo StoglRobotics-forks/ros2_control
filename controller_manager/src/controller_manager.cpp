@@ -146,7 +146,12 @@ ControllerManager::ControllerManager(
 {
   if (!get_parameter("update_rate", update_rate_))
   {
-    RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
+    RCLCPP_WARN(
+      get_logger(), "'update_rate' parameter not set, using default value: %i.", update_rate_);
+  }
+  else
+  {
+    RCLCPP_WARN(get_logger(), "'update_rate' set to: %i .", update_rate_);
   }
 
   std::string robot_description = "";
