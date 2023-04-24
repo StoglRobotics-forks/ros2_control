@@ -181,7 +181,9 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
-  configure_controller_manager();
+  get_and_initialize_distributed_parameters();
+  auto cm_type = determine_controller_manager_type();
+  configure_controller_manager(cm_type);
 }
 
 ControllerManager::ControllerManager(
@@ -209,7 +211,9 @@ ControllerManager::ControllerManager(
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
-  configure_controller_manager();
+  get_and_initialize_distributed_parameters();
+  auto cm_type = determine_controller_manager_type();
+  configure_controller_manager(cm_type);
 }
 
 void ControllerManager::subscribe_to_robot_description_topic()
@@ -354,11 +358,7 @@ void ControllerManager::init_services()
       qos_services, best_effort_callback_group_);
 }
 
-// TODO(Manuel) don't like this, this is for fast poc
-// probably better to create factory and handle creation of correct controller manager type
-// there. Since asynchronous control should be supported im the future as well and we don't
-// want dozen of ifs.
-void ControllerManager::configure_controller_manager()
+void ControllerManager::get_and_initialize_distributed_parameters()
 {
   if (!get_parameter("distributed", distributed_))
   {
@@ -374,50 +374,102 @@ void ControllerManager::configure_controller_manager()
       sub_controller_manager_ ? "true" : "false");
   }
 
-  bool std_controller_manager = !distributed_ && !sub_controller_manager_;
-  bool distributed_sub_controller_manager = distributed_ && sub_controller_manager_;
-  bool central_controller_manager = distributed_ && !sub_controller_manager_;
-  if (distributed_sub_controller_manager)
-  {
-    init_distributed_sub_controller_manager();
-  }
-  // This means we are the central controller manager
-  else if (central_controller_manager)
-  {
-    init_distributed_main_controller_services();
-  }
-  // std controller manager or error. std controller manager needs no special setup.
-  else
-  {
-    if (!std_controller_manager)
-    {
-      throw std::logic_error(
-        "Controller manager configured with: distributed:false and sub_controller_manager:true. "
-        "Only distributed controller manager can be a sub controller manager.");
-    }
-  }
-}
-
-void ControllerManager::init_distributed_sub_controller_manager()
-{
   int64_t distributed_interfaces_publish_period;
   if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
   {
     distributed_interfaces_publish_period_ =
       std::chrono::milliseconds(distributed_interfaces_publish_period);
   }
+
   else
   {
     RCLCPP_WARN(
       get_logger(),
       "'distributed_interfaces_publish_period' parameter not set, using default value.");
   }
+
+  if (!get_parameter("use_multiple_nodes", use_multiple_nodes_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
+      use_multiple_nodes_ ? "true" : "false");
+  }
+}
+
+void ControllerManager::configure_controller_manager(const controller_manager_type & cm_type)
+{
+  switch (cm_type)
+  {
+    case controller_manager_type::distributed_central_controller_manager:
+      init_distributed_central_controller_manager();
+      break;
+
+    case controller_manager_type::distributed_sub_controller_manager:
+      init_distributed_sub_controller_manager();
+      break;
+    case controller_manager_type::standard_controller_manager:
+      //nothing special to configure
+      break;
+    default:
+      throw std::logic_error(
+        "Controller manager configuration not possible. Not a known controller manager type."
+        "Did you maybe set `distributed:false` and `sub_controller_manager:true`?"
+        "Note:Only distributed controller manager can be a sub controller manager.");
+      break;
+  }
+}
+
+// TODO(Manuel) don't like this, this is for fast poc
+// probably better to create factory and handle creation of correct controller manager type
+// there. Since asynchronous control should be supported im the future as well and we don't
+// want dozen of ifs.
+ControllerManager::controller_manager_type ControllerManager::determine_controller_manager_type()
+{
+  bool std_controller_manager = !distributed_ && !sub_controller_manager_;
+  bool distributed_sub_controller_manager = distributed_ && sub_controller_manager_;
+  bool central_controller_manager = distributed_ && !sub_controller_manager_;
+  if (distributed_sub_controller_manager)
+  {
+    return controller_manager_type::distributed_sub_controller_manager;
+  }
+  // This means we are the central controller manager
+  else if (central_controller_manager)
+  {
+    return controller_manager_type::distributed_central_controller_manager;
+  }
+  // std controller manager or error. std controller manager needs no special setup.
+  else if (std_controller_manager)
+  {
+    return controller_manager_type::standard_controller_manager;
+  }
+  return controller_manager_type::unkown_type;
+}
+
+void ControllerManager::init_distributed_sub_controller_manager()
+{
+  if (!use_multiple_nodes())
+  {
+    rclcpp::NodeOptions node_options;
+    distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+  }
   add_hardware_state_publishers();
   add_hardware_command_forwarders();
   register_sub_controller_manager();
 }
 
-void ControllerManager::init_distributed_main_controller_services()
+void ControllerManager::init_distributed_central_controller_manager()
+{
+  if (!use_multiple_nodes())
+  {
+    rclcpp::NodeOptions node_options;
+    distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+  }
+  init_distributed_central_controller_manager_services();
+}
+
+void ControllerManager::init_distributed_central_controller_manager_services()
 {
   distributed_system_srv_callback_group_ =
     create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -448,7 +500,8 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
     distributed_state_interfaces;
   distributed_state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
   distributed_state_interfaces =
-    resource_manager_->import_state_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
+    resource_manager_->import_state_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
 
   for (const auto & state_interface : distributed_state_interfaces)
   {
@@ -471,7 +524,8 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
     distributed_command_interfaces;
   distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
   distributed_command_interfaces =
-    resource_manager_->import_command_interfaces_of_sub_controller_manager(sub_ctrl_mng_wrapper);
+    resource_manager_->import_command_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
 
   for (const auto & command_interface : distributed_command_interfaces)
   {
@@ -508,7 +562,7 @@ void ControllerManager::add_hardware_state_publishers()
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
   state_publishers_vec.reserve(resource_manager_->available_state_interfaces().size());
   state_publishers_vec = resource_manager_->create_hardware_state_publishers(
-    get_namespace(), distributed_interfaces_publish_period());
+    get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
 
   for (auto const & state_publisher : state_publishers_vec)
   {
@@ -530,7 +584,7 @@ void ControllerManager::add_hardware_command_forwarders()
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarder_vec;
   command_forwarder_vec.reserve(resource_manager_->available_command_interfaces().size());
   command_forwarder_vec = resource_manager_->create_hardware_command_forwarders(
-    get_namespace(), distributed_interfaces_publish_period());
+    get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
 
   for (auto const & command_forwarder : command_forwarder_vec)
   {
@@ -2253,6 +2307,8 @@ std::pair<std::string, std::string> ControllerManager::split_command_interface(
 }
 
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
+
+bool ControllerManager::use_multiple_nodes() const { return use_multiple_nodes_; }
 
 std::chrono::milliseconds ControllerManager::distributed_interfaces_publish_period() const
 {

@@ -677,7 +677,8 @@ public:
   }
 
   std::vector<std::shared_ptr<DistributedReadOnlyHandle>> import_distributed_state_interfaces(
-    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
   {
     std::vector<std::shared_ptr<DistributedReadOnlyHandle>> distributed_state_interfaces;
     distributed_state_interfaces.reserve(sub_controller_manager->get_state_publisher_count());
@@ -689,7 +690,7 @@ public:
     {
       // create StateInterface from the Description and store in ResourceStorage.
       auto state_interface =
-        std::make_shared<DistributedReadOnlyHandle>(state_publisher_description);
+        std::make_shared<DistributedReadOnlyHandle>(state_publisher_description, ns, node);
 
       add_state_interface(state_interface);
       // add to return vector, node needs to added to executor.
@@ -730,7 +731,8 @@ public:
   }
 
   std::vector<std::shared_ptr<DistributedReadWriteHandle>> import_distributed_command_interfaces(
-    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
   {
     std::vector<std::shared_ptr<DistributedReadWriteHandle>> distributed_command_interfaces;
     distributed_command_interfaces.reserve(sub_controller_manager->get_command_forwarder_count());
@@ -742,7 +744,7 @@ public:
     {
       // create StateInterface from the Description and store in ResourceStorage.
       auto command_interface =
-        std::make_shared<DistributedReadWriteHandle>(command_forwarder_description);
+        std::make_shared<DistributedReadWriteHandle>(command_forwarder_description, ns, node);
       add_command_interface(command_interface);
       // add to return vector, node needs to added to executor.
       distributed_command_interfaces.push_back(command_interface);
@@ -939,23 +941,26 @@ void ResourceManager::register_sub_controller_manager(
 
 std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
 ResourceManager::import_state_interfaces_of_sub_controller_manager(
-  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+  const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  return resource_storage_->import_distributed_state_interfaces(sub_controller_manager);
+  return resource_storage_->import_distributed_state_interfaces(sub_controller_manager, ns, node);
 }
 
 std::vector<std::shared_ptr<DistributedReadWriteHandle>>
 ResourceManager::import_command_interfaces_of_sub_controller_manager(
-  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+  const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  return resource_storage_->import_distributed_command_interfaces(sub_controller_manager);
+  return resource_storage_->import_distributed_command_interfaces(sub_controller_manager, ns, node);
 }
 
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
 ResourceManager::create_hardware_state_publishers(
-  const std::string & ns, std::chrono::milliseconds update_period)
+  const std::string & ns, std::chrono::milliseconds update_period,
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
@@ -966,7 +971,7 @@ ResourceManager::create_hardware_state_publishers(
     auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
       std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
         claim_state_interface(state_interface))),
-      ns, update_period);
+      ns, update_period, node);
 
     resource_storage_->add_state_publisher(state_publisher);
     state_publishers_vec.push_back(state_publisher);
@@ -977,7 +982,8 @@ ResourceManager::create_hardware_state_publishers(
 
 std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
 ResourceManager::create_hardware_command_forwarders(
-  const std::string & ns, std::chrono::milliseconds update_period)
+  const std::string & ns, std::chrono::milliseconds update_period,
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarders_vec;
@@ -988,7 +994,7 @@ ResourceManager::create_hardware_command_forwarders(
     auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
       std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
         claim_command_interface(command_interface))),
-      ns, update_period);
+      ns, update_period, node);
 
     resource_storage_->add_command_forwarder(command_forwarder);
     command_forwarders_vec.push_back(command_forwarder);

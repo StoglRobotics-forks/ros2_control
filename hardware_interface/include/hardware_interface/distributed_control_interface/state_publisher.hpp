@@ -22,8 +22,8 @@ class StatePublisher final
 public:
   explicit StatePublisher(
     std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr,
-    const std::string & ns, std::chrono::milliseconds period_in_ms);
-
+    const std::string & ns, std::chrono::milliseconds period_in_ms,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
   StatePublisher() = delete;
 
   ~StatePublisher() {}

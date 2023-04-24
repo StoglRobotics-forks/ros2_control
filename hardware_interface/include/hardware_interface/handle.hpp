@@ -148,8 +148,8 @@ class ReadOnlyHandle : public HandleInterface, public ReadHandleInterface
 public:
   ReadOnlyHandle(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : HandleInterface(prefix_name, interface_name, value_ptr)
+    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : HandleInterface(prefix_name, interface_name, value_ptr, node)
   {
   }
 
@@ -190,18 +190,22 @@ public:
   // TODO(Manuel): We should pass the initial value via service call, so that the value_ of ReadOnlyHandle
   // is initialized with a feasible value.
   DistributedReadOnlyHandle(
-    const distributed_control::PublisherDescription & description, const std::string & ns = "/")
-  : ReadOnlyHandle(description.prefix_name(), description.interface_name(), &value_),
+    const distributed_control::PublisherDescription & description, const std::string & ns,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+  : ReadOnlyHandle(description.prefix_name(), description.interface_name(), &value_, node),
     get_value_topic_name_(description.topic_name()),
     namespace_(ns),
     interface_namespace_(description.get_namespace())
   {
-    rclcpp::NodeOptions node_options;
+    // if no node has been passed
     // create node for subscribing to StatePublisher described in StatePublisherDescription
-    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-      get_underscore_separated_name() + "_state_interface_subscriber", namespace_, node_options,
-      false);
-
+    if (!node_.get())
+    {
+      rclcpp::NodeOptions node_options;
+      node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+        get_underscore_separated_name() + "_state_interface_subscriber", namespace_, node_options,
+        false);
+    }
     // subscribe to topic provided by StatePublisher
     state_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
       get_value_topic_name_, 10,
@@ -280,8 +284,8 @@ class ReadWriteHandle : public HandleInterface,
 public:
   ReadWriteHandle(
     const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : HandleInterface(prefix_name, interface_name, value_ptr)
+    double * value_ptr = nullptr, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node = nullptr)
+  : HandleInterface(prefix_name, interface_name, value_ptr, node)
   {
   }
 
@@ -332,20 +336,25 @@ class DistributedReadWriteHandle : public ReadWriteHandle
 {
 public:
   DistributedReadWriteHandle(
-    const distributed_control::PublisherDescription & description, const std::string & ns = "/")
-  : ReadWriteHandle(description.prefix_name(), description.interface_name(), &value_),
+    const distributed_control::PublisherDescription & description, const std::string & ns,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+  : ReadWriteHandle(description.prefix_name(), description.interface_name(), &value_, node),
     get_value_topic_name_(description.topic_name()),
     namespace_(ns),
     interface_namespace_(description.get_namespace()),
     forward_command_topic_name_(get_underscore_separated_name() + "_command_forwarding")
   {
-    // create node for subscribing to StatePublisher described in StatePublisherDescription
-    rclcpp::NodeOptions node_options;
-    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-      get_underscore_separated_name() + "_distributed_command_interface", namespace_, node_options,
-      false);
+    // if no node has been passed
+    // create node for subscribing to CommandForwarder described in CommandForwarderDescription
+    if (!node_.get())
+    {
+      rclcpp::NodeOptions node_options;
+      node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+        get_underscore_separated_name() + "_distributed_command_interface", namespace_,
+        node_options, false);
+    }
 
-    // subscribe to topic provided by StatePublisher
+    // subscribe to topic provided by CommandForwarder
     command_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
       get_value_topic_name_, 10,
       std::bind(&DistributedReadWriteHandle::get_value_cb, this, std::placeholders::_1));

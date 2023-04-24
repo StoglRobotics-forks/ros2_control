@@ -62,6 +62,8 @@ rclcpp::NodeOptions get_cm_node_options();
 
 class ControllerManager : public rclcpp::Node
 {
+  enum class controller_manager_type : std::uint8_t;
+
 public:
   static constexpr bool kWaitForAllResources = false;
   static constexpr auto kInfiniteTimeout = 0;
@@ -200,6 +202,10 @@ public:
 
   // Per controller update rate support
   CONTROLLER_MANAGER_PUBLIC
+  bool use_multiple_nodes() const;
+
+  // Per controller update rate support
+  CONTROLLER_MANAGER_PUBLIC
   std::chrono::milliseconds distributed_interfaces_publish_period() const;
 
 protected:
@@ -207,13 +213,21 @@ protected:
   void init_services();
 
   CONTROLLER_MANAGER_PUBLIC
-  void configure_controller_manager();
+  void get_and_initialize_distributed_parameters();
+
+  CONTROLLER_MANAGER_PUBLIC
+  controller_manager_type determine_controller_manager_type();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void configure_controller_manager(const controller_manager_type & cm_type);
 
   CONTROLLER_MANAGER_PUBLIC
   void init_distributed_sub_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
-  void init_distributed_main_controller_services();
+  void init_distributed_central_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC void init_distributed_central_controller_manager_services();
 
   CONTROLLER_MANAGER_PUBLIC
   void register_sub_controller_manager_srv_cb(
@@ -435,8 +449,18 @@ private:
    */
   rclcpp::CallbackGroup::SharedPtr best_effort_callback_group_;
 
+  enum class controller_manager_type : std::uint8_t
+  {
+    standard_controller_manager,
+    distributed_central_controller_manager,
+    distributed_sub_controller_manager,
+    unkown_type  // indicating something went wrong and type could not be determined
+  };
+
   bool distributed_ = false;
   bool sub_controller_manager_ = false;
+  bool use_multiple_nodes_ = false;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> distributed_pub_sub_node_ = nullptr;
   std::chrono::milliseconds distributed_interfaces_publish_period_ = std::chrono::milliseconds(12);
 
   rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;

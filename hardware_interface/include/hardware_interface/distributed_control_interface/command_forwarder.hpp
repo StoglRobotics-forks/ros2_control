@@ -24,7 +24,8 @@ class CommandForwarder final
 public:
   explicit CommandForwarder(
     std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-    const std::string & ns, std::chrono::milliseconds period_in_ms);
+    const std::string & ns, std::chrono::milliseconds period_in_ms,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   CommandForwarder() = delete;
 

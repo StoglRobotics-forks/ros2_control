@@ -13,16 +13,22 @@ namespace distributed_control
 
 CommandForwarder::CommandForwarder(
   std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-  const std::string & ns, std::chrono::milliseconds period_in_ms)
+  const std::string & ns, std::chrono::milliseconds period_in_ms,
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 : loaned_command_interface_ptr_(std::move(loaned_command_interface_ptr)),
   namespace_(ns),
   period_in_ms_(period_in_ms),
+  node_(node),
   topic_name_(loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_state")
 {
-  rclcpp::NodeOptions node_options;
-  node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-    loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_forwarder",
-    namespace_, node_options, false);
+  // if we did not get a node passed, we create one ourselves
+  if (!node_.get())
+  {
+    rclcpp::NodeOptions node_options;
+    node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_forwarder",
+      namespace_, node_options, false);
+  }
 
   state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, 10);
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then

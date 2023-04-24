@@ -134,18 +134,23 @@ public:
 
   std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
   import_state_interfaces_of_sub_controller_manager(
-    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   std::vector<std::shared_ptr<DistributedReadWriteHandle>>
   import_command_interfaces_of_sub_controller_manager(
-    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   std::vector<std::shared_ptr<distributed_control::StatePublisher>>
-  create_hardware_state_publishers(const std::string & ns, std::chrono::milliseconds update_period);
+  create_hardware_state_publishers(
+    const std::string & ns, std::chrono::milliseconds update_period,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
   create_hardware_command_forwarders(
-    const std::string & ns, std::chrono::milliseconds update_period);
+    const std::string & ns, std::chrono::milliseconds update_period,
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
     const std::string & key);
