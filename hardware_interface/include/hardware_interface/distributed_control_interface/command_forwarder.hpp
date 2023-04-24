@@ -24,7 +24,7 @@ class CommandForwarder final
 public:
   explicit CommandForwarder(
     std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-    std::chrono::milliseconds period_in_ms, const std::string & ns = "");
+    const std::string & ns, std::chrono::milliseconds period_in_ms);
 
   CommandForwarder() = delete;
 

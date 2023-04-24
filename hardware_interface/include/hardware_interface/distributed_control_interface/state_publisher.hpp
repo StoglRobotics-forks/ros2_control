@@ -22,7 +22,7 @@ class StatePublisher final
 public:
   explicit StatePublisher(
     std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr,
-    std::chrono::milliseconds period_in_ms, const std::string & ns = "");
+    const std::string & ns, std::chrono::milliseconds period_in_ms);
 
   StatePublisher() = delete;
 
@@ -49,7 +49,7 @@ private:
 
   std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr_;
   const std::string namespace_;
-  std::chrono::milliseconds period_in_ms_;
+  const std::chrono::milliseconds period_in_ms_;
 
   const std::string topic_name_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;

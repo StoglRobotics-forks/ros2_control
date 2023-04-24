@@ -966,7 +966,7 @@ ResourceManager::create_hardware_state_publishers(
     auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
       std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
         claim_state_interface(state_interface))),
-      update_period, ns);
+      ns, update_period);
 
     resource_storage_->add_state_publisher(state_publisher);
     state_publishers_vec.push_back(state_publisher);
@@ -988,7 +988,7 @@ ResourceManager::create_hardware_command_forwarders(
     auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
       std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
         claim_command_interface(command_interface))),
-      update_period, ns);
+      ns, update_period);
 
     resource_storage_->add_command_forwarder(command_forwarder);
     command_forwarders_vec.push_back(command_forwarder);

@@ -13,10 +13,10 @@ namespace distributed_control
 
 StatePublisher::StatePublisher(
   std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr,
-  std::chrono::milliseconds period_in_ms, const std::string & ns)
+  const std::string & ns, std::chrono::milliseconds period_in_ms)
 : loaned_state_interface_ptr_(std::move(loaned_state_interface_ptr)),
-  period_in_ms_(period_in_ms),
   namespace_(ns),
+  period_in_ms_(period_in_ms),
   topic_name_(loaned_state_interface_ptr_->get_underscore_separated_name() + "_state")
 {
   rclcpp::NodeOptions node_options;
