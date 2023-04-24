@@ -13,8 +13,9 @@ namespace distributed_control
 
 CommandForwarder::CommandForwarder(
   std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-  const std::string & ns)
+  std::chrono::milliseconds period_in_ms, const std::string & ns)
 : loaned_command_interface_ptr_(std::move(loaned_command_interface_ptr)),
+  period_in_ms_(period_in_ms),
   namespace_(ns),
   topic_name_(loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_state")
 {
@@ -25,8 +26,8 @@ CommandForwarder::CommandForwarder(
 
   state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, 10);
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
-  timer_ =
-    node_->create_wall_timer(50ms, std::bind(&CommandForwarder::publish_value_on_timer, this));
+  timer_ = node_->create_wall_timer(
+    period_in_ms_, std::bind(&CommandForwarder::publish_value_on_timer, this));
   RCLCPP_INFO(node_->get_logger(), "Creating CommandForwarder<%s>.", topic_name_.c_str());
 }
 

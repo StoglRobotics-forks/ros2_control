@@ -1,6 +1,7 @@
 #ifndef DISTRIBUTED_CONTROL__COMMAND_FORWARDER_HPP_
 #define DISTRIBUTED_CONTROL__COMMAND_FORWARDER_HPP_
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,8 +23,8 @@ class CommandForwarder final
 {
 public:
   explicit CommandForwarder(
-    std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr_,
-    const std::string & ns = "");
+    std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
+    std::chrono::milliseconds period_in_ms, const std::string & ns = "");
 
   CommandForwarder() = delete;
 
@@ -53,6 +54,8 @@ private:
 
   std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr_;
   const std::string namespace_;
+  const std::chrono::milliseconds period_in_ms_;
+
   const std::string topic_name_;
   std::string subscription_topic_name_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;

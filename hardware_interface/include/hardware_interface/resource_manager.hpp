@@ -141,10 +141,11 @@ public:
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
 
   std::vector<std::shared_ptr<distributed_control::StatePublisher>>
-  create_hardware_state_publishers(const std::string & ns);
+  create_hardware_state_publishers(const std::string & ns, std::chrono::milliseconds update_period);
 
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
-  create_hardware_command_forwarders(const std::string & ns);
+  create_hardware_command_forwarders(
+    const std::string & ns, std::chrono::milliseconds update_period);
 
   std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
     const std::string & key);

@@ -954,7 +954,8 @@ ResourceManager::import_command_interfaces_of_sub_controller_manager(
 }
 
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>
-ResourceManager::create_hardware_state_publishers(const std::string & ns)
+ResourceManager::create_hardware_state_publishers(
+  const std::string & ns, std::chrono::milliseconds update_period)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
@@ -965,7 +966,7 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
     auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
       std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
         claim_state_interface(state_interface))),
-      ns);
+      update_period, ns);
 
     resource_storage_->add_state_publisher(state_publisher);
     state_publishers_vec.push_back(state_publisher);
@@ -975,7 +976,8 @@ ResourceManager::create_hardware_state_publishers(const std::string & ns)
 }
 
 std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
-ResourceManager::create_hardware_command_forwarders(const std::string & ns)
+ResourceManager::create_hardware_command_forwarders(
+  const std::string & ns, std::chrono::milliseconds update_period)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarders_vec;
@@ -986,7 +988,7 @@ ResourceManager::create_hardware_command_forwarders(const std::string & ns)
     auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
       std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
         claim_command_interface(command_interface))),
-      ns);
+      update_period, ns);
 
     resource_storage_->add_command_forwarder(command_forwarder);
     command_forwarders_vec.push_back(command_forwarder);

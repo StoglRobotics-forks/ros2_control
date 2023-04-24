@@ -198,12 +198,19 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   unsigned int get_update_rate() const;
 
+  // Per controller update rate support
+  CONTROLLER_MANAGER_PUBLIC
+  std::chrono::milliseconds distributed_interfaces_publish_period() const;
+
 protected:
   CONTROLLER_MANAGER_PUBLIC
   void init_services();
 
   CONTROLLER_MANAGER_PUBLIC
   void configure_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void init_distributed_sub_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
   void init_distributed_main_controller_services();
@@ -430,6 +437,7 @@ private:
 
   bool distributed_ = false;
   bool sub_controller_manager_ = false;
+  std::chrono::milliseconds distributed_interfaces_publish_period_ = std::chrono::milliseconds(12);
 
   rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**

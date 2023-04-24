@@ -379,9 +379,7 @@ void ControllerManager::configure_controller_manager()
   bool central_controller_manager = distributed_ && !sub_controller_manager_;
   if (distributed_sub_controller_manager)
   {
-    add_hardware_state_publishers();
-    add_hardware_command_forwarders();
-    register_sub_controller_manager();
+    init_distributed_sub_controller_manager();
   }
   // This means we are the central controller manager
   else if (central_controller_manager)
@@ -398,6 +396,25 @@ void ControllerManager::configure_controller_manager()
         "Only distributed controller manager can be a sub controller manager.");
     }
   }
+}
+
+void ControllerManager::init_distributed_sub_controller_manager()
+{
+  int64_t distributed_interfaces_publish_period;
+  if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
+  {
+    distributed_interfaces_publish_period_ =
+      std::chrono::milliseconds(distributed_interfaces_publish_period);
+  }
+  else
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'distributed_interfaces_publish_period' parameter not set, using default value.");
+  }
+  add_hardware_state_publishers();
+  add_hardware_command_forwarders();
+  register_sub_controller_manager();
 }
 
 void ControllerManager::init_distributed_main_controller_services()
@@ -490,7 +507,8 @@ void ControllerManager::add_hardware_state_publishers()
 {
   std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
   state_publishers_vec.reserve(resource_manager_->available_state_interfaces().size());
-  state_publishers_vec = resource_manager_->create_hardware_state_publishers(get_namespace());
+  state_publishers_vec = resource_manager_->create_hardware_state_publishers(
+    get_namespace(), distributed_interfaces_publish_period());
 
   for (auto const & state_publisher : state_publishers_vec)
   {
@@ -511,7 +529,8 @@ void ControllerManager::add_hardware_command_forwarders()
 {
   std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarder_vec;
   command_forwarder_vec.reserve(resource_manager_->available_command_interfaces().size());
-  command_forwarder_vec = resource_manager_->create_hardware_command_forwarders(get_namespace());
+  command_forwarder_vec = resource_manager_->create_hardware_command_forwarders(
+    get_namespace(), distributed_interfaces_publish_period());
 
   for (auto const & command_forwarder : command_forwarder_vec)
   {
@@ -2234,6 +2253,11 @@ std::pair<std::string, std::string> ControllerManager::split_command_interface(
 }
 
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
+
+std::chrono::milliseconds ControllerManager::distributed_interfaces_publish_period() const
+{
+  return distributed_interfaces_publish_period_;
+}
 
 void ControllerManager::propagate_deactivation_of_chained_mode(
   const std::vector<ControllerSpec> & controllers)
