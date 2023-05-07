@@ -453,8 +453,8 @@ void ControllerManager::init_distributed_sub_controller_manager()
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
   }
-  add_hardware_state_publishers();
-  add_hardware_command_forwarders();
+  create_hardware_state_publishers();
+  create_hardware_command_forwarders();
   register_sub_controller_manager();
 }
 
@@ -557,15 +557,19 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
                     << sub_ctrl_mng_wrapper->get_name() << ">.");
 }
 
-void ControllerManager::add_hardware_state_publishers()
+void ControllerManager::create_hardware_state_publishers()
 {
-  std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
-  state_publishers_vec.reserve(resource_manager_->available_state_interfaces().size());
-  state_publishers_vec = resource_manager_->create_hardware_state_publishers(
-    get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+  auto available_state_interfaces = resource_manager_->available_state_interfaces();
 
-  for (auto const & state_publisher : state_publishers_vec)
+  for (const auto & state_interface : available_state_interfaces)
   {
+    auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
+      std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
+        resource_manager_->claim_state_interface(state_interface))),
+      get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+
+    resource_manager_->add_hardware_state_publishers(state_publisher);
+
     try
     {
       executor_->add_node(state_publisher->get_node()->get_node_base_interface());
@@ -579,15 +583,19 @@ void ControllerManager::add_hardware_state_publishers()
   }
 }
 
-void ControllerManager::add_hardware_command_forwarders()
+void ControllerManager::create_hardware_command_forwarders()
 {
-  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarder_vec;
-  command_forwarder_vec.reserve(resource_manager_->available_command_interfaces().size());
-  command_forwarder_vec = resource_manager_->create_hardware_command_forwarders(
-    get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+  auto available_command_interfaces = resource_manager_->available_command_interfaces();
 
-  for (auto const & command_forwarder : command_forwarder_vec)
+  for (auto const & command_interface : available_command_interfaces)
   {
+    auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
+      std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
+        resource_manager_->claim_command_interface(command_interface))),
+      get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+
+    resource_manager_->add_hardware_command_forwarders(command_forwarder);
+
     try
     {
       executor_->add_node(command_forwarder->get_node()->get_node_base_interface());

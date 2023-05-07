@@ -957,50 +957,18 @@ ResourceManager::import_command_interfaces_of_sub_controller_manager(
   return resource_storage_->import_distributed_command_interfaces(sub_controller_manager, ns, node);
 }
 
-std::vector<std::shared_ptr<distributed_control::StatePublisher>>
-ResourceManager::create_hardware_state_publishers(
-  const std::string & ns, std::chrono::milliseconds update_period,
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+void ResourceManager::add_hardware_state_publishers(
+  std::shared_ptr<distributed_control::StatePublisher> state_publisher)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  std::vector<std::shared_ptr<distributed_control::StatePublisher>> state_publishers_vec;
-  state_publishers_vec.reserve(available_state_interfaces().size());
-
-  for (const auto & state_interface : available_state_interfaces())
-  {
-    auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
-      std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
-        claim_state_interface(state_interface))),
-      ns, update_period, node);
-
-    resource_storage_->add_state_publisher(state_publisher);
-    state_publishers_vec.push_back(state_publisher);
-  }
-
-  return state_publishers_vec;
+  resource_storage_->add_state_publisher(state_publisher);
 }
 
-std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
-ResourceManager::create_hardware_command_forwarders(
-  const std::string & ns, std::chrono::milliseconds update_period,
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+void ResourceManager::add_hardware_command_forwarders(
+  std::shared_ptr<distributed_control::CommandForwarder> command_forwarder)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> command_forwarders_vec;
-  command_forwarders_vec.reserve(available_command_interfaces().size());
-
-  for (const auto & command_interface : available_command_interfaces())
-  {
-    auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
-      std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
-        claim_command_interface(command_interface))),
-      ns, update_period, node);
-
-    resource_storage_->add_command_forwarder(command_forwarder);
-    command_forwarders_vec.push_back(command_forwarder);
-  }
-
-  return command_forwarders_vec;
+  resource_storage_->add_command_forwarder(command_forwarder);
 }
 
 std::vector<std::shared_ptr<distributed_control::StatePublisher>>

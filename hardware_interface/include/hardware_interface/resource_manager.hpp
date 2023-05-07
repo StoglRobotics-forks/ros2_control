@@ -142,15 +142,11 @@ public:
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
     const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
-  std::vector<std::shared_ptr<distributed_control::StatePublisher>>
-  create_hardware_state_publishers(
-    const std::string & ns, std::chrono::milliseconds update_period,
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+  void add_hardware_state_publishers(
+    std::shared_ptr<distributed_control::StatePublisher> state_publisher);
 
-  std::vector<std::shared_ptr<distributed_control::CommandForwarder>>
-  create_hardware_command_forwarders(
-    const std::string & ns, std::chrono::milliseconds update_period,
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+  void add_hardware_command_forwarders(
+    std::shared_ptr<distributed_control::CommandForwarder> command_forwarder);
 
   std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
     const std::string & key);

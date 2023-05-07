@@ -236,10 +236,10 @@ protected:
     std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
 
   CONTROLLER_MANAGER_PUBLIC
-  void add_hardware_state_publishers();
+  void create_hardware_state_publishers();
 
   CONTROLLER_MANAGER_PUBLIC
-  void add_hardware_command_forwarders();
+  void create_hardware_command_forwarders();
 
   CONTROLLER_MANAGER_PUBLIC
   void register_sub_controller_manager();
