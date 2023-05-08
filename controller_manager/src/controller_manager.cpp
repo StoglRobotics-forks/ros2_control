@@ -403,7 +403,6 @@ void ControllerManager::configure_controller_manager(const controller_manager_ty
     case controller_manager_type::distributed_central_controller_manager:
       init_distributed_central_controller_manager();
       break;
-
     case controller_manager_type::distributed_sub_controller_manager:
       init_distributed_sub_controller_manager();
       break;
@@ -419,7 +418,7 @@ void ControllerManager::configure_controller_manager(const controller_manager_ty
   }
 }
 
-// TODO(Manuel) don't like this, this is for fast poc
+// TODO(Manuel): don't like this, this is for fast poc
 // probably better to create factory and handle creation of correct controller manager type
 // there. Since asynchronous control should be supported im the future as well and we don't
 // want dozen of ifs.
@@ -447,12 +446,27 @@ ControllerManager::controller_manager_type ControllerManager::determine_controll
 
 void ControllerManager::init_distributed_sub_controller_manager()
 {
+  // if only one node per sub controller manager is used
   if (!use_multiple_nodes())
   {
+    // create node for publishing/subscribing
     rclcpp::NodeOptions node_options;
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+    //try to add to executor
+    try
+    {
+      executor_->add_node(distributed_pub_sub_node_->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: can not add node for distributed publishing/subscribing to executor:"
+          << e.what());
+    }
   }
+
   create_hardware_state_publishers();
   create_hardware_command_forwarders();
   register_sub_controller_manager();
@@ -465,6 +479,18 @@ void ControllerManager::init_distributed_central_controller_manager()
     rclcpp::NodeOptions node_options;
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+    //try to add to executor
+    try
+    {
+      executor_->add_node(distributed_pub_sub_node_->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: can not add node for distributed publishing/subscribing to executor:"
+          << e.what());
+    }
   }
   init_distributed_central_controller_manager_services();
 }
@@ -499,54 +525,66 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
   std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>>
     distributed_state_interfaces;
   distributed_state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
+  // create distributed state interface and import into resource storage.
   distributed_state_interfaces =
     resource_manager_->import_state_interfaces_of_sub_controller_manager(
       sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
 
-  for (const auto & state_interface : distributed_state_interfaces)
+  // register every node of state_interface at executor only if multiple nodes
+  // are used. Otherwise the single nodes has already been added
+  if (use_multiple_nodes())
   {
-    try
+    for (const auto & state_interface : distributed_state_interfaces)
     {
-      executor_->add_node(state_interface->get_node()->get_node_base_interface());
-    }
-    catch (const std::runtime_error & e)
-    {
-      response->ok = false;
-      RCLCPP_WARN_STREAM(
-        get_logger(),
-        "ControllerManager: Caught exception while trying to register sub controller manager. "
-        "Exception:"
-          << e.what());
+      try
+      {
+        executor_->add_node(state_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of distributed state "
+          "interface of sub controller manager. Exception:"
+            << e.what());
+      }
     }
   }
 
   std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
     distributed_command_interfaces;
   distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
+  // create distributed command interface and import into resource storage.
   distributed_command_interfaces =
     resource_manager_->import_command_interfaces_of_sub_controller_manager(
       sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
 
   for (const auto & command_interface : distributed_command_interfaces)
   {
-    try
+    // register every node of command_interface at executor only if multiple nodes
+    // are used. Otherwise the single nodes has already been added
+    if (use_multiple_nodes())
     {
-      executor_->add_node(command_interface->get_node()->get_node_base_interface());
-    }
-    catch (const std::runtime_error & e)
-    {
-      response->ok = false;
-      RCLCPP_WARN_STREAM(
-        get_logger(),
-        "ControllerManager: Caught exception while trying to register sub controller manager. "
-        "Exception:"
-          << e.what());
+      try
+      {
+        executor_->add_node(command_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of distributed "
+          "command_interface of sub controller manager. Exception:"
+            << e.what());
+      }
     }
     auto msg = controller_manager_msgs::msg::PublisherDescription();
     msg.ns = get_namespace();
     msg.name.prefix_name = command_interface->get_prefix_name();
     msg.name.interface_name = command_interface->get_interface_name();
-    // TODO(Manuel) want topic name relative to namespace, but have to treat "root" namespace separate
+    // TODO(Manuel): want topic name relative to namespace, but have to treat "root" namespace separate
     msg.publisher_topic = std::string("/") + command_interface->forward_command_topic_name();
     response->command_state_publishers.push_back(msg);
   }
@@ -559,52 +597,92 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
 
 void ControllerManager::create_hardware_state_publishers()
 {
-  auto available_state_interfaces = resource_manager_->available_state_interfaces();
-
-  for (const auto & state_interface : available_state_interfaces)
+  std::vector<std::string> state_interfaces_to_export = std::vector<std::string>({});
+  // export every interface by default
+  if (!get_parameter("export_state_interfaces", state_interfaces_to_export))
   {
-    auto state_publisher = std::make_shared<distributed_control::StatePublisher>(
-      std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
-        resource_manager_->claim_state_interface(state_interface))),
-      get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    // get all available state interfaces
+    state_interfaces_to_export = resource_manager_->available_state_interfaces();
+  }
+
+  for (const auto & state_interface : state_interfaces_to_export)
+  {
+    std::shared_ptr<distributed_control::StatePublisher> state_publisher;
+    try
+    {
+      state_publisher = std::make_shared<distributed_control::StatePublisher>(
+        std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
+          resource_manager_->claim_state_interface(state_interface))),
+        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    }
+    catch (const std::exception & e)
+    {
+      RCLCPP_ERROR(
+        get_logger(), "Can't create StatePublisher for state interface<'%s'>: %s",
+        state_interface.c_str(), e.what());
+      continue;
+    }
 
     resource_manager_->add_hardware_state_publishers(state_publisher);
 
-    try
+    if (use_multiple_nodes())
     {
-      executor_->add_node(state_publisher->get_node()->get_node_base_interface());
-    }
-    catch (const std::runtime_error & e)
-    {
-      RCLCPP_WARN_STREAM(
-        get_logger(), "ControllerManager: Can't create StatePublishers<"
-                        << state_publisher->state_interface_name() << ">." << e.what());
+      try
+      {
+        executor_->add_node(state_publisher->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "ControllerManager: Can't create StatePublishers<"
+                          << state_publisher->state_interface_name() << ">." << e.what());
+      }
     }
   }
 }
 
 void ControllerManager::create_hardware_command_forwarders()
 {
-  auto available_command_interfaces = resource_manager_->available_command_interfaces();
-
-  for (auto const & command_interface : available_command_interfaces)
+  std::vector<std::string> command_interfaces_to_export = std::vector<std::string>({});
+  // export every interface by default
+  if (!get_parameter("export_command_interfaces", command_interfaces_to_export))
   {
-    auto command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
-      std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
-        resource_manager_->claim_command_interface(command_interface))),
-      get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    // get all available command interfaces
+    command_interfaces_to_export = resource_manager_->available_command_interfaces();
+  }
+
+  for (auto const & command_interface : command_interfaces_to_export)
+  {
+    std::shared_ptr<distributed_control::CommandForwarder> command_forwarder;
+    try
+    {
+      command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
+        std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
+          resource_manager_->claim_command_interface(command_interface))),
+        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    }
+    catch (const std::exception & e)
+    {
+      RCLCPP_ERROR(
+        get_logger(), "Can't create CommandForwarder for command interface<'%s'>: %s",
+        command_interface.c_str(), e.what());
+      continue;
+    }
 
     resource_manager_->add_hardware_command_forwarders(command_forwarder);
 
-    try
+    if (use_multiple_nodes())
     {
-      executor_->add_node(command_forwarder->get_node()->get_node_base_interface());
-    }
-    catch (const std::runtime_error & e)
-    {
-      RCLCPP_WARN_STREAM(
-        get_logger(), "ControllerManager: Can't create CommandForwarder<"
-                        << command_forwarder->command_interface_name() << ">." << e.what());
+      try
+      {
+        executor_->add_node(command_forwarder->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "ControllerManager: Can't create CommandForwarder<"
+                          << command_forwarder->command_interface_name() << ">." << e.what());
+      }
     }
   }
 }

@@ -460,6 +460,10 @@ private:
   bool distributed_ = false;
   bool sub_controller_manager_ = false;
   bool use_multiple_nodes_ = false;
+  // TODO(Manuel): weak_ptr would probably be a better choice. This way has to be checked
+  // if pointer points to an object. Don't like the nullptr thing and implicit checks
+  // associated with it ... (create on distributed Handles and StatePublisher/CommandForwarder)
+  // needs to be checked if is nullptr before usage
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> distributed_pub_sub_node_ = nullptr;
   std::chrono::milliseconds distributed_interfaces_publish_period_ = std::chrono::milliseconds(12);
 
