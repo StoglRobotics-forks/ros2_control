@@ -182,8 +182,7 @@ ControllerManager::ControllerManager(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
   get_and_initialize_distributed_parameters();
-  auto cm_type = determine_controller_manager_type();
-  configure_controller_manager(cm_type);
+  configure_controller_manager();
 }
 
 ControllerManager::ControllerManager(
@@ -212,8 +211,7 @@ ControllerManager::ControllerManager(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
   get_and_initialize_distributed_parameters();
-  auto cm_type = determine_controller_manager_type();
-  configure_controller_manager(cm_type);
+  configure_controller_manager();
 }
 
 void ControllerManager::subscribe_to_robot_description_topic()
@@ -360,11 +358,11 @@ void ControllerManager::init_services()
 
 void ControllerManager::get_and_initialize_distributed_parameters()
 {
-  if (!get_parameter("distributed", distributed_))
+  if (!get_parameter("central_controller_manager", central_controller_manager_))
   {
     RCLCPP_WARN(
-      get_logger(), "'distributed' parameter not set, using default value:%s",
-      distributed_ ? "true" : "false");
+      get_logger(), "'central_controller_manager' parameter not set, using default value:%s",
+      central_controller_manager_ ? "true" : "false");
   }
 
   if (!get_parameter("sub_controller_manager", sub_controller_manager_))
@@ -396,8 +394,10 @@ void ControllerManager::get_and_initialize_distributed_parameters()
   }
 }
 
-void ControllerManager::configure_controller_manager(const controller_manager_type & cm_type)
+void ControllerManager::configure_controller_manager()
 {
+  auto cm_type = determine_controller_manager_type();
+
   switch (cm_type)
   {
     case controller_manager_type::distributed_central_controller_manager:
@@ -412,8 +412,9 @@ void ControllerManager::configure_controller_manager(const controller_manager_ty
     default:
       throw std::logic_error(
         "Controller manager configuration not possible. Not a known controller manager type."
-        "Did you maybe set `distributed:false` and `sub_controller_manager:true`?"
-        "Note:Only distributed controller manager can be a sub controller manager.");
+        "Did you maybe set `central_controller_manager:true` and `sub_controller_manager:true`?"
+        "Note:Distributed controller manager can only be central_controller_manager or "
+        "sub_controller_manager, not both.");
       break;
   }
 }
@@ -424,15 +425,16 @@ void ControllerManager::configure_controller_manager(const controller_manager_ty
 // want dozen of ifs.
 ControllerManager::controller_manager_type ControllerManager::determine_controller_manager_type()
 {
-  bool std_controller_manager = !distributed_ && !sub_controller_manager_;
-  bool distributed_sub_controller_manager = distributed_ && sub_controller_manager_;
-  bool central_controller_manager = distributed_ && !sub_controller_manager_;
+  bool std_controller_manager = !central_controller_manager_ && !sub_controller_manager_;
+  bool distributed_sub_controller_manager = !central_controller_manager_ && sub_controller_manager_;
+  bool distributed_central_controller_manager =
+    central_controller_manager_ && !sub_controller_manager_;
   if (distributed_sub_controller_manager)
   {
     return controller_manager_type::distributed_sub_controller_manager;
   }
   // This means we are the central controller manager
-  else if (central_controller_manager)
+  else if (distributed_central_controller_manager)
   {
     return controller_manager_type::distributed_central_controller_manager;
   }
@@ -2393,6 +2395,13 @@ std::pair<std::string, std::string> ControllerManager::split_command_interface(
 }
 
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
+
+bool ControllerManager::is_central_controller_manager() const
+{
+  return central_controller_manager_;
+}
+
+bool ControllerManager::is_sub_controller_manager() const { return sub_controller_manager_; }
 
 bool ControllerManager::use_multiple_nodes() const { return use_multiple_nodes_; }
 

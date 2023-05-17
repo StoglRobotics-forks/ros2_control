@@ -200,11 +200,15 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   unsigned int get_update_rate() const;
 
-  // Per controller update rate support
+  CONTROLLER_MANAGER_PUBLIC
+  bool is_central_controller_manager() const;
+
+  CONTROLLER_MANAGER_PUBLIC
+  bool is_sub_controller_manager() const;
+
   CONTROLLER_MANAGER_PUBLIC
   bool use_multiple_nodes() const;
 
-  // Per controller update rate support
   CONTROLLER_MANAGER_PUBLIC
   std::chrono::milliseconds distributed_interfaces_publish_period() const;
 
@@ -219,7 +223,7 @@ protected:
   controller_manager_type determine_controller_manager_type();
 
   CONTROLLER_MANAGER_PUBLIC
-  void configure_controller_manager(const controller_manager_type & cm_type);
+  void configure_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
   void init_distributed_sub_controller_manager();
@@ -457,8 +461,8 @@ private:
     unkown_type  // indicating something went wrong and type could not be determined
   };
 
-  bool distributed_ = false;
   bool sub_controller_manager_ = false;
+  bool central_controller_manager_ = false;
   bool use_multiple_nodes_ = false;
   // TODO(Manuel): weak_ptr would probably be a better choice. This way has to be checked
   // if pointer points to an object. Don't like the nullptr thing and implicit checks
