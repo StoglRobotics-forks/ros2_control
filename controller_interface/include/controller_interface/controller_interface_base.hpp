@@ -198,6 +198,16 @@ public:
   virtual std::vector<hardware_interface::CommandInterface> export_reference_interfaces() = 0;
 
   /**
+   * Export interfaces for a chainable controller that can be used as command interface of other
+   * controllers if controller is distributed.
+   *
+   * \returns list of distributed command interfaces for preceding controllers.
+   */
+  CONTROLLER_INTERFACE_PUBLIC
+  virtual std::vector<hardware_interface::DistributedCommandInterface>
+  export_distributed_reference_interfaces() = 0;
+
+  /**
    * Set chained mode of a chainable controller. This method triggers internal processes to switch
    * a chainable controller to "chained" mode and vice-versa. Setting controller to "chained" mode
    * usually involves disabling of subscribers and other external interfaces to avoid potential

@@ -43,12 +43,21 @@ public:
   bool is_chainable() const final;
 
   /**
-   * Controller has no reference interfaces.
+   * Controller has no distributed reference interfaces.
    *
    * \returns empty list.
    */
   CONTROLLER_INTERFACE_PUBLIC
   std::vector<hardware_interface::CommandInterface> export_reference_interfaces() final;
+
+  /**
+   * Controller has no reference interfaces.
+   *
+   * \returns empty list.
+   */
+  CONTROLLER_INTERFACE_PUBLIC
+  std::vector<hardware_interface::DistributedCommandInterface>
+  export_distributed_reference_interfaces() final;
 
   /**
    * Controller is not chainable, therefore no chained mode can be set.

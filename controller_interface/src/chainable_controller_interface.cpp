@@ -14,6 +14,7 @@
 
 #include "controller_interface/chainable_controller_interface.hpp"
 
+#include <exception>
 #include <vector>
 
 #include "hardware_interface/types/lifecycle_state_names.hpp"
@@ -42,6 +43,46 @@ return_type ChainableControllerInterface::update(
   ret = update_and_write_commands(time, period);
 
   return ret;
+}
+
+std::vector<hardware_interface::DistributedCommandInterface>
+ChainableControllerInterface::export_distributed_reference_interfaces()
+{
+  auto reference_interfaces = on_export_distributed_reference_interfaces();
+
+  // check if the "reference_interfaces_" variable is resized to number of interfaces
+  if (reference_interfaces_.size() != reference_interfaces.size())
+  {
+    // TODO(destogl): Should here be "FATAL"? It is fatal in terms of controller but not for the
+    // framework
+    RCLCPP_FATAL(
+      get_node()->get_logger(),
+      "The internal storage for reference values 'reference_interfaces_' variable has size '%zu', "
+      "but it is expected to have the size '%zu' equal to the number of exported reference "
+      "interfaces. No reference interface will be exported. Please correct and recompile "
+      "the controller with name '%s' and try again.",
+      reference_interfaces_.size(), reference_interfaces.size(), get_node()->get_name());
+    reference_interfaces.clear();
+  }
+
+  // check if the names of the reference interfaces begin with the controller's name
+  for (const auto & interface : reference_interfaces)
+  {
+    if (interface.get_prefix_name() != get_node()->get_name())
+    {
+      RCLCPP_FATAL(
+        get_node()->get_logger(),
+        "The name of the interface '%s' does not begin with the controller's name. This is "
+        "mandatory "
+        " for reference interfaces. No reference interface will be exported. Please correct and "
+        "recompile the controller with name '%s' and try again.",
+        interface.get_name().c_str(), get_node()->get_name());
+      reference_interfaces.clear();
+      break;
+    }
+  }
+
+  return reference_interfaces;
 }
 
 std::vector<hardware_interface::CommandInterface>
@@ -110,6 +151,12 @@ bool ChainableControllerInterface::set_chained_mode(bool chained_mode)
 }
 
 bool ChainableControllerInterface::is_in_chained_mode() const { return in_chained_mode_; }
+
+std::vector<hardware_interface::DistributedCommandInterface>
+ChainableControllerInterface::on_export_distributed_reference_interfaces()
+{
+  return {};
+}
 
 bool ChainableControllerInterface::on_set_chained_mode(bool /*chained_mode*/) { return true; }
 
