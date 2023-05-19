@@ -365,13 +365,6 @@ void ControllerManager::get_and_initialize_distributed_parameters()
       central_controller_manager_ ? "true" : "false");
   }
 
-  if (!get_parameter("sub_controller_manager", sub_controller_manager_))
-  {
-    RCLCPP_WARN(
-      get_logger(), "'sub_controller_manager' parameter not set, using default value:%s",
-      sub_controller_manager_ ? "true" : "false");
-  }
-
   int64_t distributed_interfaces_publish_period;
   if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
   {
@@ -383,13 +376,6 @@ void ControllerManager::get_and_initialize_distributed_parameters()
     RCLCPP_WARN(
       get_logger(),
       "'distributed_interfaces_publish_period' parameter not set, using default value.");
-  }
-
-  if (!get_parameter("use_multiple_nodes", use_multiple_nodes_))
-  {
-    RCLCPP_WARN(
-      get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
-      use_multiple_nodes_ ? "true" : "false");
   }
 
   if (!get_parameter("export_command_interfaces", command_interfaces_to_export_))
