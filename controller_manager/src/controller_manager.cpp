@@ -378,12 +378,41 @@ void ControllerManager::get_and_initialize_distributed_parameters()
     distributed_interfaces_publish_period_ =
       std::chrono::milliseconds(distributed_interfaces_publish_period);
   }
-
   else
   {
     RCLCPP_WARN(
       get_logger(),
       "'distributed_interfaces_publish_period' parameter not set, using default value.");
+  }
+
+  if (!get_parameter("use_multiple_nodes", use_multiple_nodes_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
+      use_multiple_nodes_ ? "true" : "false");
+  }
+
+  if (!get_parameter("export_command_interfaces", command_interfaces_to_export_))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'export_command_interfaces' parameter not set, going to export all available command "
+      "interfaces");
+  }
+
+  if (!get_parameter("export_state_interfaces", state_interfaces_to_export_))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'export_state_interfaces' parameter not set, going to export all available command "
+      "interfaces");
+  }
+
+  if (!get_parameter("sub_controller_manager", sub_controller_manager_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'sub_controller_manager' parameter not set, using default value:%s",
+      sub_controller_manager_ ? "true" : "false");
   }
 
   if (!get_parameter("use_multiple_nodes", use_multiple_nodes_))
@@ -469,8 +498,26 @@ void ControllerManager::init_distributed_sub_controller_manager()
     }
   }
 
-  create_hardware_state_publishers();
-  create_hardware_command_forwarders();
+  // export every interface by default
+  if (state_interfaces_to_export_.empty())
+  {
+    // get all available state interfaces and export
+    create_hardware_state_publishers(resource_manager_->available_state_interfaces());
+  }
+  else
+  {
+    create_hardware_state_publishers(state_interfaces_to_export_);
+  }
+  // export every interface by default
+  if (command_interfaces_to_export_.empty())
+  {
+    // get all available command interfaces and export
+    create_hardware_command_forwarders(resource_manager_->available_command_interfaces());
+  }
+  else
+  {
+    create_hardware_command_forwarders(command_interfaces_to_export_);
+  }
   register_sub_controller_manager();
 }
 
@@ -597,16 +644,18 @@ void ControllerManager::register_sub_controller_manager_srv_cb(
                     << sub_ctrl_mng_wrapper->get_name() << ">.");
 }
 
-void ControllerManager::create_hardware_state_publishers()
+void ControllerManager::register_sub_controller_manager_references_srv_cb(
+  const std::shared_ptr<
+    controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>
+    request,
+  std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Response>
+    response)
 {
-  std::vector<std::string> state_interfaces_to_export = std::vector<std::string>({});
-  // export every interface by default
-  if (!get_parameter("export_state_interfaces", state_interfaces_to_export))
-  {
-    // get all available state interfaces
-    state_interfaces_to_export = resource_manager_->available_state_interfaces();
-  }
+}
 
+void ControllerManager::create_hardware_state_publishers(
+  const std::vector<std::string> & state_interfaces_to_export)
+{
   for (const auto & state_interface : state_interfaces_to_export)
   {
     std::shared_ptr<distributed_control::StatePublisher> state_publisher;
@@ -643,16 +692,9 @@ void ControllerManager::create_hardware_state_publishers()
   }
 }
 
-void ControllerManager::create_hardware_command_forwarders()
+void ControllerManager::create_hardware_command_forwarders(
+  const std::vector<std::string> & command_interfaces_to_export)
 {
-  std::vector<std::string> command_interfaces_to_export = std::vector<std::string>({});
-  // export every interface by default
-  if (!get_parameter("export_command_interfaces", command_interfaces_to_export))
-  {
-    // get all available command interfaces
-    command_interfaces_to_export = resource_manager_->available_command_interfaces();
-  }
-
   for (auto const & command_interface : command_interfaces_to_export)
   {
     std::shared_ptr<distributed_control::CommandForwarder> command_forwarder;
@@ -1021,7 +1063,23 @@ controller_interface::return_type ControllerManager::configure_controller(
         controller_name.c_str());
       return controller_interface::return_type::ERROR;
     }
+    // safe the name for later. Interfaces get moved so they are no longer available after they have been imported.
+    std::vector<std::string> reference_interfaces_names;
+    reference_interfaces_names.reserve(interfaces.size());
+    for (const auto & interface : interfaces)
+    {
+      reference_interfaces_names.push_back(interface.get_name());
+    }
+
     resource_manager_->import_controller_reference_interfaces(controller_name, interfaces);
+
+    if (is_sub_controller_manager())
+    {
+      // export all of the just created reference interfaces by default
+      create_hardware_command_forwarders(reference_interfaces_names);
+
+      // TODO(Manuel) : register
+    }
 
     // TODO(destogl): check and resort controllers in the vector
   }

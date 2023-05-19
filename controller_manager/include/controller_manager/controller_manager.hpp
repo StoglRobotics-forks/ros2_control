@@ -240,10 +240,20 @@ protected:
     std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
 
   CONTROLLER_MANAGER_PUBLIC
-  void create_hardware_state_publishers();
+  void register_sub_controller_manager_references_srv_cb(
+    const std::shared_ptr<
+      controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>
+      request,
+    std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Response>
+      response);
 
   CONTROLLER_MANAGER_PUBLIC
-  void create_hardware_command_forwarders();
+  void create_hardware_state_publishers(
+    const std::vector<std::string> & state_interfaces_to_export);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void create_hardware_command_forwarders(
+    const std::vector<std::string> & command_interfaces_to_export);
 
   CONTROLLER_MANAGER_PUBLIC
   void register_sub_controller_manager();
@@ -464,6 +474,9 @@ private:
   bool sub_controller_manager_ = false;
   bool central_controller_manager_ = false;
   bool use_multiple_nodes_ = false;
+  std::vector<std::string> command_interfaces_to_export_ = std::vector<std::string>({});
+  std::vector<std::string> state_interfaces_to_export_ = std::vector<std::string>({});
+
   // TODO(Manuel): weak_ptr would probably be a better choice. This way has to be checked
   // if pointer points to an object. Don't like the nullptr thing and implicit checks
   // associated with it ... (create on distributed Handles and StatePublisher/CommandForwarder)
