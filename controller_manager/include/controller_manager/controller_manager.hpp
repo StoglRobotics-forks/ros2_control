@@ -36,6 +36,7 @@
 #include "controller_manager_msgs/srv/list_hardware_interfaces.hpp"
 #include "controller_manager_msgs/srv/load_controller.hpp"
 #include "controller_manager_msgs/srv/register_sub_controller_manager.hpp"
+#include "controller_manager_msgs/srv/register_sub_controller_manager_references.hpp"
 #include "controller_manager_msgs/srv/reload_controller_libraries.hpp"
 #include "controller_manager_msgs/srv/set_hardware_component_state.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
@@ -586,6 +587,8 @@ private:
   std::mutex central_controller_manager_srv_lock_;
   rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr
     register_sub_controller_manager_srv_;
+  rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>::SharedPtr
+    register_sub_controller_manager_references_srv_;
 
   std::vector<std::string> activate_request_, deactivate_request_;
   std::vector<std::string> to_chained_mode_request_, from_chained_mode_request_;

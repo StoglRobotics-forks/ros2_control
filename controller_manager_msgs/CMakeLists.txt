@@ -22,6 +22,7 @@ set(srv_files
   srv/ListHardwareInterfaces.srv
   srv/LoadController.srv
   srv/RegisterSubControllerManager.srv
+  srv/RegisterSubControllerManagerReferences.srv
   srv/ReloadControllerLibraries.srv
   srv/SetHardwareComponentState.srv
   srv/SwitchController.srv

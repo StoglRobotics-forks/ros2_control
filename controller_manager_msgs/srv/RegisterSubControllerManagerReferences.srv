@@ -1,0 +1,19 @@
+# The RegisterSubControllerManagerReferences service allows a distributed controller
+# manager to register it's reference interfaces at the central controller manager
+
+# Req:
+# To register a controller the distributed sub controller manager has to 
+# define:
+#   * the full namespace it operates in 
+#   * all statePublishers the sub controller provides
+
+# Res:
+# The response includes:
+#   * a bool if the registration succeeded 
+
+string sub_controller_manager_namespace
+string sub_controller_manager_name
+controller_manager_msgs/PublisherDescription[] command_state_publishers
+---
+controller_manager_msgs/PublisherDescription[] command_state_publishers
+bool ok

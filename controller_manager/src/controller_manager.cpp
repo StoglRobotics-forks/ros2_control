@@ -556,6 +556,14 @@ void ControllerManager::init_distributed_central_controller_manager_services()
         &ControllerManager::register_sub_controller_manager_srv_cb, this, std::placeholders::_1,
         std::placeholders::_2),
       qos_profile_services_keep_all, distributed_system_srv_callback_group_);
+
+  register_sub_controller_manager_references_srv_ =
+    create_service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
+      "register_sub_controller_manager_references",
+      std::bind(
+        &ControllerManager::register_sub_controller_manager_references_srv_cb, this,
+        std::placeholders::_1, std::placeholders::_2),
+      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
 }
 
 void ControllerManager::register_sub_controller_manager_srv_cb(
