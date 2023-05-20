@@ -142,6 +142,11 @@ public:
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
     const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+  import_reference_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+
   void add_hardware_state_publishers(
     std::shared_ptr<distributed_control::StatePublisher> state_publisher);
 

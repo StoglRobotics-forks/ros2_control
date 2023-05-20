@@ -52,9 +52,12 @@ public:
 
   size_t get_command_forwarder_count() const { return command_forwarder_descriptions_.size(); }
 
+  std::string type() const { return TYPE_; }
+
 private:
   const std::string NAMESPACE_;
   const std::string NAME_;
+  const std::string TYPE_ = "sub_controller_manager";
   std::vector<PublisherDescription> state_publisher_descriptions_;
   std::vector<PublisherDescription> command_forwarder_descriptions_;
 };

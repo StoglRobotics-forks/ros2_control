@@ -23,6 +23,7 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "controller_manager_msgs/msg/publisher_description.hpp"
 
 #include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
 #include "hardware_interface/distributed_control_interface/state_publisher.hpp"
@@ -645,6 +646,55 @@ void ControllerManager::register_sub_controller_manager_references_srv_cb(
   std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Response>
     response)
 {
+  std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
+
+  // only command interfaces can be state publishers. We initialize state interfaces to empty list.
+  std::vector<controller_manager_msgs::msg::PublisherDescription> empty_state_publishers{};
+  auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
+    request->sub_controller_manager_namespace, request->sub_controller_manager_name,
+    empty_state_publishers, request->command_state_publishers);
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
+    distributed_command_interfaces;
+  distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
+  // create distributed command interface and import into resource storage.
+  distributed_command_interfaces =
+    resource_manager_->import_reference_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
+
+  for (const auto & command_interface : distributed_command_interfaces)
+  {
+    // register every node of command_interface at executor only if multiple nodes
+    // are used. Otherwise the single nodes has already been added
+    if (use_multiple_nodes())
+    {
+      try
+      {
+        executor_->add_node(command_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of reference "
+          "interface of sub_controller_manager. Exception:"
+            << e.what());
+      }
+    }
+    auto msg = controller_manager_msgs::msg::PublisherDescription();
+    msg.ns = get_namespace();
+    msg.name.prefix_name = command_interface->get_prefix_name();
+    msg.name.interface_name = command_interface->get_interface_name();
+    // TODO(Manuel): want topic name relative to namespace, but have to treat "root" namespace separate
+    msg.publisher_topic = std::string("/") + command_interface->forward_command_topic_name();
+    response->command_state_publishers.push_back(msg);
+  }
+
+  response->ok = true;
+  RCLCPP_INFO_STREAM(
+    get_logger(), "ControllerManager: Registered reference interfaces of sub_controller_manager <"
+                    << sub_ctrl_mng_wrapper->get_name() << ">.");
 }
 
 void ControllerManager::create_hardware_state_publishers(
@@ -826,6 +876,112 @@ void ControllerManager::register_sub_controller_manager()
     RCLCPP_WARN_STREAM(
       get_logger(), "SubControllerManager: <" << get_namespace() << "/" << get_name()
                                               << ">. Registration of StatePublishers failed.");
+  }
+}
+
+void ControllerManager::register_reference_interfaces(
+  const std::vector<std::string> & reference_interfaces_names)
+{
+  RCLCPP_INFO_STREAM(
+    get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                           << "> trying to register reference interfaces.");
+  rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>::SharedPtr
+    client = create_client<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
+      "/register_sub_controller_manager_references");
+
+  auto request = std::make_shared<
+    controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>();
+  request->sub_controller_manager_namespace = get_namespace();
+  request->sub_controller_manager_name = get_name();
+
+  // export the provided CommandForwarders
+  for (auto const & reference_interface_name : reference_interfaces_names)
+  {
+    auto [found, command_forwarder] =
+      resource_manager_->find_command_forwarder(reference_interface_name);
+    if (found)
+    {
+      // create description of StatePublisher including: prefix_name, interface_name and topic.
+      // So that receiver is able to create a DistributedStateInterface which subscribes to the
+      // topics provided by this sub controller manager
+      request->command_state_publishers.push_back(
+        command_forwarder->create_publisher_description_msg());
+    }
+    else
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(), "SubControllerManager: <"
+                        << get_namespace() << "/" << get_name()
+                        << "> could not find command_forwarder for reference interfaces:"
+                        << reference_interface_name);
+    }
+  }
+
+  using namespace std::chrono_literals;
+  while (!client->wait_for_service(1s))
+  {
+    if (!rclcpp::ok())
+    {
+      RCLCPP_ERROR_STREAM(
+        get_logger(), "SubControllerManager:<"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Interrupted while waiting for central controller managers "
+                           "register_sub_controller_manager_references service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Central controller managers "
+                         "register_sub_controller_manager_references service not available, "
+                         "waiting again...");
+  }
+
+  auto result = client->async_send_request(request);
+  // TODO(Manuel): first try to wait synchronous. If this doesn't work we might have to create a
+  // queue or something similar, add the future and check in update periodically if finished.
+
+  // This blocks... which might be bad...
+  result.wait();
+  // can call get only once
+  auto res = result.get();
+  if (res->ok)
+  {
+    auto command_state_publishers = res->command_state_publishers;
+    // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
+    // send keys with request
+    for (const auto & command_state_publisher : command_state_publishers)
+    {
+      std::string key = command_state_publisher.name.prefix_name + "/" +
+                        command_state_publisher.name.interface_name;
+      auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
+      if (found)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "SubControllerManager: <" << get_namespace() << "/" << get_name()
+                                                  << "> found commad forwarder for" << key);
+        command_forwarder->subscribe_to_command_publisher(command_state_publisher.publisher_topic);
+      }
+      else
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "SubControllerManager:<"
+                          << get_namespace() << "/" << get_name()
+                          << ">. Could not find a CommandForwarder for key[" << key
+                          << "]. No subscription to command state possible.");
+      }
+    }
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                             << ">. Successfully registered.");
+  }
+  else
+  {
+    RCLCPP_WARN_STREAM(
+      get_logger(), "SubControllerManager: <"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Registration of StatePublishers failed. Central ControllerManager "
+                         "returned error code.");
   }
 }
 
@@ -1069,10 +1225,19 @@ controller_interface::return_type ControllerManager::configure_controller(
 
     if (is_sub_controller_manager())
     {
+      // TODO(Manuel); This is only for fast poc, chaining of multiples in sub controller
+      // is most likely going to lead to issues if handled this way.
+      // We should only allow the first controller in the chain to be distributed in each
+      // sub controller manager and chain the successor locally in sub controller manager
+      // instead of exporting for every.
+
+      // Set chained mode as default true and make references available so that
+      // hardware_command_forwarders can be created.
+      controller->set_chained_mode(true);
+      resource_manager_->make_controller_reference_interfaces_available(controller_name);
       // export all of the just created reference interfaces by default
       create_hardware_command_forwarders(reference_interfaces_names);
-
-      // TODO(Manuel) : register
+      register_reference_interfaces(reference_interfaces_names);
     }
 
     // TODO(destogl): check and resort controllers in the vector

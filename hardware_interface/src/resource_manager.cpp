@@ -665,8 +665,13 @@ public:
   void add_sub_controller_manager(
     std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager)
   {
-    const auto [it, success] = sub_controller_manager_map_.insert(
-      std::pair{sub_controller_manager->get_name(), sub_controller_manager});
+    HardwareComponentInfo component_info;
+    component_info.name = sub_controller_manager->get_name();
+    component_info.type = sub_controller_manager->type();
+    component_info.state_interfaces = {};
+    component_info.command_interfaces = {};
+    const auto [it, success] =
+      hardware_info_map_.insert(std::pair{component_info.name, component_info});
     if (!success)
     {
       std::string msg(
@@ -786,6 +791,64 @@ public:
     return distributed_command_interfaces;
   }
 
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>> import_distributed_reference_interfaces(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+  {
+    std::vector<std::shared_ptr<DistributedReadWriteHandle>> distributed_command_interfaces;
+    distributed_command_interfaces.reserve(sub_controller_manager->get_command_forwarder_count());
+    std::vector<std::string> interface_names;
+    interface_names.reserve(sub_controller_manager->get_command_forwarder_count());
+
+    for (const auto & command_forwarder_description :
+         sub_controller_manager->get_command_forwarder_descriptions())
+    {
+      // create StateInterface from the Description and store in ResourceStorage.
+      auto command_interface =
+        std::make_shared<DistributedReadWriteHandle>(command_forwarder_description, ns, node);
+      add_command_interface(command_interface);
+      // add to return vector, node needs to added to executor.
+      distributed_command_interfaces.push_back(command_interface);
+      // TODO(Manuel) this should be handled at one point DRY (adding, claimed ....), key should be made explicit
+      claimed_command_interface_map_.emplace(std::make_pair(command_interface->get_name(), false));
+      interface_names.push_back(command_interface->get_name());
+    }
+    // TODO(Manuel) this should be handled at one point DRY(adding, claimed,make available....), key should be made explicit
+    available_command_interfaces_.reserve(
+      available_command_interfaces_.capacity() + interface_names.size());
+    auto command_interfaces_end =
+      hardware_info_map_[sub_controller_manager->get_name()].command_interfaces.end();
+    hardware_info_map_[sub_controller_manager->get_name()].command_interfaces.insert(
+      command_interfaces_end, interface_names.begin(), interface_names.end());
+
+    for (const auto & interface : interface_names)
+    {
+      // TODO(destogl): check if interface should be available on configure
+      auto found_it = std::find(
+        available_command_interfaces_.begin(), available_command_interfaces_.end(), interface);
+
+      if (found_it == available_command_interfaces_.end())
+      {
+        available_command_interfaces_.emplace_back(interface);
+        RCUTILS_LOG_DEBUG_NAMED(
+          "resource_manager", "(hardware '%s'): '%s' command interface added into available list",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
+      else
+      {
+        // TODO(destogl): do here error management if interfaces are only partially added into
+        // "available" list - this should never be the case!
+        RCUTILS_LOG_WARN_NAMED(
+          "resource_manager",
+          "(hardware '%s'): '%s' command interface already in available list."
+          " This can happen due to multiple calls to 'configure'",
+          sub_controller_manager->get_name().c_str(), interface.c_str());
+      }
+    }
+
+    return distributed_command_interfaces;
+  }
+
   // hardware plugins
   pluginlib::ClassLoader<ActuatorInterface> actuator_loader_;
   pluginlib::ClassLoader<SensorInterface> sensor_loader_;
@@ -821,9 +884,6 @@ private:
 
   std::map<std::string, std::shared_ptr<distributed_control::CommandForwarder>>
     command_interface_command_forwarder_map_;
-
-  std::map<std::string, std::shared_ptr<distributed_control::SubControllerManagerWrapper>>
-    sub_controller_manager_map_;
 };
 
 ResourceManager::ResourceManager() : resource_storage_(std::make_unique<ResourceStorage>()) {}
@@ -957,6 +1017,16 @@ ResourceManager::import_command_interfaces_of_sub_controller_manager(
   return resource_storage_->import_distributed_command_interfaces(sub_controller_manager, ns, node);
 }
 
+std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+ResourceManager::import_reference_interfaces_of_sub_controller_manager(
+  std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+  const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->import_distributed_reference_interfaces(
+    sub_controller_manager, ns, node);
+}
+
 void ResourceManager::add_hardware_state_publishers(
   std::shared_ptr<distributed_control::StatePublisher> state_publisher)
 {
@@ -988,6 +1058,7 @@ ResourceManager::get_command_forwarders() const
 std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>>
 ResourceManager::find_command_forwarder(const std::string & key)
 {
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->find_command_forwarder(key);
 }
 

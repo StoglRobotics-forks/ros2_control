@@ -260,6 +260,9 @@ protected:
   void register_sub_controller_manager();
 
   CONTROLLER_MANAGER_PUBLIC
+  void register_reference_interfaces(const std::vector<std::string> & reference_interfaces_names);
+
+  CONTROLLER_MANAGER_PUBLIC
   controller_interface::ControllerInterfaceBaseSharedPtr add_controller_impl(
     const ControllerSpec & controller);
 
