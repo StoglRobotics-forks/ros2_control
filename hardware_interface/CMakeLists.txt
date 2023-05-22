@@ -7,14 +7,14 @@ endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   control_msgs
-    controller_manager_msgs
+  controller_manager_msgs
   lifecycle_msgs
   pluginlib
-    rclcpp
+  rclcpp
   rclcpp_lifecycle
   rcpputils
   rcutils
-    std_msgs
+  std_msgs
   TinyXML2
   tinyxml2_vendor
 )

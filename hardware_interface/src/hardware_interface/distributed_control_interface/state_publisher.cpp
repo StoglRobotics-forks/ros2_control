@@ -6,6 +6,8 @@
 #include <map>
 #include <stdexcept>
 
+#include "rclcpp/rclcpp.hpp"
+
 using namespace std::chrono_literals;
 
 namespace distributed_control
@@ -97,7 +99,7 @@ void StatePublisher::publish_value_on_timer()
     // Make explicit note implicit!!!
     msg->data = std::numeric_limits<double>::quiet_NaN();
   }
-  RCLCPP_WARN(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
+  RCLCPP_DEBUG(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
   std::flush(std::cout);
 
   // Put the message into a queue to be processed by the middleware.

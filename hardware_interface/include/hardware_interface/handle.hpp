@@ -254,7 +254,7 @@ protected:
   void get_value_cb(const std_msgs::msg::Float64 & msg)
   {
     value_ = msg.data;
-    RCLCPP_WARN_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
   }
 
   std::string get_value_topic_name_;
@@ -405,7 +405,7 @@ public:
     auto msg = std::make_unique<std_msgs::msg::Float64>();
     msg->data = value;
 
-    RCLCPP_WARN(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
+    RCLCPP_DEBUG(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
     std::flush(std::cout);
 
     command_value_pub_->publish(std::move(msg));
@@ -417,7 +417,7 @@ protected:
   void get_value_cb(const std_msgs::msg::Float64 & msg)
   {
     value_ = msg.data;
-    RCLCPP_WARN_STREAM(
+    RCLCPP_DEBUG_STREAM(
       node_->get_logger(), "DistributedCommandInterface Receiving:[" << value_ << "].");
   }
 
