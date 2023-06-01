@@ -23,6 +23,7 @@
 #include "hardware_interface/macros.hpp"
 #include "hardware_interface/visibility_control.h"
 
+#include "controller_manager_msgs/msg/interface_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "std_msgs/msg/float64.hpp"
@@ -213,7 +214,7 @@ public:
     rclcpp::QoS qos_profile(
       rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
     // subscribe to topic provided by StatePublisher
-    state_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+    state_value_sub_ = node_->create_subscription<controller_manager_msgs::msg::InterfaceData>(
       get_value_topic_name_, qos_profile,
       std::bind(&DistributedReadOnlyHandle::get_value_cb, this, std::placeholders::_1));
   }
@@ -257,7 +258,7 @@ public:
   }
 
 protected:
-  void get_value_cb(const std_msgs::msg::Float64 & msg)
+  void get_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
   {
     value_ = msg.data;
     RCLCPP_DEBUG_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
@@ -269,7 +270,7 @@ protected:
   // the namespace the actual StateInterface we subscribe to is in.
   // We need this to create unique names for the StateInterface.
   std::string interface_namespace_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr state_value_sub_;
+  rclcpp::Subscription<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_sub_;
   double value_;
 };
 
@@ -365,13 +366,13 @@ public:
     rclcpp::QoS qos_profile(
       rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
     // subscribe to topic provided by CommandForwarder
-    command_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
+    command_value_sub_ = node_->create_subscription<controller_manager_msgs::msg::InterfaceData>(
       get_value_topic_name_, qos_profile,
       std::bind(&DistributedReadWriteHandle::get_value_cb, this, std::placeholders::_1));
 
     // create publisher so that we can forward the commands
-    command_value_pub_ =
-      node_->create_publisher<std_msgs::msg::Float64>(forward_command_topic_name_, qos_profile);
+    command_value_pub_ = node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(
+      forward_command_topic_name_, qos_profile);
   }
 
   explicit DistributedReadWriteHandle(const std::string & interface_name)
@@ -412,11 +413,12 @@ public:
 
   void set_value(double value) override
   {
-    auto msg = std::make_unique<std_msgs::msg::Float64>();
+    auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
     msg->data = value;
+    msg->header.seq = seq_number_;
+    ++seq_number_;
 
     RCLCPP_DEBUG(node_->get_logger(), "DistributedCommandInterface Publishing: '%.7lf'", msg->data);
-    std::flush(std::cout);
 
     command_value_pub_->publish(std::move(msg));
   }
@@ -424,7 +426,7 @@ public:
   std::string forward_command_topic_name() const { return forward_command_topic_name_; }
 
 protected:
-  void get_value_cb(const std_msgs::msg::Float64 & msg)
+  void get_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
   {
     value_ = msg.data;
     RCLCPP_DEBUG_STREAM(
@@ -437,10 +439,11 @@ protected:
   // the namespace the actual CommandInterface we subscribe to is in.
   // We need this to create unique names for the CommandInterface.
   std::string interface_namespace_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr command_value_sub_;
+  rclcpp::Subscription<controller_manager_msgs::msg::InterfaceData>::SharedPtr command_value_sub_;
   std::string forward_command_topic_name_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr command_value_pub_;
+  rclcpp::Publisher<controller_manager_msgs::msg::InterfaceData>::SharedPtr command_value_pub_;
   double value_;
+  uint_fast32_t seq_number_ = 0;
 };
 
 class DistributedCommandInterface : public DistributedReadWriteHandle
