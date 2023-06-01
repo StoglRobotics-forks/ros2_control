@@ -9,10 +9,10 @@
 
 #include "controller_manager_msgs/msg/publisher_description.hpp"
 
+#include "controller_manager_msgs/msg/interface_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp_lifecycle/state.hpp"
-#include "std_msgs/msg/float64.hpp"
 
 namespace distributed_control
 {
@@ -53,8 +53,9 @@ private:
 
   const std::string topic_name_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr state_value_pub_;
+  rclcpp::Publisher<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
+  uint32_t seq_number_ = 0;
 };
 
 }  // namespace distributed_control

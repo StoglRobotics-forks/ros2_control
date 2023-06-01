@@ -469,6 +469,7 @@ void ControllerManager::init_distributed_sub_controller_manager()
   {
     // create node for publishing/subscribing
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
     //try to add to executor
@@ -513,6 +514,7 @@ void ControllerManager::init_distributed_central_controller_manager()
   if (!use_multiple_nodes())
   {
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
     //try to add to executor

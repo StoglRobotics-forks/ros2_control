@@ -27,12 +27,14 @@ StatePublisher::StatePublisher(
   if (!node_.get())
   {
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       loaned_state_interface_ptr_->get_underscore_separated_name() + "_state_publisher", namespace_,
       node_options, false);
   }
 
-  state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, 10);
+  state_value_pub_ =
+    node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(topic_name_, 10);
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
   timer_ = node_->create_wall_timer(
     period_in_ms_, std::bind(&StatePublisher::publish_value_on_timer, this));
@@ -88,7 +90,7 @@ StatePublisher::create_publisher_description_msg() const
 
 void StatePublisher::publish_value_on_timer()
 {
-  auto msg = std::make_unique<std_msgs::msg::Float64>();
+  auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
   try
   {
     msg->data = loaned_state_interface_ptr_->get_value();
@@ -100,10 +102,11 @@ void StatePublisher::publish_value_on_timer()
     msg->data = std::numeric_limits<double>::quiet_NaN();
   }
   RCLCPP_DEBUG(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
-  std::flush(std::cout);
 
   // Put the message into a queue to be processed by the middleware.
   // This call is non-blocking.
+  msg->header.seq = seq_number_;
+  ++seq_number_;
   state_value_pub_->publish(std::move(msg));
 }
 
