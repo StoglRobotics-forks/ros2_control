@@ -130,8 +130,12 @@ void CommandForwarder::publish_value_on_timer()
 
 void CommandForwarder::forward_command(const controller_manager_msgs::msg::InterfaceData & msg)
 {
+  auto receive_time = evaluation_node_->now();
+  //set value before publishing
+  loaned_command_interface_ptr_->set_value(msg.data);
+
   auto evaluation_msg = std::make_unique<controller_manager_msgs::msg::Evaluation>();
-  evaluation_msg->receive_stamp = evaluation_node_->now();
+  evaluation_msg->receive_stamp = receive_time;
   evaluation_msg->receive_time =
     static_cast<uint64_t>(evaluation_msg->receive_stamp.sec) * 1'000'000'000ULL +
     evaluation_msg->receive_stamp.nanosec;
@@ -140,8 +144,6 @@ void CommandForwarder::forward_command(const controller_manager_msgs::msg::Inter
   evaluation_msg->seq = msg.header.seq;
   // todo check for QoS to publish immediately and never block to be fast as possible
   evaluation_pub_->publish(std::move(evaluation_msg));
-
-  loaned_command_interface_ptr_->set_value(msg.data);
 }
 
 }  // namespace distributed_control
