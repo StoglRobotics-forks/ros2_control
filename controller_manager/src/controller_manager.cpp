@@ -49,10 +49,6 @@ rclcpp::QoS qos_services =
     .reliable()
     .durability_volatile();
 
-rclcpp::QoSInitialization qos_profile_services_keep_all_persist_init(
-  RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1);
-rclcpp::QoS qos_profile_services_keep_all(qos_profile_services_keep_all_persist_init);
-
 inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
   return controller.get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE;
@@ -591,6 +587,11 @@ void ControllerManager::init_distributed_central_controller_manager()
 
 void ControllerManager::init_distributed_central_controller_manager_services()
 {
+  rclcpp::QoS qos_distributed_services_keep_10 =
+    rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 10))
+      .reliable()
+      .durability_volatile();
+
   distributed_system_srv_callback_group_ =
     create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
@@ -600,7 +601,7 @@ void ControllerManager::init_distributed_central_controller_manager_services()
       std::bind(
         &ControllerManager::register_sub_controller_manager_srv_cb, this, std::placeholders::_1,
         std::placeholders::_2),
-      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
 
   register_sub_controller_manager_references_srv_ =
     create_service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
@@ -608,7 +609,7 @@ void ControllerManager::init_distributed_central_controller_manager_services()
       std::bind(
         &ControllerManager::register_sub_controller_manager_references_srv_cb, this,
         std::placeholders::_1, std::placeholders::_2),
-      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
 }
 
 void ControllerManager::register_sub_controller_manager_srv_cb(
