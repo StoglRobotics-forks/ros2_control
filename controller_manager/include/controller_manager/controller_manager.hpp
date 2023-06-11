@@ -202,6 +202,9 @@ public:
   unsigned int get_update_rate() const;
 
   CONTROLLER_MANAGER_PUBLIC
+  rmw_qos_profile_t determine_qos_profile(const std::string & key) const;
+
+  CONTROLLER_MANAGER_PUBLIC
   bool is_central_controller_manager() const;
 
   CONTROLLER_MANAGER_PUBLIC
@@ -478,6 +481,10 @@ private:
   bool sub_controller_manager_ = false;
   bool central_controller_manager_ = false;
   bool use_multiple_nodes_ = false;
+  std::shared_ptr<evaluation_helper::Evaluation_Helper> qos_helper_;
+  std::string handles_qos_key_ = "system_default";
+  bool publish_evaluation_msg_ = true;
+  std::string evaluation_qos_key_ = "system_default";
   std::vector<std::string> command_interfaces_to_export_ = std::vector<std::string>({});
   std::vector<std::string> state_interfaces_to_export_ = std::vector<std::string>({});
 

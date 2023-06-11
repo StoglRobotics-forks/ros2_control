@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/publisher_description.hpp"
 #include "hardware_interface/macros.hpp"
 #include "hardware_interface/visibility_control.h"
@@ -206,9 +207,13 @@ public:
         get_underscore_separated_name() + "_state_interface_subscriber", namespace_, node_options,
         false);
     }
+
+    auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+    rclcpp::QoS qos_profile(
+      rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
     // subscribe to topic provided by StatePublisher
     state_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
-      get_value_topic_name_, 10,
+      get_value_topic_name_, qos_profile,
       std::bind(&DistributedReadOnlyHandle::get_value_cb, this, std::placeholders::_1));
   }
 
@@ -354,14 +359,17 @@ public:
         node_options, false);
     }
 
+    auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+    rclcpp::QoS qos_profile(
+      rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
     // subscribe to topic provided by CommandForwarder
     command_value_sub_ = node_->create_subscription<std_msgs::msg::Float64>(
-      get_value_topic_name_, 10,
+      get_value_topic_name_, qos_profile,
       std::bind(&DistributedReadWriteHandle::get_value_cb, this, std::placeholders::_1));
 
     // create publisher so that we can forward the commands
     command_value_pub_ =
-      node_->create_publisher<std_msgs::msg::Float64>(forward_command_topic_name_, 10);
+      node_->create_publisher<std_msgs::msg::Float64>(forward_command_topic_name_, qos_profile);
   }
 
   explicit DistributedReadWriteHandle(const std::string & interface_name)

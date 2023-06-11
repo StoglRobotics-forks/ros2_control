@@ -32,7 +32,10 @@ StatePublisher::StatePublisher(
       node_options, false);
   }
 
-  state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, 10);
+  auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  rclcpp::QoS qos_profile(
+    rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
+  state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, qos_profile);
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
   timer_ = node_->create_wall_timer(
     period_in_ms_, std::bind(&StatePublisher::publish_value_on_timer, this));

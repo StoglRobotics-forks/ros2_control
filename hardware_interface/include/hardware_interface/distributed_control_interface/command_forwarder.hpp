@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/publisher_description.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 

@@ -32,7 +32,10 @@ CommandForwarder::CommandForwarder(
       namespace_, node_options, false);
   }
 
-  state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, 10);
+  auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  rclcpp::QoS qos_profile(
+    rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
+  state_value_pub_ = node_->create_publisher<std_msgs::msg::Float64>(topic_name_, qos_profile);
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
   timer_ = node_->create_wall_timer(
     period_in_ms_, std::bind(&CommandForwarder::publish_value_on_timer, this));
@@ -89,9 +92,12 @@ CommandForwarder::create_publisher_description_msg() const
 
 void CommandForwarder::subscribe_to_command_publisher(const std::string & topic_name)
 {
+  auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  rclcpp::QoS qos_profile(
+    rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
   subscription_topic_name_ = topic_name;
   command_subscription_ = node_->create_subscription<std_msgs::msg::Float64>(
-    subscription_topic_name_, 10,
+    subscription_topic_name_, qos_profile,
     std::bind(&CommandForwarder::forward_command, this, std::placeholders::_1));
 }
 

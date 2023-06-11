@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
 
 #include "controller_manager_msgs/msg/publisher_description.hpp"
