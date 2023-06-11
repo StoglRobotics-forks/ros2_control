@@ -71,6 +71,8 @@ private:
   rclcpp::Publisher<controller_manager_msgs::msg::Evaluation>::SharedPtr evaluation_pub_;
   const std::string evaluation_type_ = "commandInterface";
   std::string evaluation_identifier_;
+  bool publish_evaluation_msg_;
+  rclcpp::Time receive_time_;
 };
 
 }  // namespace distributed_control
