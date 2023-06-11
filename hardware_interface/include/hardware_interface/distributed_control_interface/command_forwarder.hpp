@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/publisher_description.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 
@@ -70,6 +71,8 @@ private:
   rclcpp::Publisher<controller_manager_msgs::msg::Evaluation>::SharedPtr evaluation_pub_;
   const std::string evaluation_type_ = "commandInterface";
   std::string evaluation_identifier_;
+  bool publish_evaluation_msg_;
+  rclcpp::Time receive_time_;
 };
 
 }  // namespace distributed_control

@@ -35,17 +35,26 @@ CommandForwarder::CommandForwarder(
       namespace_, node_options, false);
   }
 
+  auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  rclcpp::QoS qos_profile(
+    rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
   state_value_pub_ =
-    node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(topic_name_, 10);
+    node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(topic_name_, qos_profile);
 
-  rclcpp::NodeOptions node_options;
-  node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
-  evaluation_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-    loaned_command_interface_ptr_->get_underscore_separated_name() + "evaluation_node", namespace_,
-    node_options, false);
-  evaluation_pub_ = evaluation_node_->create_publisher<controller_manager_msgs::msg::Evaluation>(
-    evaluation_topic_name_, 10);
-  evaluation_identifier_ = loaned_command_interface_ptr_->get_underscore_separated_name();
+  publish_evaluation_msg_ = evaluation_helper->publish_evaluation_msg();
+  if (publish_evaluation_msg_)
+  {
+    rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
+    evaluation_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      loaned_command_interface_ptr_->get_underscore_separated_name() + "evaluation_node",
+      namespace_, node_options, false);
+    rclcpp::QoS evaluation_qos_profile(
+      rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_evaluation_qos_profile()));
+    evaluation_pub_ = evaluation_node_->create_publisher<controller_manager_msgs::msg::Evaluation>(
+      evaluation_topic_name_, evaluation_qos_profile);
+    evaluation_identifier_ = loaned_command_interface_ptr_->get_underscore_separated_name();
+  }
 
   // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
   timer_ = node_->create_wall_timer(
@@ -103,9 +112,12 @@ CommandForwarder::create_publisher_description_msg() const
 
 void CommandForwarder::subscribe_to_command_publisher(const std::string & topic_name)
 {
+  auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  rclcpp::QoS qos_profile(
+    rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
   subscription_topic_name_ = topic_name;
   command_subscription_ = node_->create_subscription<controller_manager_msgs::msg::InterfaceData>(
-    subscription_topic_name_, 10,
+    subscription_topic_name_, qos_profile,
     std::bind(&CommandForwarder::forward_command, this, std::placeholders::_1));
 }
 
@@ -130,20 +142,27 @@ void CommandForwarder::publish_value_on_timer()
 
 void CommandForwarder::forward_command(const controller_manager_msgs::msg::InterfaceData & msg)
 {
-  auto receive_time = evaluation_node_->now();
+  // first get timestamp to be as precise as possible
+  if (publish_evaluation_msg_)
+  {
+    receive_time_ = evaluation_node_->now();
+  }
   //set value before publishing
   loaned_command_interface_ptr_->set_value(msg.data);
 
-  auto evaluation_msg = std::make_unique<controller_manager_msgs::msg::Evaluation>();
-  evaluation_msg->receive_stamp = receive_time;
-  evaluation_msg->receive_time =
-    static_cast<uint64_t>(evaluation_msg->receive_stamp.sec) * 1'000'000'000ULL +
-    evaluation_msg->receive_stamp.nanosec;
-  evaluation_msg->type = evaluation_type_;
-  evaluation_msg->identifier = evaluation_identifier_;
-  evaluation_msg->seq = msg.header.seq;
-  // todo check for QoS to publish immediately and never block to be fast as possible
-  evaluation_pub_->publish(std::move(evaluation_msg));
+  if (publish_evaluation_msg_)
+  {
+    auto evaluation_msg = std::make_unique<controller_manager_msgs::msg::Evaluation>();
+    evaluation_msg->receive_stamp = receive_time_;
+    evaluation_msg->receive_time =
+      static_cast<uint64_t>(evaluation_msg->receive_stamp.sec) * 1'000'000'000ULL +
+      evaluation_msg->receive_stamp.nanosec;
+    evaluation_msg->type = evaluation_type_;
+    evaluation_msg->identifier = evaluation_identifier_;
+    evaluation_msg->seq = msg.header.seq;
+    // todo check for QoS to publish immediately and never block to be fast as possible
+    evaluation_pub_->publish(std::move(evaluation_msg));
+  }
 }
 
 }  // namespace distributed_control

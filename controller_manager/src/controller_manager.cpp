@@ -26,6 +26,7 @@
 #include "controller_manager_msgs/msg/publisher_description.hpp"
 
 #include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
@@ -408,6 +409,24 @@ void ControllerManager::get_and_initialize_distributed_parameters()
       get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
       use_multiple_nodes_ ? "true" : "false");
   }
+  if (!get_parameter("handles_qos_key", handles_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'handles_qos_key' parameter not set, using default value:%s",
+      handles_qos_key_.c_str());
+  }
+  if (!get_parameter("publish_evaluation_msg", publish_evaluation_msg_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'publish_evaluation_msg' parameter not set, using default value:%s",
+      publish_evaluation_msg_ ? "true" : "false");
+  }
+  if (!get_parameter("evaluation_qos_key", evaluation_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'evaluation_qos_key' parameter not set, using default value:%s",
+      evaluation_qos_key_.c_str());
+  }
 }
 
 void ControllerManager::configure_controller_manager()
@@ -462,8 +481,42 @@ ControllerManager::controller_manager_type ControllerManager::determine_controll
   return controller_manager_type::unkown_type;
 }
 
+rmw_qos_profile_t ControllerManager::determine_qos_profile(const std::string & key) const
+{
+  if (key == "sensor_data")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data;
+  }
+  else if (key == "sensor_data_1")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_1;
+  }
+  else if (key == "sensor_data_100")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_100;
+  }
+  else if (key == "reliable")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable;
+  }
+  else if (key == "reliable_100")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable_100;
+  }
+  else if (key == "system_default")
+  {
+    return evaluation_helper::rmw_qos_profile_system_default;
+  }
+  throw std::runtime_error("Given qos profile not know");
+}
+
 void ControllerManager::init_distributed_sub_controller_manager()
 {
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
   // if only one node per sub controller manager is used
   if (!use_multiple_nodes())
   {
@@ -511,6 +564,11 @@ void ControllerManager::init_distributed_sub_controller_manager()
 
 void ControllerManager::init_distributed_central_controller_manager()
 {
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
   if (!use_multiple_nodes())
   {
     rclcpp::NodeOptions node_options;
