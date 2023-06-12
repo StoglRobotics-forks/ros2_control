@@ -64,9 +64,7 @@ public:
 
   std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
 
-  double get_value() const { return command_interface_.get_value(); }
-
-  void set_value(double value) { command_interface_->set_value(value); }
+  double get_value() const { return command_interface_->get_value(); }
 
   std::string get_underscore_separated_name() const
   {
@@ -75,7 +73,7 @@ public:
 
   bool has_new_value() const { return command_interface_->has_new_value(); }
 
-  void set_value(const double & value) { command_interface_->set_value(value); }
+  void set_value(double value) { command_interface_->set_value(value); }
 
   bool value_is_valid() const { return command_interface_->value_is_valid(); }
 

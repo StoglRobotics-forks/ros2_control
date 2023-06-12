@@ -43,18 +43,18 @@ public:
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  virtual std::vector<hardware_interface::InterfaceDescription>
-  export_state_interfaces_descriptions() override;
+  // virtual std::vector<hardware_interface::InterfaceDescription>
+  // export_state_interfaces_descriptions() override;
 
-  virtual std::vector<hardware_interface::InterfaceDescription>
-  export_command_interfaces_descriptions() override;
+  // virtual std::vector<hardware_interface::InterfaceDescription>
+  // export_command_interfaces_descriptions() override;
 
-  virtual void import_loaned_hw_state_interfaces(
-    std::vector<hardware_interface::LoanedHwStateInterface> loaned_hw_state_interfaces) override;
+  // virtual void import_loaned_hw_state_interfaces(
+  //   std::vector<hardware_interface::LoanedHwStateInterface> && loaned_hw_state_interfaces) override;
 
-  virtual void import_loaned_hw_command_interfaces(
-    std::vector<hardware_interface::LoanedHwCommandInterface> loaned_hw_command_interfaces)
-    override;
+  // virtual void import_loaned_hw_command_interfaces(
+  //   std::vector<hardware_interface::LoanedHwCommandInterface> && loaned_hw_command_interfaces)
+  //   override;
 
   return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) override;
 

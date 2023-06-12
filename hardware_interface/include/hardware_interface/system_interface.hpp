@@ -107,6 +107,28 @@ public:
     return CallbackReturn::SUCCESS;
   };
 
+  /// Exports all state interfaces for this hardware interface.
+  /**
+   * The state interfaces have to be created and transferred according
+   * to the hardware info passed in for the configuration.
+   *
+   * Note the ownership over the state interfaces is transferred to the caller.
+   *
+   * \return vector of state interfaces
+   */
+  virtual std::vector<StateInterface> export_state_interfaces() = 0;
+
+  /// Exports all command interfaces for this hardware interface.
+  /**
+   * The command interfaces have to be created and transferred according
+   * to the hardware info passed in for the configuration.
+   *
+   * Note the ownership over the state interfaces is transferred to the caller.
+   *
+   * \return vector of command interfaces
+   */
+  virtual std::vector<CommandInterface> export_command_interfaces() = 0;
+
   /**
    * @brief Only export information describing the interfaces. Handle construction
    * and management internally. No need for the user to initialize and manage shared memory.

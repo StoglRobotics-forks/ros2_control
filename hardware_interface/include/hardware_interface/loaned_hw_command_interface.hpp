@@ -30,12 +30,12 @@ class LoanedHwCommandInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedHwCommandInterface(CommandInterface & command_interface)
+  explicit LoanedHwCommandInterface(std::shared_ptr<ReadWriteHandle> & command_interface)
   : LoanedHwCommandInterface(command_interface, nullptr)
   {
   }
 
-  LoanedHwCommandInterface(CommandInterface & command_interface, Deleter && deleter)
+  LoanedHwCommandInterface(std::shared_ptr<ReadWriteHandle> & command_interface, Deleter && deleter)
   : command_interface_(command_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
@@ -52,29 +52,29 @@ public:
     }
   }
 
-  const std::string get_name() const { return command_interface_.get_name(); }
+  const std::string get_name() const { return command_interface_->get_name(); }
 
-  const std::string & get_interface_name() const { return command_interface_.get_interface_name(); }
+  const std::string get_interface_name() const { return command_interface_->get_interface_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
   get_full_name() const
   {
-    return command_interface_.get_name();
+    return command_interface_->get_name();
   }
 
-  const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
+  const std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
 
-  double get_value() const { return command_interface_.get_value(); }
+  double get_value() const { return command_interface_->get_value(); }
 
-  bool has_new_value() const { return command_interface_.has_new_value(); }
+  bool has_new_value() const { return command_interface_->has_new_value(); }
 
-  void reset_command() { command_interface_.set_value(std::numeric_limits<double>::quiet_NaN()); }
+  void reset_command() { command_interface_->set_value(std::numeric_limits<double>::quiet_NaN()); }
 
-  bool value_is_valid() const { return command_interface_.value_is_valid(); }
+  bool value_is_valid() const { return command_interface_->value_is_valid(); }
 
 protected:
-  CommandInterface & command_interface_;
+  std::shared_ptr<ReadWriteHandle> command_interface_;
   Deleter deleter_;
 };
 

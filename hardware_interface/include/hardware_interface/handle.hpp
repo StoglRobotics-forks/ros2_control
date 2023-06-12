@@ -88,8 +88,8 @@ public:
 
   virtual ~HandleInterface() = default;
 
-  /// Returns true if handle references a value.
-  inline operator bool() const { return value_ptr_ != nullptr; }
+  // /// Returns true if handle references a value.
+  // inline operator bool() const { return value_ptr_ != nullptr; }
 
   std::string get_interface_name() const { return interface_name_; }
 
@@ -132,7 +132,7 @@ public:
    *
    * @param value current stored value in the handle.
    */
-  virtual void set_value(const double & value)
+  virtual void set_value(double value)
   {
     value_ = value;
     has_new_value_ = true;
@@ -146,6 +146,21 @@ public:
    * @return false => no new value has been stored since last read access to the handle.
    */
   virtual bool has_new_value() const { return has_new_value_; }
+
+  /**
+   * @brief Indicates if the value stored inside the handle is valid
+   *
+   * @return true => stored value is valid and can be used.
+   * @return false => false stored value is not valid and should not be used.
+   */
+  virtual bool value_is_valid() const
+  {
+    if (value_ == std::numeric_limits<double>::quiet_NaN())
+    {
+      return false;
+    }
+    return true;
+  }
 
 protected:
   std::string append_char(std::string str, const char & char_to_append) const
@@ -227,6 +242,10 @@ public:
 class StateInterface : public ReadOnlyHandle
 {
 public:
+  explicit StateInterface(const InterfaceDescription & interface_description)
+  : ReadOnlyHandle(interface_description.prefix_name, interface_description.interface_info.name)
+  {
+  }
   StateInterface(const StateInterface & other) = default;
 
   StateInterface(StateInterface && other) = default;
@@ -374,7 +393,7 @@ public:
    *
    * @param value current stored value in the handle.
    */
-  virtual void set_value(const double & value)
+  virtual void set_value(double value)
   {
     value_ = value;
     has_new_value_ = true;
@@ -384,6 +403,10 @@ public:
 class CommandInterface : public ReadWriteHandle
 {
 public:
+  explicit CommandInterface(const InterfaceDescription & interface_description)
+  : ReadWriteHandle(interface_description.prefix_name, interface_description.interface_info.name)
+  {
+  }
   /// CommandInterface copy constructor is actively deleted.
   /**
    * Command interfaces are having a unique ownership and thus

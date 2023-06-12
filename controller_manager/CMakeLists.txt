@@ -43,6 +43,7 @@ target_link_libraries(ros2_control_node PRIVATE
   controller_manager
 )
 
+set(BUILD_TESTING 0)
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(ros2_control_test_assets REQUIRED)

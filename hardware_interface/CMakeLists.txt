@@ -77,6 +77,7 @@ target_compile_definitions(fake_components PRIVATE "HARDWARE_INTERFACE_BUILDING_
 pluginlib_export_plugin_description_file(
   hardware_interface fake_components_plugin_description.xml)
 
+set(BUILD_TESTING 0)
 if(BUILD_TESTING)
 
   find_package(ament_cmake_gmock REQUIRED)

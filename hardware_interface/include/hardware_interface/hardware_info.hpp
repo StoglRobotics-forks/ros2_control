@@ -151,7 +151,9 @@ struct JointInfo
 
   friend std::ostream & operator<<(std::ostream & os, const JointInfo & joint_info)
   {
-    os << "<JointInfo{{name:" << joint_info.name << "}, {interfaces: " << joint_info.interfaces
+    os << "<JointInfo{{name:" << joint_info.name
+       << "}, {state_interfaces: " << joint_info.state_interfaces
+       << "}, { command_interfaces:" << joint_info.command_interfaces
        << "}, {role: " << joint_info.role
        << "}, {mechanical_reduction: " << joint_info.mechanical_reduction
        << "}, {offset: " << joint_info.offset << "}}>";
@@ -172,7 +174,9 @@ struct ActuatorInfo
   friend std::ostream & operator<<(std::ostream & os, const ActuatorInfo & actuator_info)
   {
     os << "<ActuatorInfo{{name:" << actuator_info.name
-       << "}, {interfaces: " << actuator_info.interfaces << "}, {role: " << actuator_info.role
+       << "}, {state_interfaces: " << actuator_info.state_interfaces
+       << "}, { command_interfaces:" << actuator_info.command_interfaces
+       << "}, {role: " << actuator_info.role
        << "}, {mechanical_reduction: " << actuator_info.mechanical_reduction
        << "}, {offset: " << actuator_info.offset << "}}>";
     return os;

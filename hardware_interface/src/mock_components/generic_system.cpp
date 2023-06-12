@@ -344,25 +344,29 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
   return command_interfaces;
 }
 
-std::vector<hardware_interface::InterfaceDescription>
-GenericSystem::export_state_interfaces_descriptions()
-{
-}
+// std::vector<hardware_interface::InterfaceDescription>
+// GenericSystem::export_state_interfaces_descriptions()
+// {
+//   throw std::runtime_error(
+//     "Generic system export_state_interfaces_descriptions() not implemented yet.");
+// }
 
-std::vector<hardware_interface::InterfaceDescription>
-GenericSystem::export_command_interfaces_descriptions()
-{
-}
+// std::vector<hardware_interface::InterfaceDescription>
+// GenericSystem::export_command_interfaces_descriptions()
+// {
+//   throw std::runtime_error(
+//     "Generic system export_command_interfaces_descriptions() not implemented yet.");
+// }
 
-void GenericSystem::import_loaned_hw_state_interfaces(
-  std::vector<hardware_interface::LoanedHwStateInterface> loaned_hw_state_interfaces)
-{
-}
+// void GenericSystem::import_loaned_hw_state_interfaces(
+//   std::vector<hardware_interface::LoanedHwStateInterface> loaned_hw_state_interfaces)
+// {
+// }
 
-void GenericSystem::import_loaned_hw_command_interfaces(
-  std::vector<hardware_interface::LoanedHwCommandInterface> loaned_hw_command_interfaces)
-{
-}
+// void GenericSystem::import_loaned_hw_command_interfaces(
+//   std::vector<hardware_interface::LoanedHwCommandInterface> loaned_hw_command_interfaces)
+// {
+// }
 
 return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
@@ -450,7 +454,7 @@ bool GenericSystem::get_interface(
   if (it != interface_list.end())
   {
     auto j = std::distance(interface_list.begin(), it);
-    interfaces.emplace_back(name, *it, &values[j][vector_index]);
+    // interfaces.emplace_back(name, *it, &values[j][vector_index]);
     return true;
   }
   return false;

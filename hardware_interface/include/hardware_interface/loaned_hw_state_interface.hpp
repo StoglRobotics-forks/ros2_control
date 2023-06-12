@@ -29,12 +29,12 @@ class LoanedHwStateInterface
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedHwStateInterface(StateInterface & state_interface)
+  explicit LoanedHwStateInterface(std::shared_ptr<ReadOnlyHandle> & state_interface)
   : LoanedHwStateInterface(state_interface, nullptr)
   {
   }
 
-  LoanedHwStateInterface(StateInterface & state_interface, Deleter && deleter)
+  LoanedHwStateInterface(std::shared_ptr<ReadOnlyHandle> & state_interface, Deleter && deleter)
   : state_interface_(state_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
@@ -51,29 +51,29 @@ public:
     }
   }
 
-  const std::string get_name() const { return state_interface_.get_name(); }
+  const std::string get_name() const { return state_interface_->get_name(); }
 
-  const std::string & get_interface_name() const { return state_interface_.get_interface_name(); }
+  const std::string get_interface_name() const { return state_interface_->get_interface_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
   get_full_name() const
   {
-    return state_interface_.get_name();
+    return state_interface_->get_name();
   }
 
-  const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
+  const std::string get_prefix_name() const { return state_interface_->get_prefix_name(); }
 
-  double get_value() const { return state_interface_.get_value(); }
+  double get_value() const { return state_interface_->get_value(); }
 
-  bool has_new_value() const { return state_interface_.has_new_value(); }
+  bool has_new_value() const { return state_interface_->has_new_value(); }
 
-  void set_value(const double & value) const { return state_interface_.set_value(value); }
+  void set_value(double value) const { return state_interface_->set_value(value); }
 
-  bool value_is_valid() const { return state_interface_.value_is_valid(); }
+  bool value_is_valid() const { return state_interface_->value_is_valid(); }
 
 protected:
-  StateInterface & state_interface_;
+  std::shared_ptr<ReadOnlyHandle> state_interface_;
   Deleter deleter_;
 };
 
