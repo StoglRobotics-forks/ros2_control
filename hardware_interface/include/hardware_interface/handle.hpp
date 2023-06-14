@@ -203,6 +203,7 @@ public:
     if (!node_.get())
     {
       rclcpp::NodeOptions node_options;
+      node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
       node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
         get_underscore_separated_name() + "_state_interface_subscriber", namespace_, node_options,
         false);
@@ -354,6 +355,7 @@ public:
     if (!node_.get())
     {
       rclcpp::NodeOptions node_options;
+      node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
       node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
         get_underscore_separated_name() + "_distributed_command_interface", namespace_,
         node_options, false);

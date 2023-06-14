@@ -27,6 +27,7 @@ StatePublisher::StatePublisher(
   if (!node_.get())
   {
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       loaned_state_interface_ptr_->get_underscore_separated_name() + "_state_publisher", namespace_,
       node_options, false);

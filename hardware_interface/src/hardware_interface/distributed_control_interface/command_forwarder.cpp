@@ -27,6 +27,7 @@ CommandForwarder::CommandForwarder(
   if (!node_.get())
   {
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_forwarder",
       namespace_, node_options, false);
