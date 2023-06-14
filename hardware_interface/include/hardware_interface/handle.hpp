@@ -33,16 +33,50 @@
 namespace hardware_interface
 {
 /// A handle used to get and set a value on a given interface.
-class ReadHandleInterface
+
+class SetValueBehavior
 {
 public:
-  virtual double get_value() = 0;
+  virtual double set_value(double value) = 0;
 };
 
-class WriteHandleInterface
+class Identity : public SetValueBehavior
 {
 public:
-  virtual void set_value(double value) = 0;
+  double set_value(double value) override { return value; }
+};
+
+class PublishBehavior : public SetValueBehavior
+{
+public:
+  explicit PublishBehavior(
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    const std::string & topic_name, rclcpp::QoS qos_profile)
+  : namespace_(ns), node_(node), topic_name_(topic_name)
+  {
+    state_value_pub_ = node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(
+      topic_name_, qos_profile);
+  }
+
+  double set_value(double value) override
+  {
+    auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
+    msg->data = value;
+    RCLCPP_DEBUG(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
+    // Put the message into a queue to be processed by the middleware.
+    // This call is non-blocking.
+    msg->header.seq = seq_number_;
+    ++seq_number_;
+    state_value_pub_->publish(std::move(msg));
+    return value;
+  }
+
+protected:
+  const std::string namespace_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
+  const std::string topic_name_;
+  rclcpp::Publisher<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_pub_;
+  uint32_t seq_number_ = 0;
 };
 
 class HandleInterface
@@ -58,6 +92,7 @@ public:
     value_(std::numeric_limits<double>::quiet_NaN()),
     node_(node)
   {
+    behavior_ = std::make_shared<Identity>();
   }
 
   explicit HandleInterface(const std::string & interface_name)
@@ -67,6 +102,7 @@ public:
     value_(std::numeric_limits<double>::quiet_NaN()),
     node_(nullptr)
   {
+    behavior_ = std::make_shared<Identity>();
   }
 
   explicit HandleInterface(const char * interface_name)
@@ -76,6 +112,7 @@ public:
     value_(std::numeric_limits<double>::quiet_NaN()),
     node_(nullptr)
   {
+    behavior_ = std::make_shared<Identity>();
   }
 
   HandleInterface(const HandleInterface & other) = default;
@@ -99,6 +136,8 @@ public:
   {
     return get_name();
   }
+
+  void set_behavior(std::shared_ptr<SetValueBehavior> behavior) { behavior_ = behavior; }
 
   virtual std::string get_name() const { return prefix_name_ + "/" + interface_name_; }
 
@@ -127,6 +166,19 @@ public:
   }
 
   /**
+   * @brief Get the value of the handle an mark the handle as "has_new_value_ = false"
+   * since the value has been read and not be changed since last read access.
+   *
+   * @return HandleValue is the current stored value of the handle.
+   */
+  virtual double get_value()
+  {
+    has_new_value_ = false;
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("Handle"), "get_value value[" << value_ << "]");
+    return value_;
+  }
+
+  /**
    * @brief Set the new value of the handle and mark the Handle as "has_new_value_ = true".
    * This indicates that new data has been set since last read access.
    *
@@ -134,7 +186,10 @@ public:
    */
   virtual void set_value(double value)
   {
-    value_ = value;
+    value_ = behavior_->set_value(value);
+    RCLCPP_ERROR_STREAM(
+      rclcpp::get_logger("Handle"),
+      "set_value with value[" << value << "] and after set: value[" << value_ << "]");
     has_new_value_ = true;
   }
 
@@ -200,9 +255,10 @@ protected:
   // the current stored value of the handle
   double value_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
+  std::shared_ptr<SetValueBehavior> behavior_;
 };
 
-class ReadOnlyHandle : public HandleInterface, public ReadHandleInterface
+class ReadOnlyHandle : public HandleInterface
 {
 public:
   ReadOnlyHandle(
@@ -225,18 +281,6 @@ public:
   ReadOnlyHandle & operator=(ReadOnlyHandle && other) = default;
 
   virtual ~ReadOnlyHandle() = default;
-
-  /**
-   * @brief Get the value of the handle an mark the handle as "has_new_value_ = false"
-   * since the value has been read and not be changed since last read access.
-   *
-   * @return HandleValue is the current stored value of the handle.
-   */
-  double get_value() override
-  {
-    has_new_value_ = false;
-    return value_;
-  }
 };
 
 class StateInterface : public ReadOnlyHandle
@@ -325,8 +369,7 @@ public:
 protected:
   void receive_value_cb(const controller_manager_msgs::msg::InterfaceData & msg)
   {
-    value_ = msg.data;
-    has_new_value_ = true;
+    set_value(msg.data);
     RCLCPP_DEBUG_STREAM(node_->get_logger(), "Receiving:[" << value_ << "].");
   }
 
@@ -349,9 +392,7 @@ public:
   using DistributedReadOnlyHandle::DistributedReadOnlyHandle;
 };
 
-class ReadWriteHandle : public HandleInterface,
-                        public ReadHandleInterface,
-                        public WriteHandleInterface
+class ReadWriteHandle : public HandleInterface
 {
 public:
   ReadWriteHandle(
@@ -373,31 +414,13 @@ public:
 
   ReadWriteHandle & operator=(ReadWriteHandle && other) = default;
 
-  virtual ~ReadWriteHandle() = default;
-
-  /**
-   * @brief Get the value of the handle an mark the handle as "has_new_value_ = false"
-   * since the value has been read and not be changed since last read access.
-   *
-   * @return HandleValue is the current stored value of the handle.
-   */
-  double get_value() override
+  virtual void set_value_on_receive(double value)
   {
-    has_new_value_ = false;
-    return value_;
-  }
-
-  /**
-   * @brief Set the new value of the handle and mark the Handle as "has_new_value_ = true".
-   * This indicates that new data has been set since last read access.
-   *
-   * @param value current stored value in the handle.
-   */
-  virtual void set_value(double value)
-  {
-    value_ = value;
     has_new_value_ = true;
+    value_ = value;
   }
+
+  virtual ~ReadWriteHandle() = default;
 };
 
 class CommandInterface : public ReadWriteHandle
@@ -494,10 +517,11 @@ public:
 
   void set_value(double value) override
   {
+    value_ = value;
     has_new_value_ = true;
 
     auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
-    msg->data = value;
+    msg->data = get_value();
     msg->header.seq = seq_number_;
     ++seq_number_;
 

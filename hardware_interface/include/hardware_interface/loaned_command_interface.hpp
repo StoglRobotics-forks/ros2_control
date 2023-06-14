@@ -73,7 +73,14 @@ public:
 
   bool has_new_value() const { return command_interface_->has_new_value(); }
 
+  void set_behavior(std::shared_ptr<SetValueBehavior> behavior)
+  {
+    command_interface_->set_behavior(behavior);
+  }
+
   void set_value(double value) { command_interface_->set_value(value); }
+
+  void set_value_on_receive(double value) { command_interface_->set_value_on_receive(value); }
 
   bool value_is_valid() const { return command_interface_->value_is_valid(); }
 

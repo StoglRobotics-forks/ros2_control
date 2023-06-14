@@ -363,19 +363,6 @@ void ControllerManager::get_and_initialize_distributed_parameters()
       central_controller_manager_ ? "true" : "false");
   }
 
-  int64_t distributed_interfaces_publish_period;
-  if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
-  {
-    distributed_interfaces_publish_period_ =
-      std::chrono::milliseconds(distributed_interfaces_publish_period);
-  }
-  else
-  {
-    RCLCPP_WARN(
-      get_logger(),
-      "'distributed_interfaces_publish_period' parameter not set, using default value.");
-  }
-
   if (!get_parameter("export_command_interfaces", command_interfaces_to_export_))
   {
     RCLCPP_WARN(
@@ -769,7 +756,7 @@ void ControllerManager::create_hardware_state_publishers(
       state_publisher = std::make_shared<distributed_control::StatePublisher>(
         std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
           resource_manager_->claim_state_interface(state_interface))),
-        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+        get_namespace(), distributed_pub_sub_node_);
     }
     catch (const std::exception & e)
     {
@@ -808,7 +795,7 @@ void ControllerManager::create_hardware_command_forwarders(
       command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
         std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
           resource_manager_->claim_command_interface(command_interface))),
-        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+        get_namespace(), distributed_pub_sub_node_);
     }
     catch (const std::exception & e)
     {
@@ -2682,11 +2669,6 @@ bool ControllerManager::is_central_controller_manager() const
 bool ControllerManager::is_sub_controller_manager() const { return sub_controller_manager_; }
 
 bool ControllerManager::use_multiple_nodes() const { return use_multiple_nodes_; }
-
-std::chrono::milliseconds ControllerManager::distributed_interfaces_publish_period() const
-{
-  return distributed_interfaces_publish_period_;
-}
 
 void ControllerManager::propagate_deactivation_of_chained_mode(
   const std::vector<ControllerSpec> & controllers)

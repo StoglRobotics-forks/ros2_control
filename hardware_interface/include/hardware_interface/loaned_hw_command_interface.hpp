@@ -69,6 +69,8 @@ public:
 
   bool has_new_value() const { return command_interface_->has_new_value(); }
 
+  void set_value(double value) { command_interface_->set_value(value); }
+
   void reset_command() { command_interface_->set_value(std::numeric_limits<double>::quiet_NaN()); }
 
   bool value_is_valid() const { return command_interface_->value_is_valid(); }

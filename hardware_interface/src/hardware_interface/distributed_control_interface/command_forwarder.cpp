@@ -15,12 +15,11 @@ namespace distributed_control
 
 CommandForwarder::CommandForwarder(
   std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-  const std::string & ns, std::chrono::milliseconds period_in_ms,
-  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+  const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 : loaned_command_interface_ptr_(std::move(loaned_command_interface_ptr)),
   namespace_(ns),
-  period_in_ms_(period_in_ms),
   node_(node),
+  node_name_(loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_forwarder"),
   topic_name_(loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_state"),
   evaluation_topic_name_(
     loaned_command_interface_ptr_->get_underscore_separated_name() + "_EVALUATION")
@@ -31,17 +30,17 @@ CommandForwarder::CommandForwarder(
     rclcpp::NodeOptions node_options;
     node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
-      loaned_command_interface_ptr_->get_underscore_separated_name() + "_command_forwarder",
-      namespace_, node_options, false);
+      node_name_, namespace_, node_options, false);
   }
 
   auto evaluation_helper = evaluation_helper::Evaluation_Helper::get_instance();
+  publish_evaluation_msg_ = evaluation_helper->publish_evaluation_msg();
   rclcpp::QoS qos_profile(
     rclcpp::QoSInitialization::from_rmw(evaluation_helper->get_qos_profile()));
-  state_value_pub_ =
-    node_->create_publisher<controller_manager_msgs::msg::InterfaceData>(topic_name_, qos_profile);
-
-  publish_evaluation_msg_ = evaluation_helper->publish_evaluation_msg();
+  std::shared_ptr<hardware_interface::SetValueBehavior> distributed_behavior =
+    std::make_shared<hardware_interface::PublishBehavior>(
+      namespace_, node_, topic_name_, qos_profile);
+  loaned_command_interface_ptr_->set_behavior(distributed_behavior);
   if (publish_evaluation_msg_)
   {
     rclcpp::NodeOptions node_options;
@@ -55,11 +54,6 @@ CommandForwarder::CommandForwarder(
       evaluation_topic_name_, evaluation_qos_profile);
     evaluation_identifier_ = loaned_command_interface_ptr_->get_underscore_separated_name();
   }
-
-  // TODO(Manuel): We should check if we cannot detect changes to LoanedStateInterface's value and only publish then
-  timer_ = node_->create_wall_timer(
-    period_in_ms_, std::bind(&CommandForwarder::publish_value_on_timer, this));
-  RCLCPP_INFO(node_->get_logger(), "Creating CommandForwarder<%s>.", topic_name_.c_str());
 }
 
 std::shared_ptr<rclcpp_lifecycle::LifecycleNode> CommandForwarder::get_node() const
@@ -121,25 +115,6 @@ void CommandForwarder::subscribe_to_command_publisher(const std::string & topic_
     std::bind(&CommandForwarder::forward_command, this, std::placeholders::_1));
 }
 
-void CommandForwarder::publish_value_on_timer()
-{
-  // Todo(Manuel) create custom msg and return success or failure not just nan.
-  auto msg = std::make_unique<controller_manager_msgs::msg::InterfaceData>();
-  try
-  {
-    msg->data = loaned_command_interface_ptr_->get_value();
-  }
-  catch (const std::runtime_error & e)
-  {
-    msg->data = std::numeric_limits<double>::quiet_NaN();
-  }
-  RCLCPP_DEBUG(node_->get_logger(), "Publishing: '%.7lf'", msg->data);
-
-  // Put the message into a queue to be processed by the middleware.
-  // This call is non-blocking.
-  state_value_pub_->publish(std::move(msg));
-}
-
 void CommandForwarder::forward_command(const controller_manager_msgs::msg::InterfaceData & msg)
 {
   // first get timestamp to be as precise as possible
@@ -148,7 +123,7 @@ void CommandForwarder::forward_command(const controller_manager_msgs::msg::Inter
     receive_time_ = evaluation_node_->now();
   }
   //set value before publishing
-  loaned_command_interface_ptr_->set_value(msg.data);
+  loaned_command_interface_ptr_->set_value_on_receive(msg.data);
 
   if (publish_evaluation_msg_)
   {

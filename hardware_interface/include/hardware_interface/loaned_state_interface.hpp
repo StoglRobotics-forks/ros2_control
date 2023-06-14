@@ -69,6 +69,11 @@ public:
     return state_interface_->get_underscore_separated_name();
   }
 
+  void set_behavior(std::shared_ptr<SetValueBehavior> behavior)
+  {
+    state_interface_->set_behavior(behavior);
+  }
+
   double get_value() const { return state_interface_->get_value(); }
 
   bool has_new_value() const { return state_interface_->has_new_value(); }

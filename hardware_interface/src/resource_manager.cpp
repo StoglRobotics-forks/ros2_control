@@ -463,14 +463,13 @@ public:
   template <class HardwareT>
   void assign_state_interface_loans_to_hw(HardwareT & hardware)
   {
-    std::map<std::string, LoanedHwStateInterface> hw_state_interface_loans;
+    std::vector<LoanedHwStateInterface> hw_state_interface_loans;
     for (const auto & state_interface_name : get_state_interface_names(hardware))
     {
       // TODO(Manuel): should we mark as hw claimed???
       LoanedHwStateInterface loaned_hw_state_interface(
         state_interface_map_.at(state_interface_name));
-      hw_state_interface_loans.emplace(
-        loaned_hw_state_interface.get_name(), std::move(loaned_hw_state_interface));
+      hw_state_interface_loans.push_back(std::move(loaned_hw_state_interface));
     }
     hardware.assign_state_interface_loans_to_hw(std::move(hw_state_interface_loans));
   }
@@ -546,14 +545,13 @@ public:
   template <class HardwareT>
   void assign_command_interface_loans_to_hw(HardwareT & hardware)
   {
-    std::map<std::string, LoanedHwCommandInterface> hw_command_interface_loans;
+    std::vector<LoanedHwCommandInterface> hw_command_interface_loans;
     for (const auto & command_interface_name : get_command_interface_names(hardware))
     {
       // TODO(Manuel): should we mark as hw claimed???
       LoanedHwCommandInterface loaned_hw_command_interface(
         command_interface_map_.at(command_interface_name));
-      hw_command_interface_loans.emplace(
-        loaned_hw_command_interface.get_name(), std::move(loaned_hw_command_interface));
+      hw_command_interface_loans.push_back(std::move(loaned_hw_command_interface));
     }
     hardware.assign_command_interface_loans_to_hw(std::move(hw_command_interface_loans));
   }

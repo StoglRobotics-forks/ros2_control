@@ -213,9 +213,6 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   bool use_multiple_nodes() const;
 
-  CONTROLLER_MANAGER_PUBLIC
-  std::chrono::milliseconds distributed_interfaces_publish_period() const;
-
 protected:
   CONTROLLER_MANAGER_PUBLIC
   void init_services();
@@ -493,7 +490,6 @@ private:
   // associated with it ... (create on distributed Handles and StatePublisher/CommandForwarder)
   // needs to be checked if is nullptr before usage
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> distributed_pub_sub_node_ = nullptr;
-  std::chrono::milliseconds distributed_interfaces_publish_period_ = std::chrono::milliseconds(12);
 
   rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**

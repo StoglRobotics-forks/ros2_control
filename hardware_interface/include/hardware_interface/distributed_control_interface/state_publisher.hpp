@@ -23,8 +23,7 @@ class StatePublisher final
 public:
   explicit StatePublisher(
     std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr,
-    const std::string & ns, std::chrono::milliseconds period_in_ms,
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
   StatePublisher() = delete;
 
   ~StatePublisher() {}
@@ -46,17 +45,11 @@ public:
   controller_manager_msgs::msg::PublisherDescription create_publisher_description_msg() const;
 
 private:
-  void publish_value_on_timer();
-
   std::unique_ptr<hardware_interface::LoanedStateInterface> loaned_state_interface_ptr_;
   const std::string namespace_;
-  const std::chrono::milliseconds period_in_ms_;
-
+  const std::string node_name_;
   const std::string topic_name_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
-  rclcpp::Publisher<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_pub_;
-  rclcpp::TimerBase::SharedPtr timer_;
-  uint32_t seq_number_ = 0;
 };
 
 }  // namespace distributed_control
