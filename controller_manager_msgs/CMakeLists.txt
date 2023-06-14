@@ -9,9 +9,12 @@ find_package(rosidl_default_generators REQUIRED)
 set(msg_files
   msg/ControllerState.msg
   msg/ChainConnection.msg
+  msg/Evaluation.msg
   msg/HandleName.msg
   msg/HardwareComponentState.msg
   msg/HardwareInterface.msg
+  msg/Header.msg
+  msg/InterfaceData.msg
   msg/PublisherDescription.msg
 )
 set(srv_files

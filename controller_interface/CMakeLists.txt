@@ -30,6 +30,7 @@ ament_target_dependencies(controller_interface PUBLIC ${THIS_PACKAGE_INCLUDE_DEP
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(controller_interface PRIVATE "CONTROLLER_INTERFACE_BUILDING_DLL")
 
+set(BUILD_TESTING 0)
 if(BUILD_TESTING)
   find_package(ament_cmake_gmock REQUIRED)
   find_package(sensor_msgs REQUIRED)

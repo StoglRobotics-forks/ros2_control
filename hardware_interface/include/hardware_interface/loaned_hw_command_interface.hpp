@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef HARDWARE_INTERFACE__LOANED_COMMAND_INTERFACE_HPP_
-#define HARDWARE_INTERFACE__LOANED_COMMAND_INTERFACE_HPP_
+#ifndef HARDWARE_INTERFACE__LOANED_HW_COMMAND_INTERFACE_HPP_
+#define HARDWARE_INTERFACE__LOANED_HW_COMMAND_INTERFACE_HPP_
 
 #include <functional>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -24,26 +25,26 @@
 
 namespace hardware_interface
 {
-class LoanedCommandInterface
+class LoanedHwCommandInterface
 {
 public:
   using Deleter = std::function<void(void)>;
 
-  explicit LoanedCommandInterface(std::shared_ptr<ReadWriteHandle> command_interface)
-  : LoanedCommandInterface(command_interface, nullptr)
+  explicit LoanedHwCommandInterface(std::shared_ptr<ReadWriteHandle> & command_interface)
+  : LoanedHwCommandInterface(command_interface, nullptr)
   {
   }
 
-  LoanedCommandInterface(std::shared_ptr<ReadWriteHandle> command_interface, Deleter && deleter)
+  LoanedHwCommandInterface(std::shared_ptr<ReadWriteHandle> & command_interface, Deleter && deleter)
   : command_interface_(command_interface), deleter_(std::forward<Deleter>(deleter))
   {
   }
 
-  LoanedCommandInterface(const LoanedCommandInterface & other) = delete;
+  LoanedHwCommandInterface(const LoanedHwCommandInterface & other) = delete;
 
-  LoanedCommandInterface(LoanedCommandInterface && other) = default;
+  LoanedHwCommandInterface(LoanedHwCommandInterface && other) = default;
 
-  virtual ~LoanedCommandInterface()
+  virtual ~LoanedHwCommandInterface()
   {
     if (deleter_)
     {
@@ -51,9 +52,9 @@ public:
     }
   }
 
-  std::string get_name() const { return command_interface_->get_name(); }
+  const std::string get_name() const { return command_interface_->get_name(); }
 
-  std::string get_interface_name() const { return command_interface_->get_interface_name(); }
+  const std::string get_interface_name() const { return command_interface_->get_interface_name(); }
 
   [[deprecated(
     "Replaced by get_name method, which is semantically more correct")]] const std::string
@@ -62,25 +63,15 @@ public:
     return command_interface_->get_name();
   }
 
-  std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
+  const std::string get_prefix_name() const { return command_interface_->get_prefix_name(); }
 
   double get_value() const { return command_interface_->get_value(); }
 
-  std::string get_underscore_separated_name() const
-  {
-    return command_interface_->get_underscore_separated_name();
-  }
-
   bool has_new_value() const { return command_interface_->has_new_value(); }
-
-  void set_behavior(std::shared_ptr<SetValueBehavior> behavior)
-  {
-    command_interface_->set_behavior(behavior);
-  }
 
   void set_value(double value) { command_interface_->set_value(value); }
 
-  void set_value_on_receive(double value) { command_interface_->set_value_on_receive(value); }
+  void reset_command() { command_interface_->set_value(std::numeric_limits<double>::quiet_NaN()); }
 
   bool value_is_valid() const { return command_interface_->value_is_valid(); }
 
@@ -90,4 +81,4 @@ protected:
 };
 
 }  // namespace hardware_interface
-#endif  // HARDWARE_INTERFACE__LOANED_COMMAND_INTERFACE_HPP_
+#endif  // HARDWARE_INTERFACE__LOANED_HW_COMMAND_INTERFACE_HPP_

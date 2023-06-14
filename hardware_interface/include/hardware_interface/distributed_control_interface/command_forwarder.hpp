@@ -6,15 +6,17 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/publisher_description.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 
 #include "controller_manager_msgs/msg/publisher_description.hpp"
 
+#include "controller_manager_msgs/msg/evaluation.hpp"
+#include "controller_manager_msgs/msg/interface_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rclcpp_lifecycle/state.hpp"
-#include "std_msgs/msg/float64.hpp"
 
 namespace distributed_control
 {
@@ -24,8 +26,7 @@ class CommandForwarder final
 public:
   explicit CommandForwarder(
     std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr,
-    const std::string & ns, std::chrono::milliseconds period_in_ms,
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   CommandForwarder() = delete;
 
@@ -50,19 +51,24 @@ public:
   void subscribe_to_command_publisher(const std::string & topic_name);
 
 private:
-  void publish_value_on_timer();
-  void forward_command(const std_msgs::msg::Float64 & msg);
+  void forward_command(const controller_manager_msgs::msg::InterfaceData & msg);
 
   std::unique_ptr<hardware_interface::LoanedCommandInterface> loaned_command_interface_ptr_;
   const std::string namespace_;
-  const std::chrono::milliseconds period_in_ms_;
-
-  const std::string topic_name_;
-  std::string subscription_topic_name_;
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr state_value_pub_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr command_subscription_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  const std::string node_name_;
+  const std::string topic_name_;
+  const std::string evaluation_topic_name_;
+  std::string subscription_topic_name_;
+  rclcpp::Publisher<controller_manager_msgs::msg::InterfaceData>::SharedPtr state_value_pub_;
+  rclcpp::Subscription<controller_manager_msgs::msg::InterfaceData>::SharedPtr
+    command_subscription_;
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> evaluation_node_;
+  rclcpp::Publisher<controller_manager_msgs::msg::Evaluation>::SharedPtr evaluation_pub_;
+  const std::string evaluation_type_ = "commandInterface";
+  std::string evaluation_identifier_;
+  bool publish_evaluation_msg_;
+  rclcpp::Time receive_time_;
 };
 
 }  // namespace distributed_control

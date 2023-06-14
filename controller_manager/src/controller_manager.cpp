@@ -26,6 +26,7 @@
 #include "controller_manager_msgs/msg/publisher_description.hpp"
 
 #include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
 #include "hardware_interface/distributed_control_interface/state_publisher.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
@@ -47,10 +48,6 @@ rclcpp::QoS qos_services =
   rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1))
     .reliable()
     .durability_volatile();
-
-rclcpp::QoSInitialization qos_profile_services_keep_all_persist_init(
-  RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1);
-rclcpp::QoS qos_profile_services_keep_all(qos_profile_services_keep_all_persist_init);
 
 inline bool is_controller_inactive(const controller_interface::ControllerInterfaceBase & controller)
 {
@@ -366,19 +363,6 @@ void ControllerManager::get_and_initialize_distributed_parameters()
       central_controller_manager_ ? "true" : "false");
   }
 
-  int64_t distributed_interfaces_publish_period;
-  if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
-  {
-    distributed_interfaces_publish_period_ =
-      std::chrono::milliseconds(distributed_interfaces_publish_period);
-  }
-  else
-  {
-    RCLCPP_WARN(
-      get_logger(),
-      "'distributed_interfaces_publish_period' parameter not set, using default value.");
-  }
-
   if (!get_parameter("export_command_interfaces", command_interfaces_to_export_))
   {
     RCLCPP_WARN(
@@ -407,6 +391,24 @@ void ControllerManager::get_and_initialize_distributed_parameters()
     RCLCPP_WARN(
       get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
       use_multiple_nodes_ ? "true" : "false");
+  }
+  if (!get_parameter("handles_qos_key", handles_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'handles_qos_key' parameter not set, using default value:%s",
+      handles_qos_key_.c_str());
+  }
+  if (!get_parameter("publish_evaluation_msg", publish_evaluation_msg_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'publish_evaluation_msg' parameter not set, using default value:%s",
+      publish_evaluation_msg_ ? "true" : "false");
+  }
+  if (!get_parameter("evaluation_qos_key", evaluation_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'evaluation_qos_key' parameter not set, using default value:%s",
+      evaluation_qos_key_.c_str());
   }
 }
 
@@ -462,13 +464,48 @@ ControllerManager::controller_manager_type ControllerManager::determine_controll
   return controller_manager_type::unkown_type;
 }
 
+rmw_qos_profile_t ControllerManager::determine_qos_profile(const std::string & key) const
+{
+  if (key == "sensor_data")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data;
+  }
+  else if (key == "sensor_data_1")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_1;
+  }
+  else if (key == "sensor_data_100")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_100;
+  }
+  else if (key == "reliable")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable;
+  }
+  else if (key == "reliable_100")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable_100;
+  }
+  else if (key == "system_default")
+  {
+    return evaluation_helper::rmw_qos_profile_system_default;
+  }
+  throw std::runtime_error("Given qos profile not know");
+}
+
 void ControllerManager::init_distributed_sub_controller_manager()
 {
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
   // if only one node per sub controller manager is used
   if (!use_multiple_nodes())
   {
     // create node for publishing/subscribing
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
     //try to add to executor
@@ -510,9 +547,15 @@ void ControllerManager::init_distributed_sub_controller_manager()
 
 void ControllerManager::init_distributed_central_controller_manager()
 {
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
   if (!use_multiple_nodes())
   {
     rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
     distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
       std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
     //try to add to executor
@@ -533,6 +576,11 @@ void ControllerManager::init_distributed_central_controller_manager()
 
 void ControllerManager::init_distributed_central_controller_manager_services()
 {
+  rclcpp::QoS qos_distributed_services_keep_10 =
+    rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 10))
+      .reliable()
+      .durability_volatile();
+
   distributed_system_srv_callback_group_ =
     create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
@@ -542,7 +590,7 @@ void ControllerManager::init_distributed_central_controller_manager_services()
       std::bind(
         &ControllerManager::register_sub_controller_manager_srv_cb, this, std::placeholders::_1,
         std::placeholders::_2),
-      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
 
   register_sub_controller_manager_references_srv_ =
     create_service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
@@ -550,7 +598,7 @@ void ControllerManager::init_distributed_central_controller_manager_services()
       std::bind(
         &ControllerManager::register_sub_controller_manager_references_srv_cb, this,
         std::placeholders::_1, std::placeholders::_2),
-      qos_profile_services_keep_all, distributed_system_srv_callback_group_);
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
 }
 
 void ControllerManager::register_sub_controller_manager_srv_cb(
@@ -708,7 +756,7 @@ void ControllerManager::create_hardware_state_publishers(
       state_publisher = std::make_shared<distributed_control::StatePublisher>(
         std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
           resource_manager_->claim_state_interface(state_interface))),
-        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+        get_namespace(), distributed_pub_sub_node_);
     }
     catch (const std::exception & e)
     {
@@ -747,7 +795,7 @@ void ControllerManager::create_hardware_command_forwarders(
       command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
         std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
           resource_manager_->claim_command_interface(command_interface))),
-        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+        get_namespace(), distributed_pub_sub_node_);
     }
     catch (const std::exception & e)
     {
@@ -2621,11 +2669,6 @@ bool ControllerManager::is_central_controller_manager() const
 bool ControllerManager::is_sub_controller_manager() const { return sub_controller_manager_; }
 
 bool ControllerManager::use_multiple_nodes() const { return use_multiple_nodes_; }
-
-std::chrono::milliseconds ControllerManager::distributed_interfaces_publish_period() const
-{
-  return distributed_interfaces_publish_period_;
-}
 
 void ControllerManager::propagate_deactivation_of_chained_mode(
   const std::vector<ControllerSpec> & controllers)
