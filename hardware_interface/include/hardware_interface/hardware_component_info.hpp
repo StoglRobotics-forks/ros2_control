@@ -36,7 +36,7 @@ struct HardwareComponentInfo
   /// Component name.
   std::string name;
 
-  /// Component "classification": "actuator", "sensor" or "system"
+  /// Component "classification": "actuator", "sensor", "system" or "sub_controller_manager"
   std::string type;
 
   /// Component pluginlib plugin name.

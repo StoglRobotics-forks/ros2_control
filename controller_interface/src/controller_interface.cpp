@@ -33,6 +33,12 @@ std::vector<hardware_interface::CommandInterface> ControllerInterface::export_re
   return {};
 }
 
+std::vector<hardware_interface::DistributedCommandInterface>
+ControllerInterface::export_distributed_reference_interfaces()
+{
+  return {};
+}
+
 bool ControllerInterface::set_chained_mode(bool /*chained_mode*/) { return false; }
 
 bool ControllerInterface::is_in_chained_mode() const { return false; }

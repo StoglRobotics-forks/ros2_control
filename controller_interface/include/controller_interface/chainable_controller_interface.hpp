@@ -58,6 +58,10 @@ public:
   std::vector<hardware_interface::CommandInterface> export_reference_interfaces() final;
 
   CONTROLLER_INTERFACE_PUBLIC
+  std::vector<hardware_interface::DistributedCommandInterface>
+  export_distributed_reference_interfaces() final;
+
+  CONTROLLER_INTERFACE_PUBLIC
   bool set_chained_mode(bool chained_mode) final;
 
   CONTROLLER_INTERFACE_PUBLIC
@@ -74,6 +78,15 @@ protected:
    * \returns list of CommandInterfaces that other controller can use as their outputs.
    */
   virtual std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() = 0;
+
+  // Only for fast poc should be pure virtual
+  /**
+   * Default returns emtpy list, so that not every chainable controller has to be updated for poc.
+   *
+   * \returns empty list.
+   */
+  virtual std::vector<hardware_interface::DistributedCommandInterface>
+  on_export_distributed_reference_interfaces();
 
   /// Virtual method that each chainable controller should implement to switch chained mode.
   /**

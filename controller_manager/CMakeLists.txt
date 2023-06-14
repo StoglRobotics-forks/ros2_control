@@ -14,6 +14,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   pluginlib
   rclcpp
   realtime_tools
+  std_msgs
 )
 
 find_package(ament_cmake REQUIRED)
@@ -37,7 +38,6 @@ ament_target_dependencies(controller_manager PUBLIC ${THIS_PACKAGE_INCLUDE_DEPEN
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(controller_manager PRIVATE "CONTROLLER_MANAGER_BUILDING_DLL")
-
 add_executable(ros2_control_node src/ros2_control_node.cpp)
 target_link_libraries(ros2_control_node PRIVATE
   controller_manager
@@ -141,6 +141,16 @@ if(BUILD_TESTING)
     ros2_control_test_assets::ros2_control_test_assets
   )
   ament_target_dependencies(test_controller_manager_srvs
+    controller_manager_msgs
+  )
+  ament_add_gmock(test_controller_manager_urdf_passing
+  test/test_controller_manager_urdf_passing.cpp
+  )
+  target_link_libraries(test_controller_manager_urdf_passing
+    controller_manager
+    ros2_control_test_assets::ros2_control_test_assets
+  )
+  ament_target_dependencies(test_controller_manager_urdf_passing
     controller_manager_msgs
   )
 

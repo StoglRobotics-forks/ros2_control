@@ -35,6 +35,8 @@
 #include "controller_manager_msgs/srv/list_hardware_components.hpp"
 #include "controller_manager_msgs/srv/list_hardware_interfaces.hpp"
 #include "controller_manager_msgs/srv/load_controller.hpp"
+#include "controller_manager_msgs/srv/register_sub_controller_manager.hpp"
+#include "controller_manager_msgs/srv/register_sub_controller_manager_references.hpp"
 #include "controller_manager_msgs/srv/reload_controller_libraries.hpp"
 #include "controller_manager_msgs/srv/set_hardware_component_state.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
@@ -51,7 +53,8 @@
 #include "rclcpp/node_interfaces/node_logging_interface.hpp"
 #include "rclcpp/node_interfaces/node_parameters_interface.hpp"
 #include "rclcpp/parameter.hpp"
-
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
 namespace controller_manager
 {
 using ControllersListIterator = std::vector<controller_manager::ControllerSpec>::const_iterator;
@@ -60,6 +63,8 @@ rclcpp::NodeOptions get_cm_node_options();
 
 class ControllerManager : public rclcpp::Node
 {
+  enum class controller_manager_type : std::uint8_t;
+
 public:
   static constexpr bool kWaitForAllResources = false;
   static constexpr auto kInfiniteTimeout = 0;
@@ -81,6 +86,12 @@ public:
 
   CONTROLLER_MANAGER_PUBLIC
   virtual ~ControllerManager() = default;
+
+  CONTROLLER_MANAGER_PUBLIC
+  void subscribe_to_robot_description_topic();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void robot_description_callback(const std_msgs::msg::String & msg);
 
   CONTROLLER_MANAGER_PUBLIC
   void init_resource_manager(const std::string & robot_description);
@@ -190,9 +201,69 @@ public:
   CONTROLLER_MANAGER_PUBLIC
   unsigned int get_update_rate() const;
 
+  CONTROLLER_MANAGER_PUBLIC
+  rmw_qos_profile_t determine_qos_profile(const std::string & key) const;
+
+  CONTROLLER_MANAGER_PUBLIC
+  bool is_central_controller_manager() const;
+
+  CONTROLLER_MANAGER_PUBLIC
+  bool is_sub_controller_manager() const;
+
+  CONTROLLER_MANAGER_PUBLIC
+  bool use_multiple_nodes() const;
+
+  CONTROLLER_MANAGER_PUBLIC
+  std::chrono::milliseconds distributed_interfaces_publish_period() const;
+
 protected:
   CONTROLLER_MANAGER_PUBLIC
   void init_services();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void get_and_initialize_distributed_parameters();
+
+  CONTROLLER_MANAGER_PUBLIC
+  controller_manager_type determine_controller_manager_type();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void configure_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void init_distributed_sub_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void init_distributed_central_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC void init_distributed_central_controller_manager_services();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager_srv_cb(
+    const std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Request>
+      request,
+    std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager_references_srv_cb(
+    const std::shared_ptr<
+      controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>
+      request,
+    std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Response>
+      response);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void create_hardware_state_publishers(
+    const std::vector<std::string> & state_interfaces_to_export);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void create_hardware_command_forwarders(
+    const std::vector<std::string> & command_interfaces_to_export);
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_sub_controller_manager();
+
+  CONTROLLER_MANAGER_PUBLIC
+  void register_reference_interfaces(const std::vector<std::string> & reference_interfaces_names);
 
   CONTROLLER_MANAGER_PUBLIC
   controller_interface::ControllerInterfaceBaseSharedPtr add_controller_impl(
@@ -399,6 +470,32 @@ private:
    */
   rclcpp::CallbackGroup::SharedPtr best_effort_callback_group_;
 
+  enum class controller_manager_type : std::uint8_t
+  {
+    standard_controller_manager,
+    distributed_central_controller_manager,
+    distributed_sub_controller_manager,
+    unkown_type  // indicating something went wrong and type could not be determined
+  };
+
+  bool sub_controller_manager_ = false;
+  bool central_controller_manager_ = false;
+  bool use_multiple_nodes_ = false;
+  std::shared_ptr<evaluation_helper::Evaluation_Helper> qos_helper_;
+  std::string handles_qos_key_ = "system_default";
+  bool publish_evaluation_msg_ = true;
+  std::string evaluation_qos_key_ = "system_default";
+  std::vector<std::string> command_interfaces_to_export_ = std::vector<std::string>({});
+  std::vector<std::string> state_interfaces_to_export_ = std::vector<std::string>({});
+
+  // TODO(Manuel): weak_ptr would probably be a better choice. This way has to be checked
+  // if pointer points to an object. Don't like the nullptr thing and implicit checks
+  // associated with it ... (create on distributed Handles and StatePublisher/CommandForwarder)
+  // needs to be checked if is nullptr before usage
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> distributed_pub_sub_node_ = nullptr;
+  std::chrono::milliseconds distributed_interfaces_publish_period_ = std::chrono::milliseconds(12);
+
+  rclcpp::CallbackGroup::SharedPtr distributed_system_srv_callback_group_;
   /**
    * The RTControllerListWrapper class wraps a double-buffered list of controllers
    * to avoid needing to lock the real-time thread when switching controllers in
@@ -496,10 +593,19 @@ private:
   rclcpp::Service<controller_manager_msgs::srv::SetHardwareComponentState>::SharedPtr
     set_hardware_component_state_service_;
 
+  // services for distributed control
+  std::mutex central_controller_manager_srv_lock_;
+  rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr
+    register_sub_controller_manager_srv_;
+  rclcpp::Service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>::SharedPtr
+    register_sub_controller_manager_references_srv_;
+
   std::vector<std::string> activate_request_, deactivate_request_;
   std::vector<std::string> to_chained_mode_request_, from_chained_mode_request_;
   std::vector<std::string> activate_command_interface_request_,
     deactivate_command_interface_request_;
+
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
 
   struct SwitchParams
   {

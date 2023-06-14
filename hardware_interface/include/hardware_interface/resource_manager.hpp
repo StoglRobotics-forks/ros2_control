@@ -21,11 +21,16 @@
 #include <unordered_map>
 #include <vector>
 
+#include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
+#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
+#include "hardware_interface/distributed_control_interface/sub_controller_manager_wrapper.hpp"
+#include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_component_info.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+
 #include "rclcpp/duration.hpp"
 #include "rclcpp/time.hpp"
 
@@ -83,6 +88,16 @@ public:
    */
   void load_urdf(const std::string & urdf, bool validate_interfaces = true);
 
+  /**
+   * @brief if the resource manager load_urdf(...) function has been called this returns true.
+   * We want to permit to load the urdf later on but we currently don't want to permit multiple
+   * calls to load_urdf (reloading/loading different urdf).
+   *
+   * @return true if resource manager's load_urdf() has been already called.
+   * @return false if resource manager's load_urdf() has not been yet called.
+   */
+  bool load_urdf_called() const;
+
   /// Claim a state interface given its key.
   /**
    * The resource is claimed as long as being in scope.
@@ -113,6 +128,38 @@ public:
    * \return true if interface is available, false otherwise.
    */
   bool state_interface_is_available(const std::string & name) const;
+
+  void register_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager);
+
+  std::vector<std::shared_ptr<DistributedReadOnlyHandle>>
+  import_state_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+  import_command_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+
+  std::vector<std::shared_ptr<DistributedReadWriteHandle>>
+  import_reference_interfaces_of_sub_controller_manager(
+    std::shared_ptr<distributed_control::SubControllerManagerWrapper> sub_controller_manager,
+    const std::string & ns, std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+
+  void add_hardware_state_publishers(
+    std::shared_ptr<distributed_control::StatePublisher> state_publisher);
+
+  void add_hardware_command_forwarders(
+    std::shared_ptr<distributed_control::CommandForwarder> command_forwarder);
+
+  std::pair<bool, std::shared_ptr<distributed_control::CommandForwarder>> find_command_forwarder(
+    const std::string & key);
+
+  std::vector<std::shared_ptr<distributed_control::StatePublisher>> get_state_publishers() const;
+
+  std::vector<std::shared_ptr<distributed_control::CommandForwarder>> get_command_forwarders()
+    const;
 
   /// Add controllers' reference interfaces to resource manager.
   /**
@@ -405,6 +452,8 @@ private:
 
   // Structure to store read and write status so it is not initialized in the real-time loop
   HardwareReadWriteStatus read_write_status;
+
+  bool load_urdf_called_ = false;
 };
 
 }  // namespace hardware_interface

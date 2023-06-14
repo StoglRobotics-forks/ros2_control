@@ -14,6 +14,7 @@
 
 #include "controller_manager/controller_manager.hpp"
 
+#include <chrono>
 #include <list>
 #include <memory>
 #include <string>
@@ -22,7 +23,14 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "controller_manager_msgs/msg/hardware_component_state.hpp"
+#include "controller_manager_msgs/msg/publisher_description.hpp"
+
+#include "hardware_interface/distributed_control_interface/command_forwarder.hpp"
+#include "hardware_interface/distributed_control_interface/evaluation_helper.hpp"
+#include "hardware_interface/distributed_control_interface/state_publisher.hpp"
+#include "hardware_interface/handle.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -122,6 +130,7 @@ bool command_interface_is_reference_interface_of_controller(
 
 namespace controller_manager
 {
+
 rclcpp::NodeOptions get_cm_node_options()
 {
   rclcpp::NodeOptions node_options;
@@ -146,22 +155,32 @@ ControllerManager::ControllerManager(
 {
   if (!get_parameter("update_rate", update_rate_))
   {
-    RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
+    RCLCPP_WARN(
+      get_logger(), "'update_rate' parameter not set, using default value:%iHz", update_rate_);
   }
 
   std::string robot_description = "";
+  // TODO(Manuel): robot_description parameter is deprecated and should be removed.
   get_parameter("robot_description", robot_description);
   if (robot_description.empty())
   {
-    throw std::runtime_error("Unable to initialize resource manager, no robot description found.");
+    subscribe_to_robot_description_topic();
   }
-
-  init_resource_manager(robot_description);
+  else
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "[Deprecated] Passing the robot description file directly to the control_manager node is "
+      "deprecated. Use robot_state_publisher instead.");
+    init_resource_manager(robot_description);
+  }
 
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  get_and_initialize_distributed_parameters();
+  configure_controller_manager();
 }
 
 ControllerManager::ControllerManager(
@@ -182,10 +201,55 @@ ControllerManager::ControllerManager(
   {
     RCLCPP_WARN(get_logger(), "'update_rate' parameter not set, using default value.");
   }
+
+  subscribe_to_robot_description_topic();
+
   diagnostics_updater_.setHardwareID("ros2_control");
   diagnostics_updater_.add(
     "Controllers Activity", this, &ControllerManager::controller_activity_diagnostic_callback);
   init_services();
+  get_and_initialize_distributed_parameters();
+  configure_controller_manager();
+}
+
+void ControllerManager::subscribe_to_robot_description_topic()
+{
+  // set QoS to transient local to get messages that have already been published
+  // (if robot state publisher starts before controller manager)
+  RCLCPP_INFO_STREAM(
+    get_logger(), "Subscribing to '~/robot_description' topic for robot description file.");
+  robot_description_subscription_ = create_subscription<std_msgs::msg::String>(
+    "~/robot_description", rclcpp::QoS(1).transient_local(),
+    std::bind(&ControllerManager::robot_description_callback, this, std::placeholders::_1));
+}
+
+void ControllerManager::robot_description_callback(const std_msgs::msg::String & robot_description)
+{
+  RCLCPP_INFO(get_logger(), "Received robot description file.");
+  RCLCPP_DEBUG(
+    get_logger(), "'Content of robot description file: %s", robot_description.data.c_str());
+  // TODO(Manuel): errors should probably be caught since we don't want controller_manager node
+  // to die if a non valid urdf is passed. However, should maybe be fine tuned.
+  try
+  {
+    if (resource_manager_->load_urdf_called())
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "ResourceManager has already loaded an urdf file. Ignoring attempt to reload a robot "
+        "description file.");
+      return;
+    }
+    init_resource_manager(robot_description.data.c_str());
+  }
+  catch (std::runtime_error & e)
+  {
+    RCLCPP_ERROR_STREAM(
+      get_logger(),
+      "The published robot description file (urdf) seems not to be genuine. The following error "
+      "was caught:"
+        << e.what());
+  }
 }
 
 void ControllerManager::init_resource_manager(const std::string & robot_description)
@@ -288,6 +352,698 @@ void ControllerManager::init_services()
       "~/set_hardware_component_state",
       std::bind(&ControllerManager::set_hardware_component_state_srv_cb, this, _1, _2),
       qos_services, best_effort_callback_group_);
+}
+
+void ControllerManager::get_and_initialize_distributed_parameters()
+{
+  if (!get_parameter("central_controller_manager", central_controller_manager_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'central_controller_manager' parameter not set, using default value:%s",
+      central_controller_manager_ ? "true" : "false");
+  }
+
+  int64_t distributed_interfaces_publish_period;
+  if (get_parameter("distributed_interfaces_publish_period", distributed_interfaces_publish_period))
+  {
+    distributed_interfaces_publish_period_ =
+      std::chrono::milliseconds(distributed_interfaces_publish_period);
+  }
+  else
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'distributed_interfaces_publish_period' parameter not set, using default value.");
+  }
+
+  if (!get_parameter("export_command_interfaces", command_interfaces_to_export_))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'export_command_interfaces' parameter not set, going to export all available command "
+      "interfaces");
+  }
+
+  if (!get_parameter("export_state_interfaces", state_interfaces_to_export_))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "'export_state_interfaces' parameter not set, going to export all available command "
+      "interfaces");
+  }
+
+  if (!get_parameter("sub_controller_manager", sub_controller_manager_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'sub_controller_manager' parameter not set, using default value:%s",
+      sub_controller_manager_ ? "true" : "false");
+  }
+
+  if (!get_parameter("use_multiple_nodes", use_multiple_nodes_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'use_multiple_nodes' parameter not set, using default value:%s",
+      use_multiple_nodes_ ? "true" : "false");
+  }
+  if (!get_parameter("handles_qos_key", handles_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'handles_qos_key' parameter not set, using default value:%s",
+      handles_qos_key_.c_str());
+  }
+  if (!get_parameter("publish_evaluation_msg", publish_evaluation_msg_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'publish_evaluation_msg' parameter not set, using default value:%s",
+      publish_evaluation_msg_ ? "true" : "false");
+  }
+  if (!get_parameter("evaluation_qos_key", evaluation_qos_key_))
+  {
+    RCLCPP_WARN(
+      get_logger(), "'evaluation_qos_key' parameter not set, using default value:%s",
+      evaluation_qos_key_.c_str());
+  }
+}
+
+void ControllerManager::configure_controller_manager()
+{
+  auto cm_type = determine_controller_manager_type();
+
+  switch (cm_type)
+  {
+    case controller_manager_type::distributed_central_controller_manager:
+      init_distributed_central_controller_manager();
+      break;
+    case controller_manager_type::distributed_sub_controller_manager:
+      init_distributed_sub_controller_manager();
+      break;
+    case controller_manager_type::standard_controller_manager:
+      //nothing special to configure
+      break;
+    default:
+      throw std::logic_error(
+        "Controller manager configuration not possible. Not a known controller manager type."
+        "Did you maybe set `central_controller_manager:true` and `sub_controller_manager:true`?"
+        "Note:Distributed controller manager can only be central_controller_manager or "
+        "sub_controller_manager, not both.");
+      break;
+  }
+}
+
+// TODO(Manuel): don't like this, this is for fast poc
+// probably better to create factory and handle creation of correct controller manager type
+// there. Since asynchronous control should be supported im the future as well and we don't
+// want dozen of ifs.
+ControllerManager::controller_manager_type ControllerManager::determine_controller_manager_type()
+{
+  bool std_controller_manager = !central_controller_manager_ && !sub_controller_manager_;
+  bool distributed_sub_controller_manager = !central_controller_manager_ && sub_controller_manager_;
+  bool distributed_central_controller_manager =
+    central_controller_manager_ && !sub_controller_manager_;
+  if (distributed_sub_controller_manager)
+  {
+    return controller_manager_type::distributed_sub_controller_manager;
+  }
+  // This means we are the central controller manager
+  else if (distributed_central_controller_manager)
+  {
+    return controller_manager_type::distributed_central_controller_manager;
+  }
+  // std controller manager or error. std controller manager needs no special setup.
+  else if (std_controller_manager)
+  {
+    return controller_manager_type::standard_controller_manager;
+  }
+  return controller_manager_type::unkown_type;
+}
+
+rmw_qos_profile_t ControllerManager::determine_qos_profile(const std::string & key) const
+{
+  if (key == "sensor_data")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data;
+  }
+  else if (key == "sensor_data_1")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_1;
+  }
+  else if (key == "sensor_data_100")
+  {
+    return evaluation_helper::rmw_qos_profile_sensor_data_100;
+  }
+  else if (key == "reliable")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable;
+  }
+  else if (key == "reliable_100")
+  {
+    return evaluation_helper::rmw_qos_profile_reliable_100;
+  }
+  else if (key == "system_default")
+  {
+    return evaluation_helper::rmw_qos_profile_system_default;
+  }
+  throw std::runtime_error("Given qos profile not know");
+}
+
+void ControllerManager::init_distributed_sub_controller_manager()
+{
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
+  // if only one node per sub controller manager is used
+  if (!use_multiple_nodes())
+  {
+    // create node for publishing/subscribing
+    rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
+    distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+    //try to add to executor
+    try
+    {
+      executor_->add_node(distributed_pub_sub_node_->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: can not add node for distributed publishing/subscribing to executor:"
+          << e.what());
+    }
+  }
+
+  // export every interface by default
+  if (state_interfaces_to_export_.empty())
+  {
+    // get all available state interfaces and export
+    create_hardware_state_publishers(resource_manager_->available_state_interfaces());
+  }
+  else
+  {
+    create_hardware_state_publishers(state_interfaces_to_export_);
+  }
+  // export every interface by default
+  if (command_interfaces_to_export_.empty())
+  {
+    // get all available command interfaces and export
+    create_hardware_command_forwarders(resource_manager_->available_command_interfaces());
+  }
+  else
+  {
+    create_hardware_command_forwarders(command_interfaces_to_export_);
+  }
+  register_sub_controller_manager();
+}
+
+void ControllerManager::init_distributed_central_controller_manager()
+{
+  // just for evaluation of concept
+  auto handle_qos_profile = determine_qos_profile(handles_qos_key_);
+  auto evaluation_qos_profile = determine_qos_profile(evaluation_qos_key_);
+  qos_helper_ = evaluation_helper::Evaluation_Helper::create_instance(
+    handle_qos_profile, publish_evaluation_msg_, evaluation_qos_profile);
+  if (!use_multiple_nodes())
+  {
+    rclcpp::NodeOptions node_options;
+    node_options.clock_type(rcl_clock_type_t::RCL_STEADY_TIME);
+    distributed_pub_sub_node_ = std::make_shared<rclcpp_lifecycle::LifecycleNode>(
+      std::string(get_name()) + "_pub_sub_node", get_namespace(), node_options, false);
+    //try to add to executor
+    try
+    {
+      executor_->add_node(distributed_pub_sub_node_->get_node_base_interface());
+    }
+    catch (const std::runtime_error & e)
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(),
+        "ControllerManager: can not add node for distributed publishing/subscribing to executor:"
+          << e.what());
+    }
+  }
+  init_distributed_central_controller_manager_services();
+}
+
+void ControllerManager::init_distributed_central_controller_manager_services()
+{
+  rclcpp::QoS qos_distributed_services_keep_10 =
+    rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 10))
+      .reliable()
+      .durability_volatile();
+
+  distributed_system_srv_callback_group_ =
+    create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+  register_sub_controller_manager_srv_ =
+    create_service<controller_manager_msgs::srv::RegisterSubControllerManager>(
+      "register_sub_controller_manager",
+      std::bind(
+        &ControllerManager::register_sub_controller_manager_srv_cb, this, std::placeholders::_1,
+        std::placeholders::_2),
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
+
+  register_sub_controller_manager_references_srv_ =
+    create_service<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
+      "register_sub_controller_manager_references",
+      std::bind(
+        &ControllerManager::register_sub_controller_manager_references_srv_cb, this,
+        std::placeholders::_1, std::placeholders::_2),
+      qos_distributed_services_keep_10, distributed_system_srv_callback_group_);
+}
+
+void ControllerManager::register_sub_controller_manager_srv_cb(
+  const std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Request>
+    request,
+  std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManager::Response> response)
+{
+  std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
+
+  auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
+    request->sub_controller_manager_namespace, request->sub_controller_manager_name,
+    request->state_publishers, request->command_state_publishers);
+
+  resource_manager_->register_sub_controller_manager(sub_ctrl_mng_wrapper);
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadOnlyHandle>>
+    distributed_state_interfaces;
+  distributed_state_interfaces.reserve(sub_ctrl_mng_wrapper->get_state_publisher_count());
+  // create distributed state interface and import into resource storage.
+  distributed_state_interfaces =
+    resource_manager_->import_state_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
+
+  // register every node of state_interface at executor only if multiple nodes
+  // are used. Otherwise the single nodes has already been added
+  if (use_multiple_nodes())
+  {
+    for (const auto & state_interface : distributed_state_interfaces)
+    {
+      try
+      {
+        executor_->add_node(state_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of distributed state "
+          "interface of sub controller manager. Exception:"
+            << e.what());
+      }
+    }
+  }
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
+    distributed_command_interfaces;
+  distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
+  // create distributed command interface and import into resource storage.
+  distributed_command_interfaces =
+    resource_manager_->import_command_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
+
+  for (const auto & command_interface : distributed_command_interfaces)
+  {
+    // register every node of command_interface at executor only if multiple nodes
+    // are used. Otherwise the single nodes has already been added
+    if (use_multiple_nodes())
+    {
+      try
+      {
+        executor_->add_node(command_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of distributed "
+          "command_interface of sub controller manager. Exception:"
+            << e.what());
+      }
+    }
+    auto msg = controller_manager_msgs::msg::PublisherDescription();
+    msg.ns = get_namespace();
+    msg.name.prefix_name = command_interface->get_prefix_name();
+    msg.name.interface_name = command_interface->get_interface_name();
+    // TODO(Manuel): want topic name relative to namespace, but have to treat "root" namespace separate
+    msg.publisher_topic = std::string("/") + command_interface->forward_command_topic_name();
+    response->command_state_publishers.push_back(msg);
+  }
+
+  response->ok = true;
+  RCLCPP_INFO_STREAM(
+    get_logger(), "ControllerManager: Registered sub controller manager <"
+                    << sub_ctrl_mng_wrapper->get_name() << ">.");
+}
+
+void ControllerManager::register_sub_controller_manager_references_srv_cb(
+  const std::shared_ptr<
+    controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>
+    request,
+  std::shared_ptr<controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Response>
+    response)
+{
+  std::lock_guard<std::mutex> guard(central_controller_manager_srv_lock_);
+
+  // only command interfaces can be state publishers. We initialize state interfaces to empty list.
+  std::vector<controller_manager_msgs::msg::PublisherDescription> empty_state_publishers{};
+  auto sub_ctrl_mng_wrapper = std::make_shared<distributed_control::SubControllerManagerWrapper>(
+    request->sub_controller_manager_namespace, request->sub_controller_manager_name,
+    empty_state_publishers, request->command_state_publishers);
+
+  std::vector<std::shared_ptr<hardware_interface::DistributedReadWriteHandle>>
+    distributed_command_interfaces;
+  distributed_command_interfaces.reserve(sub_ctrl_mng_wrapper->get_command_forwarder_count());
+  // create distributed command interface and import into resource storage.
+  distributed_command_interfaces =
+    resource_manager_->import_reference_interfaces_of_sub_controller_manager(
+      sub_ctrl_mng_wrapper, get_namespace(), distributed_pub_sub_node_);
+
+  for (const auto & command_interface : distributed_command_interfaces)
+  {
+    // register every node of command_interface at executor only if multiple nodes
+    // are used. Otherwise the single nodes has already been added
+    if (use_multiple_nodes())
+    {
+      try
+      {
+        executor_->add_node(command_interface->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        response->ok = false;
+        RCLCPP_WARN_STREAM(
+          get_logger(),
+          "ControllerManager: Caught exception while trying to register node of reference "
+          "interface of sub_controller_manager. Exception:"
+            << e.what());
+      }
+    }
+    auto msg = controller_manager_msgs::msg::PublisherDescription();
+    msg.ns = get_namespace();
+    msg.name.prefix_name = command_interface->get_prefix_name();
+    msg.name.interface_name = command_interface->get_interface_name();
+    // TODO(Manuel): want topic name relative to namespace, but have to treat "root" namespace separate
+    msg.publisher_topic = std::string("/") + command_interface->forward_command_topic_name();
+    response->command_state_publishers.push_back(msg);
+  }
+
+  response->ok = true;
+  RCLCPP_INFO_STREAM(
+    get_logger(), "ControllerManager: Registered reference interfaces of sub_controller_manager <"
+                    << sub_ctrl_mng_wrapper->get_name() << ">.");
+}
+
+void ControllerManager::create_hardware_state_publishers(
+  const std::vector<std::string> & state_interfaces_to_export)
+{
+  for (const auto & state_interface : state_interfaces_to_export)
+  {
+    std::shared_ptr<distributed_control::StatePublisher> state_publisher;
+    try
+    {
+      state_publisher = std::make_shared<distributed_control::StatePublisher>(
+        std::move(std::make_unique<hardware_interface::LoanedStateInterface>(
+          resource_manager_->claim_state_interface(state_interface))),
+        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    }
+    catch (const std::exception & e)
+    {
+      RCLCPP_ERROR(
+        get_logger(), "Can't create StatePublisher for state interface<'%s'>: %s",
+        state_interface.c_str(), e.what());
+      continue;
+    }
+
+    resource_manager_->add_hardware_state_publishers(state_publisher);
+
+    if (use_multiple_nodes())
+    {
+      try
+      {
+        executor_->add_node(state_publisher->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "ControllerManager: Can't create StatePublishers<"
+                          << state_publisher->state_interface_name() << ">." << e.what());
+      }
+    }
+  }
+}
+
+void ControllerManager::create_hardware_command_forwarders(
+  const std::vector<std::string> & command_interfaces_to_export)
+{
+  for (auto const & command_interface : command_interfaces_to_export)
+  {
+    std::shared_ptr<distributed_control::CommandForwarder> command_forwarder;
+    try
+    {
+      command_forwarder = std::make_shared<distributed_control::CommandForwarder>(
+        std::move(std::make_unique<hardware_interface::LoanedCommandInterface>(
+          resource_manager_->claim_command_interface(command_interface))),
+        get_namespace(), distributed_interfaces_publish_period(), distributed_pub_sub_node_);
+    }
+    catch (const std::exception & e)
+    {
+      RCLCPP_ERROR(
+        get_logger(), "Can't create CommandForwarder for command interface<'%s'>: %s",
+        command_interface.c_str(), e.what());
+      continue;
+    }
+
+    resource_manager_->add_hardware_command_forwarders(command_forwarder);
+
+    if (use_multiple_nodes())
+    {
+      try
+      {
+        executor_->add_node(command_forwarder->get_node()->get_node_base_interface());
+      }
+      catch (const std::runtime_error & e)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "ControllerManager: Can't create CommandForwarder<"
+                          << command_forwarder->command_interface_name() << ">." << e.what());
+      }
+    }
+  }
+}
+
+void ControllerManager::register_sub_controller_manager()
+{
+  RCLCPP_INFO_STREAM(
+    get_logger(),
+    "SubControllerManager:<" << get_namespace() << "/" << get_name() << "> trying to register.");
+  rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManager>::SharedPtr client =
+    create_client<controller_manager_msgs::srv::RegisterSubControllerManager>(
+      "/register_sub_controller_manager");
+
+  auto request =
+    std::make_shared<controller_manager_msgs::srv::RegisterSubControllerManager::Request>();
+  request->sub_controller_manager_namespace = get_namespace();
+  request->sub_controller_manager_name = get_name();
+
+  // export the provided StatePublishers
+  for (auto const & state_publisher : resource_manager_->get_state_publishers())
+  {
+    // create description of StatePublisher including: prefix_name, interface_name and topic.
+    // So that receiver is able to create a DistributedStateInterface which subscribes to the
+    // topics provided by this sub controller manager
+    request->state_publishers.push_back(state_publisher->create_publisher_description_msg());
+  }
+
+  // export the provided CommandForwarders
+  for (auto const & command_forwarders : resource_manager_->get_command_forwarders())
+  {
+    // create description of StatePublisher including: prefix_name, interface_name and topic.
+    // So that receiver is able to create a DistributedStateInterface which subscribes to the
+    // topics provided by this sub controller manager
+    request->command_state_publishers.push_back(
+      command_forwarders->create_publisher_description_msg());
+  }
+
+  using namespace std::chrono_literals;
+  while (!client->wait_for_service(1s))
+  {
+    if (!rclcpp::ok())
+    {
+      RCLCPP_ERROR_STREAM(
+        get_logger(), "SubControllerManager:<"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Interrupted while waiting for central controller managers "
+                           "registration service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Central controller managers registration service not available, "
+                         "waiting again...");
+  }
+
+  auto result = client->async_send_request(request);
+  if (
+    rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
+    rclcpp::FutureReturnCode::SUCCESS)
+  {
+    // can call get only once
+    auto res = result.get();
+    if (res->ok)
+    {
+      auto command_state_publishers = res->command_state_publishers;
+      // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
+      // send keys with request
+      for (const auto & command_state_publisher : command_state_publishers)
+      {
+        std::string key = command_state_publisher.name.prefix_name + "/" +
+                          command_state_publisher.name.interface_name;
+        auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
+        if (found)
+        {
+          command_forwarder->subscribe_to_command_publisher(
+            command_state_publisher.publisher_topic);
+        }
+        else
+        {
+          RCLCPP_WARN_STREAM(
+            get_logger(), "SubControllerManager:<"
+                            << get_namespace() << "/" << get_name()
+                            << ">. Could not find a CommandForwarder for key[" << key
+                            << "]. No subscription to command state possible.");
+        }
+      }
+      RCLCPP_INFO_STREAM(
+        get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                               << ">. Successfully registered.");
+    }
+    else
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(), "SubControllerManager: <"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Registration of StatePublishers failed. Central ControllerManager "
+                           "returned error code.");
+    }
+  }
+  else
+  {
+    RCLCPP_WARN_STREAM(
+      get_logger(), "SubControllerManager: <" << get_namespace() << "/" << get_name()
+                                              << ">. Registration of StatePublishers failed.");
+  }
+}
+
+void ControllerManager::register_reference_interfaces(
+  const std::vector<std::string> & reference_interfaces_names)
+{
+  RCLCPP_INFO_STREAM(
+    get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                           << "> trying to register reference interfaces.");
+  rclcpp::Client<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>::SharedPtr
+    client = create_client<controller_manager_msgs::srv::RegisterSubControllerManagerReferences>(
+      "/register_sub_controller_manager_references");
+
+  auto request = std::make_shared<
+    controller_manager_msgs::srv::RegisterSubControllerManagerReferences::Request>();
+  request->sub_controller_manager_namespace = get_namespace();
+  request->sub_controller_manager_name = get_name();
+
+  // export the provided CommandForwarders
+  for (auto const & reference_interface_name : reference_interfaces_names)
+  {
+    auto [found, command_forwarder] =
+      resource_manager_->find_command_forwarder(reference_interface_name);
+    if (found)
+    {
+      // create description of StatePublisher including: prefix_name, interface_name and topic.
+      // So that receiver is able to create a DistributedStateInterface which subscribes to the
+      // topics provided by this sub controller manager
+      request->command_state_publishers.push_back(
+        command_forwarder->create_publisher_description_msg());
+    }
+    else
+    {
+      RCLCPP_WARN_STREAM(
+        get_logger(), "SubControllerManager: <"
+                        << get_namespace() << "/" << get_name()
+                        << "> could not find command_forwarder for reference interfaces:"
+                        << reference_interface_name);
+    }
+  }
+
+  using namespace std::chrono_literals;
+  while (!client->wait_for_service(1s))
+  {
+    if (!rclcpp::ok())
+    {
+      RCLCPP_ERROR_STREAM(
+        get_logger(), "SubControllerManager:<"
+                        << get_namespace() << "/" << get_name()
+                        << ">. Interrupted while waiting for central controller managers "
+                           "register_sub_controller_manager_references service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Central controller managers "
+                         "register_sub_controller_manager_references service not available, "
+                         "waiting again...");
+  }
+
+  auto result = client->async_send_request(request);
+  // TODO(Manuel): first try to wait synchronous. If this doesn't work we might have to create a
+  // queue or something similar, add the future and check in update periodically if finished.
+
+  // This blocks... which might be bad...
+  result.wait();
+  // can call get only once
+  auto res = result.get();
+  if (res->ok)
+  {
+    auto command_state_publishers = res->command_state_publishers;
+    // TODO(Manuel) we should probably make the keys explicit (add key_generation function to handles)
+    // send keys with request
+    for (const auto & command_state_publisher : command_state_publishers)
+    {
+      std::string key = command_state_publisher.name.prefix_name + "/" +
+                        command_state_publisher.name.interface_name;
+      auto [found, command_forwarder] = resource_manager_->find_command_forwarder(key);
+      if (found)
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "SubControllerManager: <" << get_namespace() << "/" << get_name()
+                                                  << "> found commad forwarder for" << key);
+        command_forwarder->subscribe_to_command_publisher(command_state_publisher.publisher_topic);
+      }
+      else
+      {
+        RCLCPP_WARN_STREAM(
+          get_logger(), "SubControllerManager:<"
+                          << get_namespace() << "/" << get_name()
+                          << ">. Could not find a CommandForwarder for key[" << key
+                          << "]. No subscription to command state possible.");
+      }
+    }
+    RCLCPP_INFO_STREAM(
+      get_logger(), "SubControllerManager:<" << get_namespace() << "/" << get_name()
+                                             << ">. Successfully registered.");
+  }
+  else
+  {
+    RCLCPP_WARN_STREAM(
+      get_logger(), "SubControllerManager: <"
+                      << get_namespace() << "/" << get_name()
+                      << ">. Registration of StatePublishers failed. Central ControllerManager "
+                         "returned error code.");
+  }
 }
 
 controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_controller(
@@ -518,7 +1274,32 @@ controller_interface::return_type ControllerManager::configure_controller(
         controller_name.c_str());
       return controller_interface::return_type::ERROR;
     }
+    // safe the name for later. Interfaces get moved so they are no longer available after they have been imported.
+    std::vector<std::string> reference_interfaces_names;
+    reference_interfaces_names.reserve(interfaces.size());
+    for (const auto & interface : interfaces)
+    {
+      reference_interfaces_names.push_back(interface.get_name());
+    }
+
     resource_manager_->import_controller_reference_interfaces(controller_name, interfaces);
+
+    if (is_sub_controller_manager())
+    {
+      // TODO(Manuel); This is only for fast poc, chaining of multiples in sub controller
+      // is most likely going to lead to issues if handled this way.
+      // We should only allow the first controller in the chain to be distributed in each
+      // sub controller manager and chain the successor locally in sub controller manager
+      // instead of exporting for every.
+
+      // Set chained mode as default true and make references available so that
+      // hardware_command_forwarders can be created.
+      controller->set_chained_mode(true);
+      resource_manager_->make_controller_reference_interfaces_available(controller_name);
+      // export all of the just created reference interfaces by default
+      create_hardware_command_forwarders(reference_interfaces_names);
+      register_reference_interfaces(reference_interfaces_names);
+    }
 
     // TODO(destogl): check and resort controllers in the vector
   }
@@ -1892,6 +2673,20 @@ std::pair<std::string, std::string> ControllerManager::split_command_interface(
 }
 
 unsigned int ControllerManager::get_update_rate() const { return update_rate_; }
+
+bool ControllerManager::is_central_controller_manager() const
+{
+  return central_controller_manager_;
+}
+
+bool ControllerManager::is_sub_controller_manager() const { return sub_controller_manager_; }
+
+bool ControllerManager::use_multiple_nodes() const { return use_multiple_nodes_; }
+
+std::chrono::milliseconds ControllerManager::distributed_interfaces_publish_period() const
+{
+  return distributed_interfaces_publish_period_;
+}
 
 void ControllerManager::propagate_deactivation_of_chained_mode(
   const std::vector<ControllerSpec> & controllers)
