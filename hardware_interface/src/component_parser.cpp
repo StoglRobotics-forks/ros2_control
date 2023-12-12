@@ -23,6 +23,7 @@
 
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/types/hardware_component_type_values.hpp"
 
 namespace
 {
@@ -632,7 +633,7 @@ std::vector<InterfaceDescription> parse_joint_state_interface_descriptions_from_
     for (const auto & state_interface : joint.state_interfaces)
     {
       joint_state_interface_descriptions.emplace_back(
-        InterfaceDescription(joint.name, state_interface));
+        InterfaceDescription(joint.name, HW_JOINT_COMPONENT, state_interface));
     }
   }
   return joint_state_interface_descriptions;
@@ -649,7 +650,7 @@ std::vector<InterfaceDescription> parse_sensor_state_interface_descriptions_from
     for (const auto & state_interface : sensor.state_interfaces)
     {
       sensor_state_interface_descriptions.emplace_back(
-        InterfaceDescription(sensor.name, state_interface));
+        InterfaceDescription(sensor.name, HW_SENSOR_COMPONENT, state_interface));
     }
   }
   return sensor_state_interface_descriptions;
@@ -666,7 +667,7 @@ std::vector<InterfaceDescription> parse_gpio_state_interface_descriptions_from_h
     for (const auto & state_interface : gpio.state_interfaces)
     {
       gpio_state_interface_descriptions.emplace_back(
-        InterfaceDescription(gpio.name, state_interface));
+        InterfaceDescription(gpio.name, HW_GPIO_COMPONENT, state_interface));
     }
   }
   return gpio_state_interface_descriptions;
@@ -685,7 +686,7 @@ std::vector<InterfaceDescription> parse_joint_command_interface_descriptions_fro
     for (const auto & command_interface : joint.command_interfaces)
     {
       gpio_state_intejoint_command_interface_descriptionsrface_descriptions.emplace_back(
-        InterfaceDescription(joint.name, command_interface));
+        InterfaceDescription(joint.name, HW_JOINT_COMPONENT, command_interface));
     }
   }
   return gpio_state_intejoint_command_interface_descriptionsrface_descriptions;
@@ -702,7 +703,7 @@ std::vector<InterfaceDescription> parse_gpio_command_interface_descriptions_from
     for (const auto & command_interface : gpio.command_interfaces)
     {
       gpio_command_interface_descriptions.emplace_back(
-        InterfaceDescription(gpio.name, command_interface));
+        InterfaceDescription(gpio.name, HW_GPIO_COMPONENT, command_interface));
     }
   }
   return gpio_command_interface_descriptions;
