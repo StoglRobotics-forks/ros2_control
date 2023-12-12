@@ -104,27 +104,108 @@ public:
   virtual CallbackReturn on_init(const HardwareInfo & hardware_info)
   {
     info_ = hardware_info;
-    add_state_interface_descriptions();
-    add_command_interface_descriptions();
+    create_state_interfaces();
+    create_command_interfaces();
     return CallbackReturn::SUCCESS;
   };
 
-  virtual void add_state_interface_descriptions()
+  virtual void create_state_interfaces()
   {
+    // get the InterfaceDescriptions from the HardwareInfo
     joint_states_descriptions_ = parse_joint_state_interface_descriptions_from_hardware_info(info_);
     gpio_states_descriptions_ = parse_gpio_state_interface_descriptions_from_hardware_info(info_);
     sensor_states_descriptions_ =
       parse_sensor_state_interface_descriptions_from_hardware_info(info_);
+
+    // create the StateInterfaces based on the before acquired InterfaceDescriptions
+    // create StateInterfaces for all joints
+    for (const auto & description : joint_states_descriptions_)
+    {
+      joint_states_.insert(std::make_pair(description.get_name(), StateInterface(description)));
+    }
+    // create StateInterfaces for all sensors
+    for (const auto & description : sensor_states_descriptions_)
+    {
+      sensor_states_.insert(std::make_pair(description.get_name(), StateInterface(description)));
+    }
+    // create StateInterfaces for all gpios
+    for (const auto & description : gpio_states_descriptions_)
+    {
+      gpio_states_.insert(std::make_pair(description.get_name(), StateInterface(description)));
+    }
   }
 
-  virtual void add_command_interface_descriptions()
+  virtual void create_command_interfaces()
   {
+    // get the InterfaceDescriptions from the HardwareInfo
     joint_commands_descriptions_ =
       parse_joint_command_interface_descriptions_from_hardware_info(info_);
     gpio_commands_descriptions_ =
       parse_gpio_command_interface_descriptions_from_hardware_info(info_);
+
+    // create the CommandInterfaces based on the before acquired InterfaceDescriptions
+    // create CommandInterfaces for all joints
+    for (const auto & description : joint_commands_descriptions_)
+    {
+      joint_commands_.insert(std::make_pair(description.get_name(), CommandInterface(description)));
+    }
+    // create CommandInterfaces for all gpios
+    for (const auto & description : gpio_commands_descriptions_)
+    {
+      gpio_commands_.insert(std::make_pair(description.get_name(), CommandInterface(description)));
+    }
   }
 
+  /**
+   * Exports all information about the available StateInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_state_interface_descriptions()
+  {
+    std::vector<InterfaceDescription> state_interface_descriptions;
+    state_interface_descriptions.reserve(
+      joint_states_descriptions_.size() + sensor_states_descriptions_.size() +
+      gpio_states_descriptions_.size());
+
+    // append InterfaceDescription of joint_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), joint_states_descriptions_.begin(),
+      joint_states_descriptions_.end());
+    // append InterfaceDescription of sensor_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), sensor_states_descriptions_.begin(),
+      sensor_states_descriptions_.end());
+    // append InterfaceDescription of gpio_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), gpio_states_descriptions_.begin(),
+      gpio_states_descriptions_.end());
+
+    return state_interface_descriptions;
+  }
+
+  /**
+   * Exports all information about the available CommandInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_command_interface_descriptions()
+  {
+    std::vector<InterfaceDescription> command_interface_descriptions;
+    command_interface_descriptions.reserve(
+      joint_commands_descriptions_.size() + gpio_commands_descriptions_.size());
+
+    // append InterfaceDescription of joint_commands
+    command_interface_descriptions.insert(
+      command_interface_descriptions.end(), joint_commands_descriptions_.begin(),
+      joint_commands_descriptions_.end());
+    // append InterfaceDescription of gpio_commands
+    command_interface_descriptions.insert(
+      command_interface_descriptions.end(), gpio_commands_descriptions_.begin(),
+      gpio_commands_descriptions_.end());
+
+    return command_interface_descriptions;
+  }
   /// Exports all state interfaces for this hardware interface.
   /**
    * The state interfaces have to be created and transferred according

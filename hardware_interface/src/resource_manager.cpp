@@ -447,10 +447,35 @@ public:
   }
 
   template <class HardwareT>
+  void import_state_interface_descriptions(HardwareT & hardware)
+  {
+    auto interface_descriptions = hardware.export_state_interface_descriptions();
+    std::vector<std::string> interface_names;
+    interface_names.reserve(interface_descriptions.size());
+    for (auto & description : interface_descriptions)
+    {
+      auto key = description.get_name();
+      state_interface_descriptions_map_.emplace(std::make_pair(key, description));
+      interface_names.push_back(key);
+    }
+    hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
+    available_state_interfaces_.reserve(
+      available_state_interfaces_.capacity() + interface_names.size());
+  }
+
+  template <class HardwareT>
   void import_command_interfaces(HardwareT & hardware)
   {
     auto interfaces = hardware.export_command_interfaces();
     hardware_info_map_[hardware.get_name()].command_interfaces = add_command_interfaces(interfaces);
+  }
+
+  template <class HardwareT>
+  void import_command_interface_descriptions(HardwareT & hardware)
+  {
+    auto interface_descriptions = hardware.export_command_interface_descriptions();
+    hardware_info_map_[hardware.get_name()].command_interfaces =
+      add_command_interface_descriptions(interface_descriptions);
   }
 
   /// Adds exported command interfaces into internal storage.
@@ -472,6 +497,24 @@ public:
     {
       auto key = interface.get_name();
       command_interface_map_.emplace(std::make_pair(key, std::move(interface)));
+      claimed_command_interface_map_.emplace(std::make_pair(key, false));
+      interface_names.push_back(key);
+    }
+    available_command_interfaces_.reserve(
+      available_command_interfaces_.capacity() + interface_names.size());
+
+    return interface_names;
+  }
+
+  std::vector<std::string> add_command_interface_descriptions(
+    std::vector<InterfaceDescription> & interface_descriptions)
+  {
+    std::vector<std::string> interface_names;
+    interface_names.reserve(interface_descriptions.size());
+    for (auto & description : interface_descriptions)
+    {
+      auto key = description.get_name();
+      command_interface_descriptions_map_.emplace(std::make_pair(key, description));
       claimed_command_interface_map_.emplace(std::make_pair(key, false));
       interface_names.push_back(key);
     }
@@ -575,8 +618,8 @@ public:
       load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
       if (initialize_hardware(hardware_info, container.back()))
       {
-        import_state_interfaces(container.back());
-        import_command_interfaces(container.back());
+        import_state_interface_descriptions(container.back());
+        import_command_interface_descriptions(container.back());
       }
       else
       {
@@ -664,8 +707,8 @@ public:
       container.emplace_back(System(std::move(system)));
       if (initialize_hardware(hardware_info, container.back()))
       {
-        import_state_interfaces(container.back());
-        import_command_interfaces(container.back());
+        import_state_interface_descriptions(container.back());
+        import_command_interface_descriptions(container.back());
       }
       else
       {
@@ -709,8 +752,10 @@ public:
 
   /// Storage of all available state interfaces
   std::map<std::string, StateInterface> state_interface_map_;
+  std::map<std::string, InterfaceDescription> state_interface_descriptions_map_;
   /// Storage of all available command interfaces
   std::map<std::string, CommandInterface> command_interface_map_;
+  std::map<std::string, InterfaceDescription> command_interface_descriptions_map_;
 
   /// Vectors with interfaces available to controllers (depending on hardware component state)
   std::vector<std::string> available_state_interfaces_;
@@ -796,6 +841,13 @@ void ResourceManager::load_urdf(const std::string & urdf, bool validate_interfac
 
 bool ResourceManager::is_urdf_already_loaded() const { return is_urdf_loaded__; }
 
+bool ResourceManager::component_creates_loaned_state(const std::string & key)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->state_interface_descriptions_map_.find(key) !=
+         resource_storage_->state_interface_descriptions_map_.end();
+}
+
 // CM API: Called in "update"-thread
 LoanedStateInterface ResourceManager::claim_state_interface(const std::string & key)
 {
@@ -805,6 +857,12 @@ LoanedStateInterface ResourceManager::claim_state_interface(const std::string & 
   }
 
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  // TODO(Manuel) just a hack for testing have to be removed later on when all the components create
+  // the loans.
+  if (component_creates_loaned_state(key))
+  {
+    // TOD(Manuel) implement exporting of loans by components
+  }
   return LoanedStateInterface(resource_storage_->state_interface_map_.at(key));
 }
 

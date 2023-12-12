@@ -99,6 +99,8 @@ public:
    */
   bool is_urdf_already_loaded() const;
 
+  bool component_creates_loaned_state(const std::string & key);
+
   /// Claim a state interface given its key.
   /**
    * The resource is claimed as long as being in scope.

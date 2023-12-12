@@ -184,6 +184,16 @@ const rclcpp_lifecycle::State & System::error()
   return impl_->get_state();
 }
 
+std::vector<InterfaceDescription> System::export_state_interface_descriptions()
+{
+  return impl_->export_state_interface_descriptions();
+}
+
+std::vector<InterfaceDescription> System::export_command_interface_descriptions()
+{
+  return impl_->export_command_interface_descriptions();
+}
+
 std::vector<StateInterface> System::export_state_interfaces()
 {
   return impl_->export_state_interfaces();

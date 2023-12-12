@@ -72,6 +72,12 @@ public:
   std::vector<CommandInterface> export_command_interfaces();
 
   HARDWARE_INTERFACE_PUBLIC
+  std::vector<InterfaceDescription> export_state_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
+  std::vector<InterfaceDescription> export_command_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
   return_type prepare_command_mode_switch(
     const std::vector<std::string> & start_interfaces,
     const std::vector<std::string> & stop_interfaces);
