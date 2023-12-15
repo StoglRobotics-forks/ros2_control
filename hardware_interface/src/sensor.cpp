@@ -189,6 +189,11 @@ std::vector<StateInterface> Sensor::export_state_interfaces()
   return impl_->export_state_interfaces();
 }
 
+LoanedStateInterface Sensor::create_loaned_state_interface(const std::string & interface_name)
+{
+  return impl_->create_loaned_state_interface(interface_name);
+}
+
 std::string Sensor::get_name() const { return impl_->get_name(); }
 
 const rclcpp_lifecycle::State & Sensor::get_state() const { return impl_->get_state(); }

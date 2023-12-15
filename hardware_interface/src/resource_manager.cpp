@@ -89,10 +89,11 @@ public:
   {
   }
 
+  // TODO(Manuel): review regarding simplifications and checking for duplicates
   template <class HardwareT, class HardwareInterfaceT>
-  void load_hardware(
+  std::string load_hardware(
     const HardwareInfo & hardware_info, pluginlib::ClassLoader<HardwareInterfaceT> & loader,
-    std::vector<HardwareT> & container)
+    std::map<std::string, HardwareT> & container)
   {
     RCUTILS_LOG_INFO_NAMED(
       "resource_manager", "Loading hardware '%s' ", hardware_info.name.c_str());
@@ -100,17 +101,21 @@ public:
     auto interface = std::unique_ptr<HardwareInterfaceT>(
       loader.createUnmanagedInstance(hardware_info.hardware_plugin_name));
     HardwareT hardware(std::move(interface));
-    container.emplace_back(std::move(hardware));
     // initialize static data about hardware component to reduce later calls
     HardwareComponentInfo component_info;
     component_info.name = hardware_info.name;
     component_info.type = hardware_info.type;
     component_info.plugin_name = hardware_info.hardware_plugin_name;
     component_info.is_async = hardware_info.is_async;
-
     hardware_info_map_.insert(std::make_pair(component_info.name, component_info));
     hardware_used_by_controllers_.insert(
       std::make_pair(component_info.name, std::vector<std::string>()));
+
+    // TODO(Manuel): review regarding simplifications and checking for duplicates
+    std::string hw_name = hardware.get_name();
+    assert(hw_name == component_info.name);
+    container.insert(std::make_pair(hw_name, std::move(hardware)));
+    return hw_name;
   }
 
   template <class HardwareT>
@@ -446,16 +451,17 @@ public:
       available_state_interfaces_.capacity() + interface_names.size());
   }
 
-  template <class HardwareT>
-  void import_state_interface_descriptions(HardwareT & hardware)
+  void import_system_state_interface_descriptions(System & hardware)
   {
     auto interface_descriptions = hardware.export_state_interface_descriptions();
     std::vector<std::string> interface_names;
     interface_names.reserve(interface_descriptions.size());
+    std::string hw_name = hardware.get_name();
     for (auto & description : interface_descriptions)
     {
       auto key = description.get_name();
-      state_interface_descriptions_map_.emplace(std::make_pair(key, description));
+      state_interface_descriptions_.emplace(std::make_pair(key, description));
+      state_interface_to_component_name_.emplace(std::make_pair(key, hw_name));
       interface_names.push_back(key);
     }
     hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
@@ -514,7 +520,7 @@ public:
     for (auto & description : interface_descriptions)
     {
       auto key = description.get_name();
-      command_interface_descriptions_map_.emplace(std::make_pair(key, description));
+      command_interface_descriptions_.emplace(std::make_pair(key, description));
       claimed_command_interface_map_.emplace(std::make_pair(key, false));
       interface_names.push_back(key);
     }
@@ -551,16 +557,18 @@ public:
   }
 
   // TODO(destogl): Propagate "false" up, if happens in initialize_hardware
+  // TODO(Manuel): review regarding simplifications and checking for duplicates
   void load_and_initialize_actuator(const HardwareInfo & hardware_info)
   {
     auto load_and_init_actuators = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, container);
-      if (initialize_hardware(hardware_info, container.back()))
+      std::string loaded_hw =
+        load_hardware<Actuator, ActuatorInterface>(hardware_info, actuator_loader_, container);
+      if (initialize_hardware(hardware_info, container.at(loaded_hw)))
       {
-        import_state_interfaces(container.back());
-        import_command_interfaces(container.back());
+        import_state_interfaces(container.at(loaded_hw));
+        import_command_interfaces(container.at(loaded_hw));
       }
       else
       {
@@ -581,15 +589,17 @@ public:
     }
   }
 
+  // TODO(Manuel): review regarding simplifications and checking for duplicates
   void load_and_initialize_sensor(const HardwareInfo & hardware_info)
   {
     auto load_and_init_sensors = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, container);
-      if (initialize_hardware(hardware_info, container.back()))
+      std::string loaded_hw =
+        load_hardware<Sensor, SensorInterface>(hardware_info, sensor_loader_, container);
+      if (initialize_hardware(hardware_info, container.at(loaded_hw)))
       {
-        import_state_interfaces(container.back());
+        import_state_interfaces(container.at(loaded_hw));
       }
       else
       {
@@ -610,16 +620,18 @@ public:
     }
   }
 
+  // TODO(Manuel): review regarding simplifications and checking for duplicates
   void load_and_initialize_system(const HardwareInfo & hardware_info)
   {
     auto load_and_init_systems = [&](auto & container)
     {
       check_for_duplicates(hardware_info);
-      load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
-      if (initialize_hardware(hardware_info, container.back()))
+      std::string loaded_hw =
+        load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
+      if (initialize_hardware(hardware_info, container.at(loaded_hw)))
       {
-        import_state_interface_descriptions(container.back());
-        import_command_interface_descriptions(container.back());
+        import_system_state_interface_descriptions(container.at(loaded_hw));
+        import_command_interface_descriptions(container.at(loaded_hw));
       }
       else
       {
@@ -640,16 +652,19 @@ public:
     }
   }
 
+  // TODO(Manuel): review regarding simplifications and checking for duplicates
   void initialize_actuator(
     std::unique_ptr<ActuatorInterface> actuator, const HardwareInfo & hardware_info)
   {
     auto init_actuators = [&](auto & container)
     {
-      container.emplace_back(Actuator(std::move(actuator)));
-      if (initialize_hardware(hardware_info, container.back()))
+      Actuator act(std::move(actuator));
+      std::string hw_name = act.get_name();
+      container.insert(std::make_pair(hw_name, std::move(act)));
+      if (initialize_hardware(hardware_info, container.at(hw_name)))
       {
-        import_state_interfaces(container.back());
-        import_command_interfaces(container.back());
+        import_state_interfaces(container.at(hw_name));
+        import_command_interfaces(container.at(hw_name));
       }
       else
       {
@@ -675,10 +690,12 @@ public:
   {
     auto init_sensors = [&](auto & container)
     {
-      container.emplace_back(Sensor(std::move(sensor)));
-      if (initialize_hardware(hardware_info, container.back()))
+      Sensor sens(std::move(sensor));
+      std::string hw_name = sens.get_name();
+      container.insert(std::make_pair(hw_name, std::move(sens)));
+      if (initialize_hardware(hardware_info, container.at(hw_name)))
       {
-        import_state_interfaces(container.back());
+        import_state_interfaces(container.at(hw_name));
       }
       else
       {
@@ -704,11 +721,13 @@ public:
   {
     auto init_systems = [&](auto & container)
     {
-      container.emplace_back(System(std::move(system)));
-      if (initialize_hardware(hardware_info, container.back()))
+      System sys(std::move(system));
+      std::string hw_name = sys.get_name();
+      container.insert(std::make_pair(hw_name, std::move(sys)));
+      if (initialize_hardware(hardware_info, container.at(hw_name)))
       {
-        import_state_interface_descriptions(container.back());
-        import_command_interface_descriptions(container.back());
+        import_system_state_interface_descriptions(container.at(hw_name));
+        import_command_interface_descriptions(container.at(hw_name));
       }
       else
       {
@@ -729,18 +748,114 @@ public:
     }
   }
 
+  template <typename Container>
+  std::pair<bool, typename Container::iterator> find_component(
+    const std::string & state_interface_name, Container & components)
+  {
+    auto found_component_it = components.find(state_interface_name);
+    return {found_component_it != components.end(), found_component_it};
+  }
+
+  template <typename Container>
+  std::pair<bool, std::string> find_component_name_for_interface(
+    const std::string & interface_name, Container & components)
+  {
+    auto component_name_it = components.find(interface_name);
+    if (component_name_it != components.end())
+    {
+      return {true, component_name_it->second};
+    }
+    return {false, ""};
+  }
+
+  LoanedStateInterface get_loand_state_interface(const std::string state_interface_name)
+  {
+    auto [found, component_name] =
+      find_component_name_for_interface(state_interface_name, state_interface_to_component_name_);
+    if (!found)
+    {
+      // TODO(Manuel) we should probably throw
+    }
+
+    auto [found_act, actutator] = find_component(component_name, actuators_);
+    if (found_act)
+    {
+      return actutator->second.create_loaned_state_interface(state_interface_name);
+    }
+    auto [found_sens, sensor] = find_component(component_name, sensors_);
+    if (found_sens)
+    {
+      return sensor->second.create_loaned_state_interface(state_interface_name);
+    }
+    auto [found_sys, system] = find_component(component_name, systems_);
+    if (found_sys)
+    {
+      return system->second.create_loaned_state_interface(state_interface_name);
+    }
+    auto [found_async_act, async_acturator] = find_component(component_name, async_actuators_);
+    if (found_async_act)
+    {
+      return async_acturator->second.create_loaned_state_interface(state_interface_name);
+    }
+    auto [found_async_sens, asysnc_sensor] = find_component(component_name, async_sensors_);
+    if (found_async_sens)
+    {
+      return asysnc_sensor->second.create_loaned_state_interface(state_interface_name);
+    }
+    auto [found_async_sys, async_sys] = find_component(component_name, async_systems_);
+    // Inverted so that compiler is not complaining that we don't return anything...
+    if (!found_async_sys)
+    {
+      // TODO(Manuel) we should probably throw here something
+    }
+    return async_sys->second.create_loaned_state_interface(state_interface_name);
+  }
+
+  LoanedCommandInterface get_loaned_command_interface(const std::string command_interface_name)
+  {
+    auto [found, component_name] = find_component_name_for_interface(
+      command_interface_name, command_interface_to_component_name_);
+    if (!found)
+    {
+      // TODO(Manuel) we should probably throw
+    }
+
+    auto [found_act, actutator] = find_component(component_name, actuators_);
+    if (found_act)
+    {
+      return actutator->second.create_loaned_command_interface(command_interface_name);
+    }
+    auto [found_sys, system] = find_component(component_name, systems_);
+    if (found_sys)
+    {
+      return system->second.create_loaned_command_interface(command_interface_name);
+    }
+    auto [found_async_act, async_acturator] = find_component(component_name, async_actuators_);
+    if (found_async_act)
+    {
+      return async_acturator->second.create_loaned_command_interface(command_interface_name);
+    }
+    auto [found_async_sys, async_sys] = find_component(component_name, async_systems_);
+    // Inverted so that compiler is not complaining that we don't return anything...
+    if (!found_async_sys)
+    {
+      // TODO(Manuel) we should probably throw here something
+    }
+    return async_sys->second.create_loaned_command_interface(command_interface_name);
+  }
+
   // hardware plugins
   pluginlib::ClassLoader<ActuatorInterface> actuator_loader_;
   pluginlib::ClassLoader<SensorInterface> sensor_loader_;
   pluginlib::ClassLoader<SystemInterface> system_loader_;
 
-  std::vector<Actuator> actuators_;
-  std::vector<Sensor> sensors_;
-  std::vector<System> systems_;
+  std::map<std::string, Actuator> actuators_;
+  std::map<std::string, Sensor> sensors_;
+  std::map<std::string, System> systems_;
 
-  std::vector<Actuator> async_actuators_;
-  std::vector<Sensor> async_sensors_;
-  std::vector<System> async_systems_;
+  std::map<std::string, Actuator> async_actuators_;
+  std::map<std::string, Sensor> async_sensors_;
+  std::map<std::string, System> async_systems_;
 
   std::unordered_map<std::string, HardwareComponentInfo> hardware_info_map_;
 
@@ -752,10 +867,12 @@ public:
 
   /// Storage of all available state interfaces
   std::map<std::string, StateInterface> state_interface_map_;
-  std::map<std::string, InterfaceDescription> state_interface_descriptions_map_;
+  std::map<std::string, InterfaceDescription> state_interface_descriptions_;
+  std::map<std::string, std::string> state_interface_to_component_name_;
   /// Storage of all available command interfaces
   std::map<std::string, CommandInterface> command_interface_map_;
-  std::map<std::string, InterfaceDescription> command_interface_descriptions_map_;
+  std::map<std::string, InterfaceDescription> command_interface_descriptions_;
+  std::map<std::string, std::string> command_interface_to_component_name_;
 
   /// Vectors with interfaces available to controllers (depending on hardware component state)
   std::vector<std::string> available_state_interfaces_;
@@ -844,8 +961,8 @@ bool ResourceManager::is_urdf_already_loaded() const { return is_urdf_loaded__; 
 bool ResourceManager::component_creates_loaned_state(const std::string & key)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
-  return resource_storage_->state_interface_descriptions_map_.find(key) !=
-         resource_storage_->state_interface_descriptions_map_.end();
+  return resource_storage_->state_interface_descriptions_.find(key) !=
+         resource_storage_->state_interface_descriptions_.end();
 }
 
 // CM API: Called in "update"-thread
@@ -861,7 +978,7 @@ LoanedStateInterface ResourceManager::claim_state_interface(const std::string & 
   // the loans.
   if (component_creates_loaned_state(key))
   {
-    // TOD(Manuel) implement exporting of loans by components
+    return resource_storage_->get_loand_state_interface(key);
   }
   return LoanedStateInterface(resource_storage_->state_interface_map_.at(key));
 }
@@ -1109,7 +1226,7 @@ std::unordered_map<std::string, HardwareComponentInfo> ResourceManager::get_comp
 {
   auto loop_and_get_state = [&](auto & container)
   {
-    for (auto & component : container)
+    for (const auto & [key, component] : container)
     {
       resource_storage_->hardware_info_map_[component.get_name()].state = component.get_state();
     }
@@ -1148,7 +1265,7 @@ bool ResourceManager::prepare_command_mode_switch(
     return ss.str();
   };
 
-  for (auto & component : resource_storage_->actuators_)
+  for (auto & [key, component] : resource_storage_->actuators_)
   {
     if (return_type::OK != component.prepare_command_mode_switch(start_interfaces, stop_interfaces))
     {
@@ -1158,7 +1275,7 @@ bool ResourceManager::prepare_command_mode_switch(
       return false;
     }
   }
-  for (auto & component : resource_storage_->systems_)
+  for (auto & [key, component] : resource_storage_->systems_)
   {
     if (return_type::OK != component.prepare_command_mode_switch(start_interfaces, stop_interfaces))
     {
@@ -1176,7 +1293,7 @@ bool ResourceManager::perform_command_mode_switch(
   const std::vector<std::string> & start_interfaces,
   const std::vector<std::string> & stop_interfaces)
 {
-  for (auto & component : resource_storage_->actuators_)
+  for (auto & [key, component] : resource_storage_->actuators_)
   {
     if (return_type::OK != component.perform_command_mode_switch(start_interfaces, stop_interfaces))
     {
@@ -1186,7 +1303,7 @@ bool ResourceManager::perform_command_mode_switch(
       return false;
     }
   }
-  for (auto & component : resource_storage_->systems_)
+  for (auto & [key, component] : resource_storage_->systems_)
   {
     if (return_type::OK != component.perform_command_mode_switch(start_interfaces, stop_interfaces))
     {
@@ -1245,13 +1362,11 @@ return_type ResourceManager::set_component_state(
 
   auto find_set_component_state = [&](auto action, auto & components)
   {
-    auto found_component_it = std::find_if(
-      components.begin(), components.end(),
-      [&](const auto & component) { return component.get_name() == component_name; });
+    auto found_component_it = components.find(component_name);
 
     if (found_component_it != components.end())
     {
-      if (action(*found_component_it, target_state))
+      if (action(found_component_it->second, target_state))
       {
         result = return_type::OK;
       }
@@ -1311,7 +1426,7 @@ HardwareReadWriteStatus ResourceManager::read(
 
   auto read_components = [&](auto & components)
   {
-    for (auto & component : components)
+    for (auto & [key, component] : components)
     {
       auto ret_val = component.read(time, period);
       if (ret_val == return_type::ERROR)
@@ -1351,7 +1466,7 @@ HardwareReadWriteStatus ResourceManager::write(
 
   auto write_components = [&](auto & components)
   {
-    for (auto & component : components)
+    for (auto & [key, component] : components)
     {
       auto ret_val = component.write(time, period);
       if (ret_val == return_type::ERROR)

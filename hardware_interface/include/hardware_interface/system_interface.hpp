@@ -25,6 +25,8 @@
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/loaned_command_interface.hpp"
+#include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_component_type_values.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -161,7 +163,7 @@ public:
    *
    * \return vector of InterfaceDescription
    */
-  virtual std::vector<InterfaceDescription> export_state_interface_descriptions()
+  virtual std::vector<InterfaceDescription> export_state_interface_descriptions() const
   {
     std::vector<InterfaceDescription> state_interface_descriptions;
     state_interface_descriptions.reserve(
@@ -189,7 +191,7 @@ public:
    *
    * \return vector of InterfaceDescription
    */
-  virtual std::vector<InterfaceDescription> export_command_interface_descriptions()
+  virtual std::vector<InterfaceDescription> export_command_interface_descriptions() const
   {
     std::vector<InterfaceDescription> command_interface_descriptions;
     command_interface_descriptions.reserve(
@@ -263,6 +265,16 @@ public:
     }
 
     return command_interfaces;
+  }
+
+  virtual LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name)
+  {
+    return LoanedCommandInterface(joint_commands_.at(interface_name));
+  }
+
+  virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
+  {
+    return LoanedStateInterface(joint_states_.at(interface_name));
   }
 
   /// Prepare for a new command interface switch.

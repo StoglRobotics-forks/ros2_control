@@ -15,12 +15,14 @@
 #ifndef HARDWARE_INTERFACE__SENSOR_INTERFACE_HPP_
 #define HARDWARE_INTERFACE__SENSOR_INTERFACE_HPP_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
@@ -111,6 +113,11 @@ public:
    */
   virtual std::vector<StateInterface> export_state_interfaces() = 0;
 
+  virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
+  {
+    return LoanedStateInterface(sensor_states_.at(interface_name));
+  }
+
   /// Read the current state values from the actuator.
   /**
    * The data readings from the physical hardware has to be updated
@@ -143,6 +150,11 @@ public:
 
 protected:
   HardwareInfo info_;
+  std::vector<InterfaceDescription> sensor_states_descriptions_;
+
+private:
+  std::map<std::string, StateInterface> sensor_states_;
+
   rclcpp_lifecycle::State lifecycle_state_;
 };
 

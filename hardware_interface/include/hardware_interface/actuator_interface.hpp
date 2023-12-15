@@ -15,12 +15,15 @@
 #ifndef HARDWARE_INTERFACE__ACTUATOR_INTERFACE_HPP_
 #define HARDWARE_INTERFACE__ACTUATOR_INTERFACE_HPP_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/loaned_command_interface.hpp"
+#include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
@@ -122,6 +125,16 @@ public:
    */
   virtual std::vector<CommandInterface> export_command_interfaces() = 0;
 
+  virtual LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name)
+  {
+    return LoanedCommandInterface(joint_commands_.at(interface_name));
+  }
+
+  virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
+  {
+    return LoanedStateInterface(joint_states_.at(interface_name));
+  }
+
   /// Prepare for a new command interface switch.
   /**
    * Prepare for any mode-switching required by the new command interface combination.
@@ -204,6 +217,13 @@ public:
 
 protected:
   HardwareInfo info_;
+  std::vector<InterfaceDescription> joint_states_descriptions_;
+  std::vector<InterfaceDescription> joint_commands_descriptions_;
+
+private:
+  std::map<std::string, StateInterface> joint_states_;
+  std::map<std::string, CommandInterface> joint_commands_;
+
   rclcpp_lifecycle::State lifecycle_state_;
 };
 

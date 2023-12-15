@@ -22,6 +22,8 @@
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/loaned_command_interface.hpp"
+#include "hardware_interface/loaned_state_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/visibility_control.h"
 #include "rclcpp/duration.hpp"
@@ -76,6 +78,12 @@ public:
 
   HARDWARE_INTERFACE_PUBLIC
   std::vector<InterfaceDescription> export_command_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
+  LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name);
+
+  HARDWARE_INTERFACE_PUBLIC
+  LoanedStateInterface create_loaned_state_interface(const std::string & interface_name);
 
   HARDWARE_INTERFACE_PUBLIC
   return_type prepare_command_mode_switch(
