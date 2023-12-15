@@ -36,6 +36,7 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "pluginlib/class_loader.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rcutils/logging_macros.h"
 
 namespace hardware_interface
@@ -272,6 +273,9 @@ public:
   template <class HardwareT>
   bool cleanup_hardware(HardwareT & hardware)
   {
+    RCLCPP_ERROR_STREAM(
+      rclcpp::get_logger("resource_manager"), "Cleanup  component {" << hardware.get_name() << "}");
+
     bool result = trigger_and_print_hardware_state_transition(
       std::bind(&HardwareT::cleanup, &hardware), "cleanup", hardware.get_name(),
       lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
@@ -341,6 +345,8 @@ public:
     using lifecycle_msgs::msg::State;
 
     bool result = false;
+    RCLCPP_ERROR_STREAM(
+      rclcpp::get_logger("resource_manager"), "Found  component {" << hardware.get_name() << "}");
 
     switch (target_state.id())
     {
@@ -451,7 +457,8 @@ public:
       available_state_interfaces_.capacity() + interface_names.size());
   }
 
-  void import_system_state_interface_descriptions(System & hardware)
+  template <typename HardwareT>
+  void import_state_interface_descriptions(HardwareT & hardware)
   {
     auto interface_descriptions = hardware.export_state_interface_descriptions();
     std::vector<std::string> interface_names;
@@ -462,9 +469,22 @@ public:
       auto key = description.get_name();
       state_interface_descriptions_.emplace(std::make_pair(key, description));
       state_interface_to_component_name_.emplace(std::make_pair(key, hw_name));
+      RCLCPP_ERROR_STREAM(
+        rclcpp::get_logger("resource_manager"),
+        "Importing StateInterface {" << key << "} for (hardware " << hw_name << "): ");
       interface_names.push_back(key);
     }
-    hardware_info_map_[hardware.get_name()].state_interfaces = interface_names;
+    for (const auto & name : interface_names)
+    {
+      RCLCPP_ERROR_STREAM(
+        rclcpp::get_logger("resource_manager"), "StateInterfaces {" << name << "}");
+    }
+
+    hardware_info_map_[hw_name].state_interfaces = interface_names;
+    for (const auto & name : hardware_info_map_[hw_name].state_interfaces)
+    {
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger("resource_manager"), "value={" << name << "}");
+    }
     available_state_interfaces_.reserve(
       available_state_interfaces_.capacity() + interface_names.size());
   }
@@ -473,7 +493,14 @@ public:
   void import_command_interfaces(HardwareT & hardware)
   {
     auto interfaces = hardware.export_command_interfaces();
-    hardware_info_map_[hardware.get_name()].command_interfaces = add_command_interfaces(interfaces);
+    auto interfaces_names = add_command_interfaces(interfaces);
+    hardware_info_map_[hardware.get_name()].command_interfaces = interfaces_names;
+    // TODO(Manuel) we have to consider reference interfaces from controllers...
+    std::string hw_name = hardware.get_name();
+    for (const auto & interface_name : interfaces_names)
+    {
+      command_interface_to_component_name_.emplace(std::make_pair(interface_name, hw_name));
+    }
   }
 
   template <class HardwareT>
@@ -512,6 +539,7 @@ public:
     return interface_names;
   }
 
+  // TODO(Manuel) we have to consider reference interfaces from controllers...
   std::vector<std::string> add_command_interface_descriptions(
     std::vector<InterfaceDescription> & interface_descriptions)
   {
@@ -630,7 +658,7 @@ public:
         load_hardware<System, SystemInterface>(hardware_info, system_loader_, container);
       if (initialize_hardware(hardware_info, container.at(loaded_hw)))
       {
-        import_system_state_interface_descriptions(container.at(loaded_hw));
+        import_state_interface_descriptions(container.at(loaded_hw));
         import_command_interface_descriptions(container.at(loaded_hw));
       }
       else
@@ -726,7 +754,7 @@ public:
       container.insert(std::make_pair(hw_name, std::move(sys)));
       if (initialize_hardware(hardware_info, container.at(hw_name)))
       {
-        import_system_state_interface_descriptions(container.at(hw_name));
+        import_state_interface_descriptions(container.at(hw_name));
         import_command_interface_descriptions(container.at(hw_name));
       }
       else
@@ -774,7 +802,10 @@ public:
       find_component_name_for_interface(state_interface_name, state_interface_to_component_name_);
     if (!found)
     {
-      // TODO(Manuel) we should probably throw
+      throw std::runtime_error(
+        std::string("While getting LoanedStateInterface from component: Could not find a "
+                    "component name for StateInterface:{'") +
+        state_interface_name + "'}.");
     }
 
     auto [found_act, actutator] = find_component(component_name, actuators_);
@@ -806,42 +837,56 @@ public:
     // Inverted so that compiler is not complaining that we don't return anything...
     if (!found_async_sys)
     {
-      // TODO(Manuel) we should probably throw here something
+      throw std::runtime_error(std::string(
+        "While getting LoanedStateInterface from component: Could not find the "
+        "component with name:{'" +
+        component_name + "'}."));
     }
     return async_sys->second.create_loaned_state_interface(state_interface_name);
   }
 
-  LoanedCommandInterface get_loaned_command_interface(const std::string command_interface_name)
+  LoanedCommandInterface get_loaned_command_interface(
+    const std::string command_interface_name, std::function<void(void)> && release_callback)
   {
     auto [found, component_name] = find_component_name_for_interface(
       command_interface_name, command_interface_to_component_name_);
     if (!found)
     {
-      // TODO(Manuel) we should probably throw
+      throw std::runtime_error(
+        std::string("While getting LoanedCommandInterface from component: Could not find a "
+                    "component name for CommandInterface:{'") +
+        command_interface_name + "'}.");
     }
 
     auto [found_act, actutator] = find_component(component_name, actuators_);
     if (found_act)
     {
-      return actutator->second.create_loaned_command_interface(command_interface_name);
+      return actutator->second.create_loaned_command_interface(
+        command_interface_name, std::move(release_callback));
     }
     auto [found_sys, system] = find_component(component_name, systems_);
     if (found_sys)
     {
-      return system->second.create_loaned_command_interface(command_interface_name);
+      return system->second.create_loaned_command_interface(
+        command_interface_name, std::move(release_callback));
     }
     auto [found_async_act, async_acturator] = find_component(component_name, async_actuators_);
     if (found_async_act)
     {
-      return async_acturator->second.create_loaned_command_interface(command_interface_name);
+      return async_acturator->second.create_loaned_command_interface(
+        command_interface_name, std::move(release_callback));
     }
     auto [found_async_sys, async_sys] = find_component(component_name, async_systems_);
     // Inverted so that compiler is not complaining that we don't return anything...
     if (!found_async_sys)
     {
-      // TODO(Manuel) we should probably throw here something
+      throw std::runtime_error(std::string(
+        "While getting LoanedCommandInterface from component: Could not find the "
+        "component with name:{'" +
+        component_name + "'}."));
     }
-    return async_sys->second.create_loaned_command_interface(command_interface_name);
+    return async_sys->second.create_loaned_command_interface(
+      command_interface_name, std::move(release_callback));
   }
 
   // hardware plugins
@@ -947,7 +992,7 @@ void ResourceManager::load_urdf(const std::string & urdf, bool validate_interfac
   // throw on missing state and command interfaces, not specified keys are being ignored
   if (validate_interfaces)
   {
-    validate_storage(hardware_info);
+    // validate_storage(hardware_info);
   }
 
   std::lock_guard<std::recursive_mutex> guard(resources_lock_);
@@ -958,7 +1003,7 @@ void ResourceManager::load_urdf(const std::string & urdf, bool validate_interfac
 
 bool ResourceManager::is_urdf_already_loaded() const { return is_urdf_loaded__; }
 
-bool ResourceManager::component_creates_loaned_state(const std::string & key)
+bool ResourceManager::component_creates_loaned_state_interface(const std::string & key)
 {
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   return resource_storage_->state_interface_descriptions_.find(key) !=
@@ -976,7 +1021,7 @@ LoanedStateInterface ResourceManager::claim_state_interface(const std::string & 
   std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
   // TODO(Manuel) just a hack for testing have to be removed later on when all the components create
   // the loans.
-  if (component_creates_loaned_state(key))
+  if (component_creates_loaned_state_interface(key))
   {
     return resource_storage_->get_loand_state_interface(key);
   }
@@ -1133,6 +1178,13 @@ bool ResourceManager::command_interface_is_claimed(const std::string & key) cons
   return resource_storage_->claimed_command_interface_map_.at(key);
 }
 
+bool ResourceManager::component_creates_loaned_command_interface(const std::string & key)
+{
+  std::lock_guard<std::recursive_mutex> guard(resource_interfaces_lock_);
+  return resource_storage_->command_interface_descriptions_.find(key) !=
+         resource_storage_->command_interface_descriptions_.end();
+}
+
 // CM API: Called in "update"-thread
 LoanedCommandInterface ResourceManager::claim_command_interface(const std::string & key)
 {
@@ -1146,6 +1198,12 @@ LoanedCommandInterface ResourceManager::claim_command_interface(const std::strin
   {
     throw std::runtime_error(
       std::string("Command interface with '") + key + "' is already claimed");
+  }
+
+  if (component_creates_loaned_command_interface(key))
+  {
+    return resource_storage_->get_loaned_command_interface(
+      key, std::bind(&ResourceManager::release_command_interface, this, key));
   }
 
   resource_storage_->claimed_command_interface_map_[key] = true;
@@ -1323,6 +1381,9 @@ return_type ResourceManager::set_component_state(
   using lifecycle_msgs::msg::State;
   using std::placeholders::_1;
   using std::placeholders::_2;
+
+  RCLCPP_ERROR_STREAM(
+    rclcpp::get_logger("resource_manager"), "Setting  component {" << component_name << "}");
 
   auto found_it = resource_storage_->hardware_info_map_.find(component_name);
 

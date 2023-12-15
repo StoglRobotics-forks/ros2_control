@@ -198,9 +198,20 @@ std::vector<CommandInterface> Actuator::export_command_interfaces()
   return impl_->export_command_interfaces();
 }
 
-LoanedCommandInterface Actuator::create_loaned_command_interface(const std::string & interface_name)
+std::vector<InterfaceDescription> Actuator::export_state_interface_descriptions()
 {
-  return impl_->create_loaned_command_interface(interface_name);
+  return impl_->export_state_interface_descriptions();
+}
+
+std::vector<InterfaceDescription> Actuator::export_command_interface_descriptions()
+{
+  return impl_->export_command_interface_descriptions();
+}
+
+LoanedCommandInterface Actuator::create_loaned_command_interface(
+  const std::string & interface_name, std::function<void(void)> && release_callback)
+{
+  return impl_->create_loaned_command_interface(interface_name, std::move(release_callback));
 }
 
 LoanedStateInterface Actuator::create_loaned_state_interface(const std::string & interface_name)

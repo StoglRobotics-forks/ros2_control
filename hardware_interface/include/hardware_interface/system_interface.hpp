@@ -158,56 +158,6 @@ public:
     }
   }
 
-  /**
-   * Exports all information about the available StateInterfaces for this hardware interface.
-   *
-   * \return vector of InterfaceDescription
-   */
-  virtual std::vector<InterfaceDescription> export_state_interface_descriptions() const
-  {
-    std::vector<InterfaceDescription> state_interface_descriptions;
-    state_interface_descriptions.reserve(
-      joint_states_descriptions_.size() + sensor_states_descriptions_.size() +
-      gpio_states_descriptions_.size());
-
-    // append InterfaceDescription of joint_states
-    state_interface_descriptions.insert(
-      state_interface_descriptions.end(), joint_states_descriptions_.begin(),
-      joint_states_descriptions_.end());
-    // append InterfaceDescription of sensor_states
-    state_interface_descriptions.insert(
-      state_interface_descriptions.end(), sensor_states_descriptions_.begin(),
-      sensor_states_descriptions_.end());
-    // append InterfaceDescription of gpio_states
-    state_interface_descriptions.insert(
-      state_interface_descriptions.end(), gpio_states_descriptions_.begin(),
-      gpio_states_descriptions_.end());
-
-    return state_interface_descriptions;
-  }
-
-  /**
-   * Exports all information about the available CommandInterfaces for this hardware interface.
-   *
-   * \return vector of InterfaceDescription
-   */
-  virtual std::vector<InterfaceDescription> export_command_interface_descriptions() const
-  {
-    std::vector<InterfaceDescription> command_interface_descriptions;
-    command_interface_descriptions.reserve(
-      joint_commands_descriptions_.size() + gpio_commands_descriptions_.size());
-
-    // append InterfaceDescription of joint_commands
-    command_interface_descriptions.insert(
-      command_interface_descriptions.end(), joint_commands_descriptions_.begin(),
-      joint_commands_descriptions_.end());
-    // append InterfaceDescription of gpio_commands
-    command_interface_descriptions.insert(
-      command_interface_descriptions.end(), gpio_commands_descriptions_.begin(),
-      gpio_commands_descriptions_.end());
-
-    return command_interface_descriptions;
-  }
   /// Exports all state interfaces for this hardware interface.
   /**
    * The state interfaces have to be created and transferred according
@@ -267,9 +217,61 @@ public:
     return command_interfaces;
   }
 
-  virtual LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name)
+  /**
+   * Exports all information about the available StateInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_state_interface_descriptions() const
   {
-    return LoanedCommandInterface(joint_commands_.at(interface_name));
+    std::vector<InterfaceDescription> state_interface_descriptions;
+    state_interface_descriptions.reserve(
+      joint_states_descriptions_.size() + sensor_states_descriptions_.size() +
+      gpio_states_descriptions_.size());
+
+    // append InterfaceDescription of joint_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), joint_states_descriptions_.begin(),
+      joint_states_descriptions_.end());
+    // append InterfaceDescription of sensor_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), sensor_states_descriptions_.begin(),
+      sensor_states_descriptions_.end());
+    // append InterfaceDescription of gpio_states
+    state_interface_descriptions.insert(
+      state_interface_descriptions.end(), gpio_states_descriptions_.begin(),
+      gpio_states_descriptions_.end());
+
+    return state_interface_descriptions;
+  }
+
+  /**
+   * Exports all information about the available CommandInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_command_interface_descriptions() const
+  {
+    std::vector<InterfaceDescription> command_interface_descriptions;
+    command_interface_descriptions.reserve(
+      joint_commands_descriptions_.size() + gpio_commands_descriptions_.size());
+
+    // append InterfaceDescription of joint_commands
+    command_interface_descriptions.insert(
+      command_interface_descriptions.end(), joint_commands_descriptions_.begin(),
+      joint_commands_descriptions_.end());
+    // append InterfaceDescription of gpio_commands
+    command_interface_descriptions.insert(
+      command_interface_descriptions.end(), gpio_commands_descriptions_.begin(),
+      gpio_commands_descriptions_.end());
+
+    return command_interface_descriptions;
+  }
+
+  virtual LoanedCommandInterface create_loaned_command_interface(
+    const std::string & interface_name, std::function<void(void)> && release_callback)
+  {
+    return LoanedCommandInterface(joint_commands_.at(interface_name), std::move(release_callback));
   }
 
   virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
@@ -316,7 +318,7 @@ public:
     return return_type::OK;
   }
 
-  /// Read the current state values from the actuator.
+  /// Read the current state values from the system.
   /**
    * The data readings from the physical hardware has to be updated
    * and reflected accordingly in the exported state interfaces.
@@ -328,7 +330,7 @@ public:
    */
   virtual return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
 
-  /// Write the current command values to the actuator.
+  /// Write the current command values to the system.
   /**
    * The physical hardware shall be updated with the latest value from
    * the exported command interfaces.
@@ -339,19 +341,19 @@ public:
    */
   virtual return_type write(const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
 
-  /// Get name of the actuator hardware.
+  /// Get name of the system hardware.
   /**
    * \return name.
    */
   virtual std::string get_name() const { return info_.name; }
 
-  /// Get life-cycle state of the actuator hardware.
+  /// Get life-cycle state of the system hardware.
   /**
    * \return state.
    */
   const rclcpp_lifecycle::State & get_state() const { return lifecycle_state_; }
 
-  /// Set life-cycle state of the actuator hardware.
+  /// Set life-cycle state of the system hardware.
   /**
    * \return state.
    */

@@ -114,9 +114,9 @@ struct InterfaceDescription
     const InterfaceInfo & interface_info_in)
   : prefix_name(prefix_name_in),
     component_type(component_type_in),
-    interface_info(interface_info_in)
+    interface_info(interface_info_in),
+    name(get_prefix_name() + "/" + get_interface_type())
   {
-    name = get_prefix_name() + "/" + get_interface_type();
   }
 
   /**
@@ -130,22 +130,22 @@ struct InterfaceDescription
   std::string component_type;
 
   /**
-   *  Full qualified name of the Interface
-   */
-  std::string name;
-
-  /**
    * Information about the Interface type (position, velocity,...) as well as limits and so on.
    */
   InterfaceInfo interface_info;
 
-  const std::string & get_prefix_name() const { return prefix_name; }
+  /**
+   *  Full qualified name of the Interface
+   */
+  std::string name;
 
-  const std::string & get_component_type() const { return component_type; }
+  std::string get_prefix_name() const { return prefix_name; }
 
-  const std::string & get_name() const { return name; }
+  std::string get_component_type() const { return component_type; }
 
-  const std::string & get_interface_type() const { return interface_info.name; }
+  std::string get_name() const { return name; }
+
+  std::string get_interface_type() const { return interface_info.name; }
 };
 
 /// This structure stores information about hardware defined in a robot's URDF.

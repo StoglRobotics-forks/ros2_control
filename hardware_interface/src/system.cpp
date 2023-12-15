@@ -204,9 +204,10 @@ std::vector<CommandInterface> System::export_command_interfaces()
   return impl_->export_command_interfaces();
 }
 
-LoanedCommandInterface System::create_loaned_command_interface(const std::string & interface_name)
+LoanedCommandInterface System::create_loaned_command_interface(
+  const std::string & interface_name, std::function<void(void)> && release_callback)
 {
-  return impl_->create_loaned_command_interface(interface_name);
+  return impl_->create_loaned_command_interface(interface_name, std::move(release_callback));
 }
 
 LoanedStateInterface System::create_loaned_state_interface(const std::string & interface_name)

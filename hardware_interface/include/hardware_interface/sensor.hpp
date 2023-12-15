@@ -70,6 +70,9 @@ public:
   std::vector<StateInterface> export_state_interfaces();
 
   HARDWARE_INTERFACE_PUBLIC
+  std::vector<InterfaceDescription> export_state_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
   LoanedStateInterface create_loaned_state_interface(const std::string & interface_name);
 
   HARDWARE_INTERFACE_PUBLIC

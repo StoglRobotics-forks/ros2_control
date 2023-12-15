@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
@@ -125,9 +126,30 @@ public:
    */
   virtual std::vector<CommandInterface> export_command_interfaces() = 0;
 
-  virtual LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name)
+  /**
+   * Exports all information about the available StateInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_state_interface_descriptions() const
   {
-    return LoanedCommandInterface(joint_commands_.at(interface_name));
+    return joint_states_descriptions_;
+  }
+
+  /**
+   * Exports all information about the available CommandInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_command_interface_descriptions() const
+  {
+    return joint_commands_descriptions_;
+  }
+
+  virtual LoanedCommandInterface create_loaned_command_interface(
+    const std::string & interface_name, std::function<void(void)> && release_callback)
+  {
+    return LoanedCommandInterface(joint_commands_.at(interface_name), std::move(release_callback));
   }
 
   virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
@@ -214,6 +236,26 @@ public:
    * \return state.
    */
   void set_state(const rclcpp_lifecycle::State & new_state) { lifecycle_state_ = new_state; }
+
+  double joint_state_get_value(const InterfaceDescription & interface_descr) const
+  {
+    return joint_states_.at(interface_descr.get_name()).get_value();
+  }
+
+  void joint_state_set_value(const InterfaceDescription & interface_descr, const double & value)
+  {
+    joint_states_.at(interface_descr.get_name()).set_value(value);
+  }
+
+  double joint_command_get_value(const InterfaceDescription & interface_descr) const
+  {
+    return joint_commands_.at(interface_descr.get_name()).get_value();
+  }
+
+  void joint_command_set_value(const InterfaceDescription & interface_descr, const double & value)
+  {
+    joint_commands_.at(interface_descr.get_name()).set_value(value);
+  }
 
 protected:
   HardwareInfo info_;

@@ -99,7 +99,9 @@ public:
    */
   bool is_urdf_already_loaded() const;
 
-  bool component_creates_loaned_state(const std::string & key);
+  bool component_creates_loaned_state_interface(const std::string & key);
+
+  bool component_creates_loaned_command_interface(const std::string & key);
 
   /// Claim a state interface given its key.
   /**

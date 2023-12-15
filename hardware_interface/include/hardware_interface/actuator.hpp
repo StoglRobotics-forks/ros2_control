@@ -73,7 +73,14 @@ public:
   std::vector<CommandInterface> export_command_interfaces();
 
   HARDWARE_INTERFACE_PUBLIC
-  LoanedCommandInterface create_loaned_command_interface(const std::string & interface_name);
+  std::vector<InterfaceDescription> export_state_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
+  std::vector<InterfaceDescription> export_command_interface_descriptions();
+
+  HARDWARE_INTERFACE_PUBLIC
+  LoanedCommandInterface create_loaned_command_interface(
+    const std::string & interface_name, std::function<void(void)> && release_callback);
 
   HARDWARE_INTERFACE_PUBLIC
   LoanedStateInterface create_loaned_state_interface(const std::string & interface_name);

@@ -113,6 +113,16 @@ public:
    */
   virtual std::vector<StateInterface> export_state_interfaces() = 0;
 
+  /**
+   * Exports all information about the available StateInterfaces for this hardware interface.
+   *
+   * \return vector of InterfaceDescription
+   */
+  virtual std::vector<InterfaceDescription> export_state_interface_descriptions() const
+  {
+    return sensor_states_descriptions_;
+  }
+
   virtual LoanedStateInterface create_loaned_state_interface(const std::string & interface_name)
   {
     return LoanedStateInterface(sensor_states_.at(interface_name));
@@ -147,6 +157,16 @@ public:
    * \return state.
    */
   void set_state(const rclcpp_lifecycle::State & new_state) { lifecycle_state_ = new_state; }
+
+  double sensor_state_get_value(const InterfaceDescription & interface_descr) const
+  {
+    return sensor_states_.at(interface_descr.get_name()).get_value();
+  }
+
+  void sensor_state_set_value(const InterfaceDescription & interface_descr, const double & value)
+  {
+    sensor_states_.at(interface_descr.get_name()).set_value(value);
+  }
 
 protected:
   HardwareInfo info_;
