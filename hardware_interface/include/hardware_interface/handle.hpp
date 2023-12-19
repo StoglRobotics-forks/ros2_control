@@ -148,7 +148,7 @@ public:
    */
   CommandInterface(const CommandInterface & other) = delete;
 
-  CommandInterface & operator=(const Handle & other) = delete;
+  CommandInterface & operator=(const CommandInterface & other) = delete;
 
   CommandInterface(CommandInterface && other) = default;
 
