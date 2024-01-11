@@ -200,6 +200,16 @@ public:
     return sensor_states_.at(interface_name)->get_value();
   }
 
+  void set_emergency_stop(const std::string & interface_name, const double & emergency_stop)
+  {
+    sensor_states_.at(interface_name)->emergency_stop(emergency_stop);
+  }
+
+  double get_emergency_stop(const std::string & interface_name) const
+  {
+    return sensor_states_.at(interface_name)->emergency_stop();
+  }
+
   void set_warning_code(const std::string & interface_name, const double & warning_code)
   {
     sensor_states_.at(interface_name)->warning_code(warning_code);

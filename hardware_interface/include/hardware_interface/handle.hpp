@@ -132,6 +132,17 @@ public:
 
   StateInterface(StateInterface && other) = default;
 
+  double emergency_stop() const
+  {
+    const double * emergency_stop = std::get_if<double>(&value_);
+    // This means the value does not store the expected datatype. How should we handle this
+    // properly?
+    THROW_ON_NOT_NULLPTR(emergency_stop);
+    return *emergency_stop;
+  }
+
+  void emergency_stop(const double & emergency_stop) { value_ = emergency_stop; }
+
   double warning_code() const
   {
     const double * warning_code = std::get_if<double>(&value_);

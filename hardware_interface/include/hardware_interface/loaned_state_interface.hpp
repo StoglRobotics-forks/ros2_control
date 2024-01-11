@@ -65,6 +65,8 @@ public:
 
   double get_value() const { return state_interface_.get_value(); }
 
+  double has_emergency_stop() const { return state_interface_.emergency_stop(); }
+
   double get_warning_code() const { return state_interface_.warning_code(); }
 
   double get_error_code() const { return state_interface_.error_code(); }
