@@ -1,4 +1,4 @@
-// Copyright 2020 ros2_control development team
+// Copyright 2024 Stogl Robotics Consulting UG (haftungsbeschränkt)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,11 +40,15 @@
 
 // Values to send over command interface to trigger error in write and read methods
 
+// Values to send over command interface to trigger error in write and read methods
+
 namespace
 {
-const auto TIME = rclcpp::Time(0);
-const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
-constexpr unsigned int TRIGGER_READ_WRITE_ERROR_CALLS = 10000;
+const auto emergency_stop_signal_size = 1;
+const auto warnig_signals_size = 2;
+const auto error_signals_size = 2;
+const auto report_signals_size =
+  emergency_stop_signal_size + warnig_signals_size + error_signals_size;
 }  // namespace
 
 using namespace ::testing;  // NOLINT
@@ -177,8 +181,11 @@ TEST(TestComponentInterfaces, dummy_actuator_default_custom_export)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto listed_interface_size = 2u;
+  const auto interfaces_size = listed_interface_size + report_signals_size;
   auto state_interfaces = actuator_hw.export_state_interfaces();
-  ASSERT_EQ(3u, state_interfaces.size());
+  // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
+  ASSERT_EQ(interfaces_size + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");
@@ -241,8 +248,11 @@ TEST(TestComponentInterfaces, dummy_sensor_default_custom_export)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto listed_interface_size = 1u;
+  const auto interfaces_sizeze = listed_interface_size + error_signals_size + warnig_signals_size;
   auto state_interfaces = sensor_hw.export_state_interfaces();
-  ASSERT_EQ(2u, state_interfaces.size());
+  // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
+  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/voltage");
@@ -278,8 +288,11 @@ TEST(TestComponentInterfaces, dummy_system_default_custom_export)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto listed_interface_size = 6u;
+  const auto interfaces_sizeze = listed_interface_size + report_signals_size;
   auto state_interfaces = system_hw.export_state_interfaces();
-  ASSERT_EQ(7u, state_interfaces.size());
+  // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
+  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");
