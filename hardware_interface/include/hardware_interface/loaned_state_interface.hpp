@@ -65,6 +65,12 @@ public:
 
   double get_value() const { return state_interface_.get_value(); }
 
+  double get_warning_code() const { return state_interface_.warning_code(); }
+
+  double get_error_code() const { return state_interface_.error_code(); }
+
+  double get_report_message() const { return state_interface_.report_message(); }
+
 protected:
   StateInterface & state_interface_;
   Deleter deleter_;

@@ -348,6 +348,36 @@ public:
     return system_commands_.at(interface_name)->get_value();
   }
 
+  void set_warning_code(const std::string & interface_name, const double & warning_code)
+  {
+    system_states_.at(interface_name)->warning_code(warning_code);
+  }
+
+  double get_warning_code(const std::string & interface_name) const
+  {
+    return system_states_.at(interface_name)->warning_code();
+  }
+
+  void set_error_code(const std::string & interface_name, const double & error_code)
+  {
+    system_states_.at(interface_name)->error_code(error_code);
+  }
+
+  double get_error_code(const std::string & interface_name) const
+  {
+    return system_states_.at(interface_name)->error_code();
+  }
+
+  void set_report_message(const std::string & interface_name, const double & report_message)
+  {
+    system_states_.at(interface_name)->report_message(report_message);
+  }
+
+  double get_report_message(const std::string & interface_name) const
+  {
+    return system_states_.at(interface_name)->report_message();
+  }
+
 protected:
   HardwareInfo info_;
   std::map<std::string, InterfaceDescription> joint_state_interfaces_;

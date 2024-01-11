@@ -132,6 +132,39 @@ public:
 
   StateInterface(StateInterface && other) = default;
 
+  double warning_code() const
+  {
+    const double * warning_code = std::get_if<double>(&value_);
+    // This means the value does not store the expected datatype. How should we handle this
+    // properly?
+    THROW_ON_NOT_NULLPTR(warning_code);
+    return *warning_code;
+  }
+
+  void warning_code(const double & warning_code) { value_ = warning_code; }
+
+  double error_code() const
+  {
+    const auto error_code = std::get_if<double>(&value_);
+    // This means the value does not store the expected datatype. How should we handle this
+    // properly?
+    THROW_ON_NOT_NULLPTR(error_code);
+    return *error_code;
+  }
+
+  void error_code(const double & error_code) { value_ = error_code; }
+
+  double report_message() const
+  {
+    const auto report_message = std::get_if<double>(&value_);
+    // This means the value does not store the expected datatype. How should we handle this
+    // properly?
+    THROW_ON_NOT_NULLPTR(report_message);
+    return *report_message;
+  }
+
+  void report_message(const double & report_message) { value_ = report_message; }
+
   using Handle::Handle;
 };
 

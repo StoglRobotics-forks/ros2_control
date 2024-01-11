@@ -200,6 +200,36 @@ public:
     return sensor_states_.at(interface_name)->get_value();
   }
 
+  void set_warning_code(const std::string & interface_name, const double & warning_code)
+  {
+    sensor_states_.at(interface_name)->warning_code(warning_code);
+  }
+
+  double get_warning_code(const std::string & interface_name) const
+  {
+    return sensor_states_.at(interface_name)->warning_code();
+  }
+
+  void set_error_code(const std::string & interface_name, const double & error_code)
+  {
+    sensor_states_.at(interface_name)->error_code(error_code);
+  }
+
+  double get_error_code(const std::string & interface_name) const
+  {
+    return sensor_states_.at(interface_name)->error_code();
+  }
+
+  void set_report_message(const std::string & interface_name, const double & report_message)
+  {
+    sensor_states_.at(interface_name)->report_message(report_message);
+  }
+
+  double get_report_message(const std::string & interface_name) const
+  {
+    return sensor_states_.at(interface_name)->report_message();
+  }
+
 protected:
   HardwareInfo info_;
 
