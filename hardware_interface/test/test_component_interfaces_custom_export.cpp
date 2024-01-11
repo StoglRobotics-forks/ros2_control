@@ -42,6 +42,8 @@
 
 // Values to send over command interface to trigger error in write and read methods
 
+// Values to send over command interface to trigger error in write and read methods
+
 namespace
 {
 const auto emergency_stop_signal_size = 1;
