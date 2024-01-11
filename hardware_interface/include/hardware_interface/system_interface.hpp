@@ -25,8 +25,11 @@
 #include "hardware_interface/component_parser.hpp"
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
+#include "hardware_interface/types/hardware_interface_emergency_stop_signal.hpp"
+#include "hardware_interface/types/hardware_interface_error_signals.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include "hardware_interface/types/hardware_interface_warning_signals.hpp"
 #include "hardware_interface/types/lifecycle_state_names.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/duration.hpp"
@@ -105,6 +108,9 @@ public:
     info_ = hardware_info;
     import_state_interface_descriptions(info_);
     import_command_interface_descriptions(info_);
+    create_emergency_stop_interface();
+    create_error_interfaces();
+    create_warning_interfaces();
     return CallbackReturn::SUCCESS;
   };
 
@@ -151,6 +157,41 @@ public:
     for (const auto & description : gpio_command_interface_descriptions)
     {
       gpio_command_interfaces_.insert(std::make_pair(description.get_name(), description));
+    }
+  }
+
+  void create_emergency_stop_interface()
+  {
+    InterfaceInfo interface_info;
+    interface_info.name = hardware_interface::EMERGENCY_STOP_SIGNAL;
+    interface_info.data_type = "bool";
+    InterfaceDescription interface_descr(info_.name, interface_info);
+    emergency_stop_ = std::make_shared<StateInterface>(interface_descr);
+  }
+
+  void create_error_interfaces()
+  {
+    for (const auto error_signal : hardware_interface::ERROR_SIGNALS)
+    {
+      InterfaceInfo interface_info;
+      interface_info.name = error_signal;
+      interface_info.data_type = "uint8_t";
+      InterfaceDescription interface_descr(info_.name, interface_info);
+      error_signals_.insert(std::make_pair(
+        interface_descr.get_name(), std::make_shared<StateInterface>(interface_descr)));
+    }
+  }
+
+  void create_warning_interfaces()
+  {
+    for (const auto warning_signal : hardware_interface::WARNING_SIGNALS)
+    {
+      InterfaceInfo interface_info;
+      interface_info.name = warning_signal;
+      interface_info.data_type = "int8_t";
+      InterfaceDescription interface_descr(info_.name, interface_info);
+      warning_signals_.insert(std::make_pair(
+        interface_descr.get_name(), std::make_shared<StateInterface>(interface_descr)));
     }
   }
 
@@ -348,44 +389,31 @@ public:
     return system_commands_.at(interface_name)->get_value();
   }
 
-  void set_emergency_stop(const std::string & interface_name, const double & emergency_stop)
+  void set_emergency_stop(const double & emergency_stop)
   {
-    system_states_.at(interface_name)->emergency_stop(emergency_stop);
+    emergency_stop_->emergency_stop(emergency_stop);
   }
 
-  double get_emergency_stop(const std::string & interface_name) const
+  double get_emergency_stop() const { return emergency_stop_->emergency_stop(); }
+
+  void set_warning_code(const std::string & warning_signal, const int8_t & warning_code)
   {
-    return system_states_.at(interface_name)->emergency_stop();
+    warning_signals_.at(warning_signal)->warning_code(warning_code);
   }
 
-  void set_warning_code(const std::string & interface_name, const double & warning_code)
+  int8_t get_warning_code(const std::string & warning_signal) const
   {
-    system_states_.at(interface_name)->warning_code(warning_code);
+    return warning_signals_.at(warning_signal)->warning_code();
   }
 
-  double get_warning_code(const std::string & interface_name) const
+  void set_error_code(const std::string & error_signal, const uint8_t & error_code)
   {
-    return system_states_.at(interface_name)->warning_code();
+    warning_signals_.at(error_signal)->error_code(error_code);
   }
 
-  void set_error_code(const std::string & interface_name, const double & error_code)
+  uint8_t get_error_code(const std::string & error_signal) const
   {
-    system_states_.at(interface_name)->error_code(error_code);
-  }
-
-  double get_error_code(const std::string & interface_name) const
-  {
-    return system_states_.at(interface_name)->error_code();
-  }
-
-  void set_report_message(const std::string & interface_name, const double & report_message)
-  {
-    system_states_.at(interface_name)->report_message(report_message);
-  }
-
-  double get_report_message(const std::string & interface_name) const
-  {
-    return system_states_.at(interface_name)->report_message();
+    return warning_signals_.at(error_signal)->error_code();
   }
 
 protected:
@@ -400,6 +428,9 @@ protected:
 
 private:
   std::map<std::string, std::shared_ptr<StateInterface>> system_states_;
+  std::shared_ptr<StateInterface> emergency_stop_;
+  std::map<std::string, std::shared_ptr<StateInterface>> error_signals_;
+  std::map<std::string, std::shared_ptr<StateInterface>> warning_signals_;
   std::map<std::string, std::shared_ptr<CommandInterface>> system_commands_;
 
   rclcpp_lifecycle::State lifecycle_state_;

@@ -27,7 +27,7 @@
 namespace hardware_interface
 {
 
-typedef std::variant<double> HANDLE_DATATYPE;
+typedef std::variant<bool, double, int8_t, uint8_t> HANDLE_DATATYPE;
 
 /// A handle used to get and set a value on a given interface.
 class Handle
@@ -132,31 +132,31 @@ public:
 
   StateInterface(StateInterface && other) = default;
 
-  double emergency_stop() const
+  bool emergency_stop() const
   {
-    const double * emergency_stop = std::get_if<double>(&value_);
+    const auto emergency_stop = std::get_if<bool>(&value_);
     // This means the value does not store the expected datatype. How should we handle this
     // properly?
     THROW_ON_NOT_NULLPTR(emergency_stop);
     return *emergency_stop;
   }
 
-  void emergency_stop(const double & emergency_stop) { value_ = emergency_stop; }
+  void emergency_stop(const bool & emergency_stop) { value_ = emergency_stop; }
 
-  double warning_code() const
+  int8_t warning_code() const
   {
-    const double * warning_code = std::get_if<double>(&value_);
+    const auto warning_code = std::get_if<int8_t>(&value_);
     // This means the value does not store the expected datatype. How should we handle this
     // properly?
     THROW_ON_NOT_NULLPTR(warning_code);
     return *warning_code;
   }
 
-  void warning_code(const double & warning_code) { value_ = warning_code; }
+  void warning_code(const int8_t & warning_code) { value_ = warning_code; }
 
-  double error_code() const
+  uint8_t error_code() const
   {
-    const auto error_code = std::get_if<double>(&value_);
+    const auto error_code = std::get_if<uint8_t>(&value_);
     // This means the value does not store the expected datatype. How should we handle this
     // properly?
     THROW_ON_NOT_NULLPTR(error_code);
@@ -164,17 +164,6 @@ public:
   }
 
   void error_code(const double & error_code) { value_ = error_code; }
-
-  double report_message() const
-  {
-    const auto report_message = std::get_if<double>(&value_);
-    // This means the value does not store the expected datatype. How should we handle this
-    // properly?
-    THROW_ON_NOT_NULLPTR(report_message);
-    return *report_message;
-  }
-
-  void report_message(const double & report_message) { value_ = report_message; }
 
   using Handle::Handle;
 };
