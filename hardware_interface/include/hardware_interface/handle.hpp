@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/macros.hpp"
@@ -27,7 +28,7 @@
 namespace hardware_interface
 {
 
-typedef std::variant<bool, double, int8_t, uint8_t> HANDLE_DATATYPE;
+typedef std::variant<bool, double, std::vector<int8_t>, std::vector<uint8_t>> HANDLE_DATATYPE;
 
 /// A handle used to get and set a value on a given interface.
 class Handle
@@ -131,39 +132,6 @@ public:
   StateInterface(const StateInterface & other) = default;
 
   StateInterface(StateInterface && other) = default;
-
-  bool emergency_stop() const
-  {
-    const auto emergency_stop = std::get_if<bool>(&value_);
-    // This means the value does not store the expected datatype. How should we handle this
-    // properly?
-    THROW_ON_NOT_NULLPTR(emergency_stop);
-    return *emergency_stop;
-  }
-
-  void emergency_stop(const bool & emergency_stop) { value_ = emergency_stop; }
-
-  int8_t warning_code() const
-  {
-    const auto warning_code = std::get_if<int8_t>(&value_);
-    // This means the value does not store the expected datatype. How should we handle this
-    // properly?
-    THROW_ON_NOT_NULLPTR(warning_code);
-    return *warning_code;
-  }
-
-  void warning_code(const int8_t & warning_code) { value_ = warning_code; }
-
-  uint8_t error_code() const
-  {
-    const auto error_code = std::get_if<uint8_t>(&value_);
-    // This means the value does not store the expected datatype. How should we handle this
-    // properly?
-    THROW_ON_NOT_NULLPTR(error_code);
-    return *error_code;
-  }
-
-  void error_code(const double & error_code) { value_ = error_code; }
 
   using Handle::Handle;
 };

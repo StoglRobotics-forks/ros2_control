@@ -65,12 +65,6 @@ public:
 
   double get_value() const { return state_interface_.get_value(); }
 
-  bool has_emergency_stop() const { return state_interface_.emergency_stop(); }
-
-  int8_t get_warning_code() const { return state_interface_.warning_code(); }
-
-  uint8_t get_error_code() const { return state_interface_.error_code(); }
-
 protected:
   StateInterface & state_interface_;
   Deleter deleter_;

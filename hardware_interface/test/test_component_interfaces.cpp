@@ -43,6 +43,11 @@ namespace
 const auto TIME = rclcpp::Time(0);
 const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
 constexpr unsigned int TRIGGER_READ_WRITE_ERROR_CALLS = 10000;
+const auto emergency_stop_signal_size = 1;
+const auto warnig_signals_size = 1;
+const auto error_signals_size = 1;
+const auto error_warn_signals_size =
+  emergency_stop_signal_size + warnig_signals_size + error_signals_size;
 }  // namespace
 
 using namespace ::testing;  // NOLINT
@@ -786,7 +791,7 @@ TEST(TestComponentInterfaces, dummy_actuator_default)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   auto state_interfaces = actuator_hw.on_export_state_interfaces();
-  ASSERT_EQ(2u, state_interfaces.size());
+  ASSERT_EQ(2u + error_warn_signals_size, state_interfaces.size());
   EXPECT_EQ("joint1/position", state_interfaces[0]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_POSITION, state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
@@ -915,7 +920,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   auto state_interfaces = sensor_hw.on_export_state_interfaces();
-  ASSERT_EQ(1u, state_interfaces.size());
+  ASSERT_EQ(1u + warnig_signals_size + error_signals_size, state_interfaces.size());
   EXPECT_EQ("joint1/voltage", state_interfaces[0]->get_name());
   EXPECT_EQ("voltage", state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
@@ -1078,7 +1083,7 @@ TEST(TestComponentInterfaces, dummy_system_default)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   auto state_interfaces = system_hw.on_export_state_interfaces();
-  ASSERT_EQ(6u, state_interfaces.size());
+  ASSERT_EQ(6u + error_warn_signals_size, state_interfaces.size());
   EXPECT_EQ("joint1/position", state_interfaces[0]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_POSITION, state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
