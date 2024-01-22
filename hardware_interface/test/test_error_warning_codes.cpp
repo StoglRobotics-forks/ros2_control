@@ -18,6 +18,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -47,9 +48,9 @@ const auto TIME = rclcpp::Time(0);
 const auto PERIOD = rclcpp::Duration::from_seconds(0.01);
 constexpr unsigned int TRIGGER_READ_WRITE_ERROR_CALLS = 10000;
 const auto emergency_stop_signal_size = 1;
-const auto warnig_signals_size = 1;
-const auto error_signals_size = 1;
-const auto error_warn_signals_size =
+const auto warnig_signals_size = 2;
+const auto error_signals_size = 2;
+const auto report_signals_size =
   emergency_stop_signal_size + warnig_signals_size + error_signals_size;
 }  // namespace
 
@@ -77,6 +78,11 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
   {
     set_state("joint1/position", 0.0);
     set_state("joint1/velocity", 0.0);
+    set_emergency_stop(0.0);
+    set_error_code(0.0);
+    set_error_message(0.0);
+    set_warning_code(0.0);
+    set_warning_message(0.0);
 
     if (recoverable_error_happened_)
     {
@@ -97,6 +103,11 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
+      set_emergency_stop(1.0);
+      set_error_code(1.0);
+      set_error_message(1.0);
+      set_warning_code(1.0);
+      set_warning_message(1.0);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -110,6 +121,11 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
     ++write_calls_;
     if (write_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
+      set_emergency_stop(1.0);
+      set_error_code(1.0);
+      set_error_message(1.0);
+      set_warning_code(1.0);
+      set_warning_message(1.0);
       return hardware_interface::return_type::ERROR;
     }
     auto position_state = get_state("joint1/position");
@@ -167,6 +183,10 @@ class DummySensorDefault : public hardware_interface::SensorInterface
     {
       set_state(name, 0.0);
     }
+    set_error_code(0.0);
+    set_error_message(0.0);
+    set_warning_code(0.0);
+    set_warning_message(0.0);
     read_calls_ = 0;
     return CallbackReturn::SUCCESS;
   }
@@ -179,6 +199,10 @@ class DummySensorDefault : public hardware_interface::SensorInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
+      set_error_code(1.0);
+      set_error_message(1.0);
+      set_warning_code(1.0);
+      set_warning_message(1.0);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -230,6 +254,11 @@ class DummySystemDefault : public hardware_interface::SystemInterface
       set_state(position_states_[i], 0.0);
       set_state(velocity_states_[i], 0.0);
     }
+    set_emergency_stop(0.0);
+    set_error_code(0.0);
+    set_error_message(0.0);
+    set_warning_code(0.0);
+    set_warning_message(0.0);
     // reset command only if error is initiated
     if (recoverable_error_happened_)
     {
@@ -253,6 +282,11 @@ class DummySystemDefault : public hardware_interface::SystemInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
+      set_emergency_stop(1.0);
+      set_error_code(1.0);
+      set_error_message(1.0);
+      set_warning_code(1.0);
+      set_warning_message(1.0);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -266,6 +300,11 @@ class DummySystemDefault : public hardware_interface::SystemInterface
     ++write_calls_;
     if (write_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
+      set_emergency_stop(1.0);
+      set_error_code(1.0);
+      set_error_message(1.0);
+      set_warning_code(1.0);
+      set_warning_message(1.0);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -333,85 +372,64 @@ TEST(TestComponentInterfaces, dummy_actuator_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 2;
   auto state_interfaces = actuator_hw.on_export_state_interfaces();
-  ASSERT_EQ(2u + error_warn_signals_size, state_interfaces.size());
+  ASSERT_EQ(state_interface_offset + report_signals_size, state_interfaces.size());
   EXPECT_EQ("joint1/position", state_interfaces[0]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_POSITION, state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
   EXPECT_EQ("joint1/velocity", state_interfaces[1]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_VELOCITY, state_interfaces[1]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[1]->get_prefix_name());
+  // EMERGENCY STOP
+  EXPECT_EQ(
+    "ActuatorModularJoint1/" + std::string(hardware_interface::EMERGENCY_STOP_SIGNAL),
+    state_interfaces[state_interface_offset]->get_name());
+  EXPECT_EQ(
+    hardware_interface::EMERGENCY_STOP_SIGNAL,
+    state_interfaces[state_interface_offset]->get_interface_name());
+  EXPECT_EQ("ActuatorModularJoint1", state_interfaces[state_interface_offset]->get_prefix_name());
+  // ERROR_SIGNAL
+  EXPECT_EQ(
+    "ActuatorModularJoint1/" + std::string(hardware_interface::ERROR_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 1]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 1]->get_interface_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1", state_interfaces[state_interface_offset + 1]->get_prefix_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1/" + std::string(hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 2]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 2]->get_interface_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1", state_interfaces[state_interface_offset + 2]->get_prefix_name());
+  // WARNING SIGNAL
+  EXPECT_EQ(
+    "ActuatorModularJoint1/" + std::string(hardware_interface::WARNING_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 3]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 3]->get_interface_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1", state_interfaces[state_interface_offset + 3]->get_prefix_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1/" +
+      std::string(hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 4]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 4]->get_interface_name());
+  EXPECT_EQ(
+    "ActuatorModularJoint1", state_interfaces[state_interface_offset + 4]->get_prefix_name());
 
   auto command_interfaces = actuator_hw.on_export_command_interfaces();
   ASSERT_EQ(1u, command_interfaces.size());
   EXPECT_EQ("joint1/velocity", command_interfaces[0]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_VELOCITY, command_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", command_interfaces[0]->get_prefix_name());
-
-  double velocity_value = 1.0;
-  command_interfaces[0]->set_value(velocity_value);  // velocity
-  ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.write(TIME, PERIOD));
-
-  // Noting should change because it is UNCONFIGURED
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
-
-    ASSERT_TRUE(std::isnan(state_interfaces[0]->get_value()));  // position value
-    ASSERT_TRUE(std::isnan(state_interfaces[1]->get_value()));  // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.write(TIME, PERIOD));
-  }
-
-  state = actuator_hw.configure();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::INACTIVE, state.label());
-
-  // Read and Write are working because it is INACTIVE
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ(step * velocity_value, state_interfaces[0]->get_value());      // position value
-    EXPECT_EQ(step ? velocity_value : 0, state_interfaces[1]->get_value());  // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.write(TIME, PERIOD));
-  }
-
-  state = actuator_hw.activate();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::ACTIVE, state.label());
-
-  // Read and Write are working because it is ACTIVE
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ((10 + step) * velocity_value, state_interfaces[0]->get_value());  // position value
-    EXPECT_EQ(velocity_value, state_interfaces[1]->get_value());                // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.write(TIME, PERIOD));
-  }
-
-  state = actuator_hw.shutdown();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::FINALIZED, state.label());
-
-  // Noting should change because it is FINALIZED
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ(20 * velocity_value, state_interfaces[0]->get_value());  // position value
-    EXPECT_EQ(0, state_interfaces[1]->get_value());                    // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.write(TIME, PERIOD));
-  }
-
-  EXPECT_EQ(
-    hardware_interface::return_type::OK, actuator_hw.prepare_command_mode_switch({""}, {""}));
-  EXPECT_EQ(
-    hardware_interface::return_type::OK, actuator_hw.perform_command_mode_switch({""}, {""}));
 }
 
 TEST(TestComponentInterfaces, dummy_sensor_default)
@@ -429,29 +447,45 @@ TEST(TestComponentInterfaces, dummy_sensor_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 1;
   auto state_interfaces = sensor_hw.on_export_state_interfaces();
-  ASSERT_EQ(1u + warnig_signals_size + error_signals_size, state_interfaces.size());
+  ASSERT_EQ(
+    state_interface_offset + warnig_signals_size + error_signals_size, state_interfaces.size());
   // check that the normal interfaces get exported as expected
   EXPECT_EQ("joint1/voltage", state_interfaces[0]->get_name());
   EXPECT_EQ("voltage", state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
   EXPECT_TRUE(std::isnan(state_interfaces[0]->get_value()));
-  // check the error interfaces
-  int counter_offset = 1;
-
-  // Not updated because is is UNCONFIGURED
-  sensor_hw.read(TIME, PERIOD);
-  EXPECT_TRUE(std::isnan(state_interfaces[0]->get_value()));
-
-  // Updated because is is INACTIVE
-  state = sensor_hw.configure();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::INACTIVE, state.label());
-  EXPECT_EQ(0.0, state_interfaces[0]->get_value());
-
-  // It can read now
-  sensor_hw.read(TIME, PERIOD);
-  EXPECT_EQ(0x666, state_interfaces[0]->get_value());
+  // ERROR_SIGNAL
+  EXPECT_EQ(
+    "CameraWithIMU/" + std::string(hardware_interface::ERROR_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset]->get_interface_name());
+  EXPECT_EQ("CameraWithIMU", state_interfaces[state_interface_offset]->get_prefix_name());
+  EXPECT_EQ(
+    "CameraWithIMU/" + std::string(hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 1]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 1]->get_interface_name());
+  EXPECT_EQ("CameraWithIMU", state_interfaces[state_interface_offset + 1]->get_prefix_name());
+  // WARNING SIGNAL
+  EXPECT_EQ(
+    "CameraWithIMU/" + std::string(hardware_interface::WARNING_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 2]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 2]->get_interface_name());
+  EXPECT_EQ("CameraWithIMU", state_interfaces[state_interface_offset + 2]->get_prefix_name());
+  EXPECT_EQ(
+    "CameraWithIMU/" + std::string(hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 3]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 3]->get_interface_name());
+  EXPECT_EQ("CameraWithIMU", state_interfaces[state_interface_offset + 3]->get_prefix_name());
 }
 
 TEST(TestComponentInterfaces, dummy_system_default)
@@ -469,8 +503,9 @@ TEST(TestComponentInterfaces, dummy_system_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 6;
   auto state_interfaces = system_hw.on_export_state_interfaces();
-  ASSERT_EQ(6u + error_warn_signals_size, state_interfaces.size());
+  ASSERT_EQ(state_interface_offset + report_signals_size, state_interfaces.size());
   EXPECT_EQ("joint1/position", state_interfaces[0]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_POSITION, state_interfaces[0]->get_interface_name());
   EXPECT_EQ("joint1", state_interfaces[0]->get_prefix_name());
@@ -489,6 +524,44 @@ TEST(TestComponentInterfaces, dummy_system_default)
   EXPECT_EQ("joint3/velocity", state_interfaces[5]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_VELOCITY, state_interfaces[5]->get_interface_name());
   EXPECT_EQ("joint3", state_interfaces[5]->get_prefix_name());
+  // EMERGENCY STOP
+  EXPECT_EQ(
+    "RRBotSystemWithGPIO/" + std::string(hardware_interface::EMERGENCY_STOP_SIGNAL),
+    state_interfaces[state_interface_offset]->get_name());
+  EXPECT_EQ(
+    hardware_interface::EMERGENCY_STOP_SIGNAL,
+    state_interfaces[state_interface_offset]->get_interface_name());
+  EXPECT_EQ("RRBotSystemWithGPIO", state_interfaces[state_interface_offset]->get_prefix_name());
+  // ERROR_SIGNAL
+  EXPECT_EQ(
+    "RRBotSystemWithGPIO/" + std::string(hardware_interface::ERROR_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 1]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 1]->get_interface_name());
+  EXPECT_EQ("RRBotSystemWithGPIO", state_interfaces[state_interface_offset + 1]->get_prefix_name());
+  EXPECT_EQ(
+    "RRBotSystemWithGPIO/" + std::string(hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 2]->get_name());
+  EXPECT_EQ(
+    hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 2]->get_interface_name());
+  EXPECT_EQ("RRBotSystemWithGPIO", state_interfaces[state_interface_offset + 2]->get_prefix_name());
+  // WARNING SIGNAL
+  EXPECT_EQ(
+    "RRBotSystemWithGPIO/" + std::string(hardware_interface::WARNING_SIGNAL_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 3]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 3]->get_interface_name());
+  EXPECT_EQ("RRBotSystemWithGPIO", state_interfaces[state_interface_offset + 3]->get_prefix_name());
+  EXPECT_EQ(
+    "RRBotSystemWithGPIO/" + std::string(hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME),
+    state_interfaces[state_interface_offset + 4]->get_name());
+  EXPECT_EQ(
+    hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME,
+    state_interfaces[state_interface_offset + 4]->get_interface_name());
+  EXPECT_EQ("RRBotSystemWithGPIO", state_interfaces[state_interface_offset + 4]->get_prefix_name());
 
   auto command_interfaces = system_hw.on_export_command_interfaces();
   ASSERT_EQ(3u, command_interfaces.size());
@@ -501,87 +574,6 @@ TEST(TestComponentInterfaces, dummy_system_default)
   EXPECT_EQ("joint3/velocity", command_interfaces[2]->get_name());
   EXPECT_EQ(hardware_interface::HW_IF_VELOCITY, command_interfaces[2]->get_interface_name());
   EXPECT_EQ("joint3", command_interfaces[2]->get_prefix_name());
-
-  double velocity_value = 1.0;
-  command_interfaces[0]->set_value(velocity_value);  // velocity
-  command_interfaces[1]->set_value(velocity_value);  // velocity
-  command_interfaces[2]->set_value(velocity_value);  // velocity
-  ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.write(TIME, PERIOD));
-
-  // Noting should change because it is UNCONFIGURED
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
-
-    ASSERT_TRUE(std::isnan(state_interfaces[0]->get_value()));  // position value
-    ASSERT_TRUE(std::isnan(state_interfaces[1]->get_value()));  // velocity
-    ASSERT_TRUE(std::isnan(state_interfaces[2]->get_value()));  // position value
-    ASSERT_TRUE(std::isnan(state_interfaces[3]->get_value()));  // velocity
-    ASSERT_TRUE(std::isnan(state_interfaces[4]->get_value()));  // position value
-    ASSERT_TRUE(std::isnan(state_interfaces[5]->get_value()));  // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.write(TIME, PERIOD));
-  }
-
-  state = system_hw.configure();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::INACTIVE, state.label());
-
-  // Read and Write are working because it is INACTIVE
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ(step * velocity_value, state_interfaces[0]->get_value());      // position value
-    EXPECT_EQ(step ? velocity_value : 0, state_interfaces[1]->get_value());  // velocity
-    EXPECT_EQ(step * velocity_value, state_interfaces[2]->get_value());      // position value
-    EXPECT_EQ(step ? velocity_value : 0, state_interfaces[3]->get_value());  // velocity
-    EXPECT_EQ(step * velocity_value, state_interfaces[4]->get_value());      // position value
-    EXPECT_EQ(step ? velocity_value : 0, state_interfaces[5]->get_value());  // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::OK, system_hw.write(TIME, PERIOD));
-  }
-
-  state = system_hw.activate();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::ACTIVE, state.label());
-
-  // Read and Write are working because it is ACTIVE
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ((10 + step) * velocity_value, state_interfaces[0]->get_value());  // position value
-    EXPECT_EQ(velocity_value, state_interfaces[1]->get_value());                // velocity
-    EXPECT_EQ((10 + step) * velocity_value, state_interfaces[2]->get_value());  // position value
-    EXPECT_EQ(velocity_value, state_interfaces[3]->get_value());                // velocity
-    EXPECT_EQ((10 + step) * velocity_value, state_interfaces[4]->get_value());  // position value
-    EXPECT_EQ(velocity_value, state_interfaces[5]->get_value());                // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::OK, system_hw.write(TIME, PERIOD));
-  }
-
-  state = system_hw.shutdown();
-  EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
-  EXPECT_EQ(hardware_interface::lifecycle_state_names::FINALIZED, state.label());
-
-  // Noting should change because it is FINALIZED
-  for (auto step = 0u; step < 10; ++step)
-  {
-    ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
-
-    EXPECT_EQ(20 * velocity_value, state_interfaces[0]->get_value());  // position value
-    EXPECT_EQ(0.0, state_interfaces[1]->get_value());                  // velocity
-    EXPECT_EQ(20 * velocity_value, state_interfaces[2]->get_value());  // position value
-    EXPECT_EQ(0.0, state_interfaces[3]->get_value());                  // velocity
-    EXPECT_EQ(20 * velocity_value, state_interfaces[4]->get_value());  // position value
-    EXPECT_EQ(0.0, state_interfaces[5]->get_value());                  // velocity
-
-    ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.write(TIME, PERIOD));
-  }
-
-  EXPECT_EQ(hardware_interface::return_type::OK, system_hw.prepare_command_mode_switch({}, {}));
-  EXPECT_EQ(hardware_interface::return_type::OK, system_hw.perform_command_mode_switch({}, {}));
 }
 
 TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
@@ -601,6 +593,7 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 2;
   auto state_interfaces = actuator_hw.on_export_state_interfaces();
   auto command_interfaces = actuator_hw.on_export_command_interfaces();
   state = actuator_hw.configure();
@@ -615,8 +608,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -638,8 +641,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -650,6 +663,7 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::FINALIZED, state.label());
 }
+
 TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
 {
   hardware_interface::Actuator actuator_hw(
@@ -666,6 +680,7 @@ TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 2;
   auto state_interfaces = actuator_hw.on_export_state_interfaces();
   auto command_interfaces = actuator_hw.on_export_command_interfaces();
   state = actuator_hw.configure();
@@ -703,8 +718,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.write(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.write(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -729,6 +754,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default_read_error_behavior)
   const hardware_interface::HardwareInfo voltage_sensor_res = control_resources[0];
   auto state = sensor_hw.initialize(voltage_sensor_res);
 
+  const auto state_interface_offset = 1;
   auto state_interfaces = sensor_hw.on_export_state_interfaces();
   // Updated because is is INACTIVE
   state = sensor_hw.configure();
@@ -742,8 +768,16 @@ TEST(TestComponentInterfaces, dummy_sensor_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, sensor_hw.read(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, sensor_hw.read(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
 
   state = sensor_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -789,6 +823,7 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 6;
   auto state_interfaces = system_hw.on_export_state_interfaces();
   auto command_interfaces = system_hw.on_export_command_interfaces();
   state = system_hw.configure();
@@ -803,8 +838,18 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -831,8 +876,18 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -859,6 +914,7 @@ TEST(TestComponentInterfaces, dummy_system_default_write_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
+  const auto state_interface_offset = 6;
   auto state_interfaces = system_hw.on_export_state_interfaces();
   auto command_interfaces = system_hw.on_export_command_interfaces();
   state = system_hw.configure();
@@ -873,8 +929,18 @@ TEST(TestComponentInterfaces, dummy_system_default_write_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.write(TIME, PERIOD));
+    ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.write(TIME, PERIOD));
+  ASSERT_EQ(state_interfaces[state_interface_offset]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 1]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 2]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 3]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[state_interface_offset + 4]->get_value(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());

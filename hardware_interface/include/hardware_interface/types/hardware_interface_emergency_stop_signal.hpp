@@ -20,6 +20,9 @@
 
 namespace hardware_interface
 {
+// Count of how many different emergency stop signals there are that can be reported.
+const size_t emergency_stop_signal_count = 1;
+
 constexpr char EMERGENCY_STOP_SIGNAL[] = "EMERGENCY_STOP_SIGNAL";
 }  // namespace hardware_interface
 

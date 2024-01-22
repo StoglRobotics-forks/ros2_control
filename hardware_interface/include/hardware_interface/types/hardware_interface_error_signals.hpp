@@ -20,6 +20,10 @@
 
 namespace hardware_interface
 {
+
+// Count of how many different error signals there are that can be reported.
+const size_t error_signal_count = 32;
+
 constexpr char ERROR_SIGNAL_INTERFACE_NAME[] = "ERROR_SIGNAL";
 // Available error signal names
 enum class error_signal : std::uint8_t
@@ -57,8 +61,6 @@ enum class error_signal : std::uint8_t
   ERROR_SIGNAL_30 = 30,
   ERROR_SIGNAL_31 = 31
 };
-
-const size_t error_signal_count = 32;
 
 constexpr char ERROR_SIGNAL_MESSAGE_INTERFACE_NAME[] = "ERROR_SIGNAL_MESSAGE";
 // Available WARNING signal message names

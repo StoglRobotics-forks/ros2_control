@@ -15,20 +15,21 @@
 #ifndef HARDWARE_INTERFACE__HANDLE_HPP_
 #define HARDWARE_INTERFACE__HANDLE_HPP_
 
+#include <array>
 #include <limits>
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/macros.hpp"
+#include "hardware_interface/types/hardware_interface_error_signals.hpp"
+#include "hardware_interface/types/hardware_interface_warning_signals.hpp"
 #include "hardware_interface/visibility_control.h"
-
 namespace hardware_interface
 {
 
-typedef std::variant<bool, double, std::vector<int8_t>, std::vector<uint8_t>> HANDLE_DATATYPE;
+typedef std::variant<double> HANDLE_DATATYPE;
 
 /// A handle used to get and set a value on a given interface.
 class Handle

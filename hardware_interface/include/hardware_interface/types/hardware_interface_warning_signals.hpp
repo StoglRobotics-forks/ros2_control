@@ -20,6 +20,9 @@
 
 namespace hardware_interface
 {
+// Count of how many different warn signals there are that can be reported.
+const size_t warning_signal_count = 32;
+
 constexpr char WARNING_SIGNAL_INTERFACE_NAME[] = "WARNING_SIGNAL";
 // Available warning signals names mapping to position in the interface
 enum class warning_signal : std::uint8_t
@@ -57,8 +60,6 @@ enum class warning_signal : std::uint8_t
   WARNING_SIGNAL_30 = 30,
   WARNING_SIGNAL_31 = 31
 };
-
-const size_t warning_signal_count = 32;
 
 constexpr char WARNING_SIGNAL_MESSAGE_INTERFACE_NAME[] = "WARNING_SIGNAL_MESSAGE";
 // Available WARNING signal message names
