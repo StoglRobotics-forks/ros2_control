@@ -255,7 +255,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default_custom_export)
     EXPECT_EQ("joint1/voltage", state_interfaces[position]->get_name());
     EXPECT_EQ("voltage", state_interfaces[position]->get_interface_name());
     EXPECT_EQ("joint1", state_interfaces[position]->get_prefix_name());
-    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value()));
+    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value<double>()));
   }
   {
     auto [contains, position] =

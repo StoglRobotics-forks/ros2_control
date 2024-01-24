@@ -16,12 +16,14 @@
 #define HARDWARE_INTERFACE__TYPES__HARDWARE_INTERFACE_WARNING_SIGNALS_HPP_
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace hardware_interface
 {
 // Count of how many different warn signals there are that can be reported.
 const size_t warning_signal_count = 32;
+using WARNING_SIGNALS = std::array<int8_t, hardware_interface::warning_signal_count>;
 
 constexpr char WARNING_SIGNAL_INTERFACE_NAME[] = "WARNING_SIGNAL";
 // Available warning signals names mapping to position in the interface
@@ -60,6 +62,8 @@ enum class warning_signal : std::uint8_t
   WARNING_SIGNAL_30 = 30,
   WARNING_SIGNAL_31 = 31
 };
+
+using WARNING_MESSAGES = std::array<std::string, hardware_interface::warning_signal_count>;
 
 constexpr char WARNING_SIGNAL_MESSAGE_INTERFACE_NAME[] = "WARNING_SIGNAL_MESSAGE";
 // Available WARNING signal message names

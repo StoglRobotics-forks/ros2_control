@@ -19,6 +19,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -30,7 +31,19 @@
 namespace hardware_interface
 {
 
-typedef std::variant<double> HANDLE_DATATYPE;
+using HANDLE_DATATYPE = std::variant<
+  bool, double, hardware_interface::WARNING_SIGNALS, hardware_interface::ERROR_SIGNALS,
+  hardware_interface::WARNING_MESSAGES>;
+
+// Define a type trait for allowed types
+template <typename T>
+struct HANDLE_DATATYPE_TYPES : std::disjunction<
+                                 std::is_same<T, bool>, std::is_same<T, double>,
+                                 std::is_same<T, hardware_interface::WARNING_SIGNALS>,
+                                 std::is_same<T, hardware_interface::ERROR_SIGNALS>,
+                                 std::is_same<T, hardware_interface::WARNING_MESSAGES>>
+{
+};
 
 /// A handle used to get and set a value on a given interface.
 class Handle
@@ -49,10 +62,10 @@ public:
   : prefix_name_(interface_description.prefix_name),
     interface_name_(interface_description.interface_info.name)
   {
+    // TODO(Manuel): implement this.
     // As soon as multiple datatypes are used in HANDLE_DATATYPE
     // we need to initialize according the type passed in interface description
-    value_ = std::numeric_limits<double>::quiet_NaN();
-    value_ptr_ = std::get_if<double>(&value_);
+    // value_ = std::numeric_limits<double>::quiet_NaN();
   }
 
   [[deprecated("Use InterfaceDescription for initializing the Interface")]]
@@ -95,32 +108,23 @@ public:
 
   const std::string & get_prefix_name() const { return prefix_name_; }
 
-  double get_value() const
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  T get_value() const
   {
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) return value_ if old functionality is removed
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
-    // END
+    return std::get<T>(value_);
   }
 
-  void set_value(double value)
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  void set_value(T value)
   {
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) set value_ directly if old functionality is removed
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
-    // END
+    value_ = value;
   }
 
 protected:
   std::string prefix_name_;
   std::string interface_name_;
   HANDLE_DATATYPE value_;
-  // BEGIN (Handle export change): for backward compatibility
-  // TODO(Manuel) redeclare as HANDLE_DATATYPE * value_ptr_ if old functionality is removed
   double * value_ptr_;
-  // END
 };
 
 class StateInterface : public Handle

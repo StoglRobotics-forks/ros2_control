@@ -78,11 +78,11 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
   {
     set_state("joint1/position", 0.0);
     set_state("joint1/velocity", 0.0);
-    set_emergency_stop(0.0);
-    set_error_code(0.0);
-    set_error_message(0.0);
-    set_warning_code(0.0);
-    set_warning_message(0.0);
+    set_emergency_stop(false);
+    set_error_code(hardware_interface::ERROR_SIGNALS{});
+    set_error_message(hardware_interface::WARNING_MESSAGES{});
+    set_warning_code(hardware_interface::WARNING_SIGNALS{});
+    set_warning_message(hardware_interface::WARNING_MESSAGES{});
 
     if (recoverable_error_happened_)
     {
@@ -103,11 +103,16 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
-      set_emergency_stop(1.0);
-      set_error_code(1.0);
-      set_error_message(1.0);
-      set_warning_code(1.0);
-      set_warning_message(1.0);
+      set_emergency_stop(true);
+      hardware_interface::ERROR_SIGNALS error_signals{1, 2, 3};
+      set_error_code(error_signals);
+      hardware_interface::WARNING_MESSAGES error_messages{"Some", "error", "message that is split"};
+      set_error_message(error_messages);
+      hardware_interface::WARNING_SIGNALS warning_signals{1, 2, 3};
+      set_warning_code(warning_signals);
+      hardware_interface::WARNING_MESSAGES warning_messages{
+        "Some", "warning", "message that is split"};
+      set_warning_message(warning_messages);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -121,11 +126,16 @@ class DummyActuatorDefault : public hardware_interface::ActuatorInterface
     ++write_calls_;
     if (write_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
-      set_emergency_stop(1.0);
-      set_error_code(1.0);
-      set_error_message(1.0);
-      set_warning_code(1.0);
-      set_warning_message(1.0);
+      set_emergency_stop(true);
+      hardware_interface::ERROR_SIGNALS error_signals{1, 2, 3};
+      set_error_code(error_signals);
+      hardware_interface::WARNING_MESSAGES error_messages{"Some", "error", "message that is split"};
+      set_error_message(error_messages);
+      hardware_interface::WARNING_SIGNALS warning_signals{1, 2, 3};
+      set_warning_code(warning_signals);
+      hardware_interface::WARNING_MESSAGES warning_messages{
+        "Some", "warning", "message that is split"};
+      set_warning_message(warning_messages);
       return hardware_interface::return_type::ERROR;
     }
     auto position_state = get_state("joint1/position");
@@ -183,10 +193,10 @@ class DummySensorDefault : public hardware_interface::SensorInterface
     {
       set_state(name, 0.0);
     }
-    set_error_code(0.0);
-    set_error_message(0.0);
-    set_warning_code(0.0);
-    set_warning_message(0.0);
+    set_error_code(hardware_interface::ERROR_SIGNALS{});
+    set_error_message(hardware_interface::WARNING_MESSAGES{});
+    set_warning_code(hardware_interface::WARNING_SIGNALS{});
+    set_warning_message(hardware_interface::WARNING_MESSAGES{});
     read_calls_ = 0;
     return CallbackReturn::SUCCESS;
   }
@@ -199,10 +209,15 @@ class DummySensorDefault : public hardware_interface::SensorInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
-      set_error_code(1.0);
-      set_error_message(1.0);
-      set_warning_code(1.0);
-      set_warning_message(1.0);
+      hardware_interface::ERROR_SIGNALS error_signals{1, 2, 3};
+      set_error_code(error_signals);
+      hardware_interface::WARNING_MESSAGES error_messages{"Some", "error", "message that is split"};
+      set_error_message(error_messages);
+      hardware_interface::WARNING_SIGNALS warning_signals{1, 2, 3};
+      set_warning_code(warning_signals);
+      hardware_interface::WARNING_MESSAGES warning_messages{
+        "Some", "warning", "message that is split"};
+      set_warning_message(warning_messages);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -254,11 +269,11 @@ class DummySystemDefault : public hardware_interface::SystemInterface
       set_state(position_states_[i], 0.0);
       set_state(velocity_states_[i], 0.0);
     }
-    set_emergency_stop(0.0);
-    set_error_code(0.0);
-    set_error_message(0.0);
-    set_warning_code(0.0);
-    set_warning_message(0.0);
+    set_emergency_stop(false);
+    set_error_code(hardware_interface::ERROR_SIGNALS{});
+    set_error_message(hardware_interface::WARNING_MESSAGES{});
+    set_warning_code(hardware_interface::WARNING_SIGNALS{});
+    set_warning_message(hardware_interface::WARNING_MESSAGES{});
     // reset command only if error is initiated
     if (recoverable_error_happened_)
     {
@@ -282,11 +297,16 @@ class DummySystemDefault : public hardware_interface::SystemInterface
     ++read_calls_;
     if (read_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
-      set_emergency_stop(1.0);
-      set_error_code(1.0);
-      set_error_message(1.0);
-      set_warning_code(1.0);
-      set_warning_message(1.0);
+      set_emergency_stop(true);
+      hardware_interface::ERROR_SIGNALS error_signals{1, 2, 3};
+      set_error_code(error_signals);
+      hardware_interface::WARNING_MESSAGES error_messages{"Some", "error", "message that is split"};
+      set_error_message(error_messages);
+      hardware_interface::WARNING_SIGNALS warning_signals{1, 2, 3};
+      set_warning_code(warning_signals);
+      hardware_interface::WARNING_MESSAGES warning_messages{
+        "Some", "warning", "message that is split"};
+      set_warning_message(warning_messages);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -300,11 +320,16 @@ class DummySystemDefault : public hardware_interface::SystemInterface
     ++write_calls_;
     if (write_calls_ == TRIGGER_READ_WRITE_ERROR_CALLS)
     {
-      set_emergency_stop(1.0);
-      set_error_code(1.0);
-      set_error_message(1.0);
-      set_warning_code(1.0);
-      set_warning_message(1.0);
+      set_emergency_stop(true);
+      hardware_interface::ERROR_SIGNALS error_signals{1, 2, 3};
+      set_error_code(error_signals);
+      hardware_interface::WARNING_MESSAGES error_messages{"Some", "error", "message that is split"};
+      set_error_message(error_messages);
+      hardware_interface::WARNING_SIGNALS warning_signals{1, 2, 3};
+      set_warning_code(warning_signals);
+      hardware_interface::WARNING_MESSAGES warning_messages{
+        "Some", "warning", "message that is split"};
+      set_warning_message(warning_messages);
       return hardware_interface::return_type::ERROR;
     }
 
@@ -501,7 +526,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default)
     EXPECT_EQ("joint1/voltage", state_interfaces[position]->get_name());
     EXPECT_EQ("voltage", state_interfaces[position]->get_interface_name());
     EXPECT_EQ("joint1", state_interfaces[position]->get_prefix_name());
-    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value()));
+    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value<double>()));
   }
   // ERROR_SIGNAL
   {
@@ -783,18 +808,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -805,8 +830,8 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   auto ci_joint1_vel =
     test_components::vector_contains(command_interfaces, "joint1/velocity").second;
   state = actuator_hw.configure();
-  EXPECT_EQ(state_interfaces[si_joint1_pos]->get_value(), 0.0);
-  EXPECT_EQ(command_interfaces[ci_joint1_vel]->get_value(), 0.0);
+  EXPECT_EQ(state_interfaces[si_joint1_pos]->get_value<double>(), 0.0);
+  EXPECT_EQ(command_interfaces[ci_joint1_vel]->get_value<double>(), 0.0);
 
   state = actuator_hw.activate();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
@@ -819,18 +844,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.read(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.read(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -882,8 +907,8 @@ TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
 
   // activate again and expect reset values
   state = actuator_hw.configure();
-  EXPECT_EQ(state_interfaces[0]->get_value(), 0.0);
-  EXPECT_EQ(command_interfaces[0]->get_value(), 0.0);
+  EXPECT_EQ(state_interfaces[0]->get_value<double>(), 0.0);
+  EXPECT_EQ(command_interfaces[0]->get_value<double>(), 0.0);
 
   state = actuator_hw.activate();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
@@ -921,18 +946,18 @@ TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, actuator_hw.write(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, actuator_hw.write(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = actuator_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -991,16 +1016,16 @@ TEST(TestComponentInterfaces, dummy_sensor_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, sensor_hw.read(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, sensor_hw.read(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = sensor_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -1008,7 +1033,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default_read_error_behavior)
 
   // activate again and expect reset values
   state = sensor_hw.configure();
-  EXPECT_EQ(state_interfaces[0]->get_value(), 0.0);
+  EXPECT_EQ(state_interfaces[0]->get_value<double>(), 0.0);
 
   state = sensor_hw.activate();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
@@ -1086,18 +1111,18 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -1107,11 +1132,11 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   state = system_hw.configure();
   for (auto index = 0ul; index < 6; ++index)
   {
-    EXPECT_EQ(state_interfaces[index]->get_value(), 0.0);
+    EXPECT_EQ(state_interfaces[index]->get_value<double>(), 0.0);
   }
   for (auto index = 0ul; index < 3; ++index)
   {
-    EXPECT_EQ(command_interfaces[index]->get_value(), 0.0);
+    EXPECT_EQ(command_interfaces[index]->get_value<double>(), 0.0);
   }
   state = system_hw.activate();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
@@ -1124,18 +1149,18 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.read(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.read(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_FINALIZED, state.id());
@@ -1202,18 +1227,18 @@ TEST(TestComponentInterfaces, dummy_system_default_write_error_behavior)
   for (auto i = 2ul; i < TRIGGER_READ_WRITE_ERROR_CALLS; ++i)
   {
     ASSERT_EQ(hardware_interface::return_type::OK, system_hw.write(TIME, PERIOD));
-    ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 0.0);
-    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 0.0);
+    ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 0.0);
+    ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 0.0);
   }
   ASSERT_EQ(hardware_interface::return_type::ERROR, system_hw.write(TIME, PERIOD));
-  ASSERT_EQ(state_interfaces[emergency_stop]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal]->get_value(), 1.0);
-  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value(), 1.0);
+  ASSERT_EQ(state_interfaces[emergency_stop]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[error_signal_msg]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal]->get_value<double>(), 1.0);
+  ASSERT_EQ(state_interfaces[warning_signal_msg]->get_value<double>(), 1.0);
 
   state = system_hw.get_state();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
@@ -1223,11 +1248,11 @@ TEST(TestComponentInterfaces, dummy_system_default_write_error_behavior)
   state = system_hw.configure();
   for (auto index = 0ul; index < 6; ++index)
   {
-    EXPECT_EQ(state_interfaces[index]->get_value(), 0.0);
+    EXPECT_EQ(state_interfaces[index]->get_value<double>(), 0.0);
   }
   for (auto index = 0ul; index < 3; ++index)
   {
-    EXPECT_EQ(command_interfaces[index]->get_value(), 0.0);
+    EXPECT_EQ(command_interfaces[index]->get_value<double>(), 0.0);
   }
   state = system_hw.activate();
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, state.id());
