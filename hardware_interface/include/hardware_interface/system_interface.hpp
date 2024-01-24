@@ -463,7 +463,6 @@ public:
    * \return state.
    */
   void set_state(const rclcpp_lifecycle::State & new_state) { lifecycle_state_ = new_state; }
-
   void set_state(const std::string & interface_name, const double & value)
   {
     system_states_.at(interface_name)->set_value(value);
@@ -471,7 +470,7 @@ public:
 
   double get_state(const std::string & interface_name) const
   {
-    return system_states_.at(interface_name)->get_value();
+    return system_states_.at(interface_name)->get_value<double>();
   }
 
   void set_command(const std::string & interface_name, const double & value)
@@ -481,37 +480,60 @@ public:
 
   double get_command(const std::string & interface_name) const
   {
-    return system_commands_.at(interface_name)->get_value();
+    return system_commands_.at(interface_name)->get_value<double>();
   }
 
-  void set_emergency_stop(const double & emergency_stop)
+  void set_emergency_stop(const bool & emergency_stop)
   {
     emergency_stop_->set_value(emergency_stop);
   }
 
-  double get_emergency_stop() const { return emergency_stop_->get_value(); }
+  bool get_emergency_stop() const { return emergency_stop_->get_value<bool>(); }
 
-  void set_error_code(const double & error_code) { error_signal_->set_value(error_code); }
-
-  double get_error_code() const { return error_signal_->get_value(); }
-
-  void set_error_message(const double & error_message)
+  void set_error_code(std::array<uint8_t, hardware_interface::error_signal_count> error_codes)
   {
-    error_signal_message_->set_value(error_message);
+    error_signal_->set_value(error_codes);
   }
 
-  double get_error_message() const { return error_signal_message_->get_value(); }
+  std::array<uint8_t, hardware_interface::error_signal_count> get_error_code() const
+  {
+    return error_signal_->get_value<std::array<uint8_t, hardware_interface::error_signal_count>>();
+  }
 
-  void set_warning_code(const double & warning_codes) { warning_signal_->set_value(warning_codes); }
+  void set_error_message(
+    std::array<std::string, hardware_interface::error_signal_count> error_messages)
+  {
+    error_signal_message_->set_value(error_messages);
+  }
 
-  double get_warning_code() const { return warning_signal_->get_value(); }
+  std::array<std::string, hardware_interface::error_signal_count> get_error_message() const
+  {
+    return error_signal_message_
+      ->get_value<std::array<std::string, hardware_interface::error_signal_count>>();
+  }
 
-  void set_warning_message(const double & error_message)
+  void set_warning_code(std::array<int8_t, hardware_interface::warning_signal_count> warning_codes)
+  {
+    warning_signal_->set_value(warning_codes);
+  }
+
+  std::array<int8_t, hardware_interface::warning_signal_count> get_warning_code() const
+  {
+    return warning_signal_
+      ->get_value<std::array<int8_t, hardware_interface::warning_signal_count>>();
+  }
+
+  void set_warning_message(
+    std::array<std::string, hardware_interface::warning_signal_count> error_message)
   {
     warning_signal_message_->set_value(error_message);
   }
 
-  double get_warning_message() const { return warning_signal_message_->get_value(); }
+  std::array<std::string, hardware_interface::error_signal_count> get_warning_message() const
+  {
+    return warning_signal_message_
+      ->get_value<std::array<std::string, hardware_interface::error_signal_count>>();
+  }
 
 protected:
   HardwareInfo info_;

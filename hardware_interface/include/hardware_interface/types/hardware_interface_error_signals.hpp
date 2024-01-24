@@ -16,6 +16,7 @@
 #define HARDWARE_INTERFACE__TYPES__HARDWARE_INTERFACE_ERROR_SIGNALS_HPP_
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace hardware_interface
@@ -23,6 +24,7 @@ namespace hardware_interface
 
 // Count of how many different error signals there are that can be reported.
 const size_t error_signal_count = 32;
+using ERROR_SIGNALS = std::array<uint8_t, hardware_interface::error_signal_count>;
 
 constexpr char ERROR_SIGNAL_INTERFACE_NAME[] = "ERROR_SIGNAL";
 // Available error signal names
@@ -61,6 +63,8 @@ enum class error_signal : std::uint8_t
   ERROR_SIGNAL_30 = 30,
   ERROR_SIGNAL_31 = 31
 };
+
+using ERROR_MESSAGES = std::array<std::string, hardware_interface::error_signal_count>;
 
 constexpr char ERROR_SIGNAL_MESSAGE_INTERFACE_NAME[] = "ERROR_SIGNAL_MESSAGE";
 // Available WARNING signal message names
