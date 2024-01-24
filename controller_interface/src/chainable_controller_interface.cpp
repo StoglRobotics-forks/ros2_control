@@ -78,13 +78,24 @@ ChainableControllerInterface::export_reference_interfaces()
   auto reference_interfaces = on_export_reference_interfaces();
   std::vector<std::shared_ptr<hardware_interface::CommandInterface>> reference_interfaces_ptrs_vec;
   reference_interfaces_ptrs_vec.reserve(reference_interfaces.size());
+  std::vector<std::shared_ptr<hardware_interface::CommandInterface>> reference_interfaces_ptrs_vec;
+  reference_interfaces_ptrs_vec.reserve(reference_interfaces.size());
 
+  // BEGIN (Handle export change): for backward compatibility
   // BEGIN (Handle export change): for backward compatibility
   // check if the "reference_interfaces_" variable is resized to number of interfaces
   if (reference_interfaces_.size() != reference_interfaces.size())
   {
     // TODO(destogl): Should here be "FATAL"? It is fatal in terms of controller but not for the
     // framework
+    std::string error_msg =
+      "The internal storage for reference values 'reference_interfaces_' variable has size '" +
+      std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
+      std::to_string(reference_interfaces.size()) +
+      "' equal to the number of exported reference interfaces. Please correct and recompile the "
+      "controller with name '" +
+      get_node()->get_name() + "' and try again.";
+    throw std::runtime_error(error_msg);
     std::string error_msg =
       "The internal storage for reference values 'reference_interfaces_' variable has size '" +
       std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
@@ -100,6 +111,7 @@ ChainableControllerInterface::export_reference_interfaces()
   const auto ref_interface_size = reference_interfaces.size();
   for (auto & interface : reference_interfaces)
   {
+    auto & interface = reference_interfaces[i];
     if (interface.get_prefix_name() != get_node()->get_name())
     {
       std::string error_msg = "The name of the interface " + interface.get_name() +
@@ -128,6 +140,7 @@ ChainableControllerInterface::export_reference_interfaces()
     throw std::runtime_error(error_msg);
   }
 
+  return reference_interfaces_ptrs_vec;
   return reference_interfaces_ptrs_vec;
 }
 

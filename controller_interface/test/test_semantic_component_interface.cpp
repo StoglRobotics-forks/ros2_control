@@ -94,9 +94,23 @@ TEST_F(SemanticComponentInterfaceTest, validate_state_interfaces)
   std::vector<double> interface_values = {1.1, 3.3, 5.5};
 
   // assign 1.1 to interface_1, 3.3 to interface_3 and 5.5 to interface_5
-  hardware_interface::StateInterface interface_1{component_name_, "1", &interface_values[0]};
-  hardware_interface::StateInterface interface_3{component_name_, "3", &interface_values[1]};
-  hardware_interface::StateInterface interface_5{component_name_, "5", &interface_values[2]};
+  hardware_interface::InterfaceInfo info_1;
+  info_1.name = "1";
+  info_1.initial_value = std::to_string(interface_values[0]);
+  hardware_interface::InterfaceDescription interface_1_decr(component_name_, info_1);
+  hardware_interface::StateInterface interface_1{interface_1_decr};
+
+  hardware_interface::InterfaceInfo info_3;
+  info_3.name = "3";
+  info_3.initial_value = std::to_string(interface_values[1]);
+  hardware_interface::InterfaceDescription interface_3_decr(component_name_, info_3);
+  hardware_interface::StateInterface interface_3{interface_3_decr};
+
+  hardware_interface::InterfaceInfo info_5;
+  info_5.name = "5";
+  info_5.initial_value = std::to_string(interface_values[2]);
+  hardware_interface::InterfaceDescription interface_5_decr(component_name_, info_5);
+  hardware_interface::StateInterface interface_5{interface_5_decr};
 
   // create local state interface vector
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;

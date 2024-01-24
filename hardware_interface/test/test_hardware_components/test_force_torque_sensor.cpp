@@ -18,9 +18,9 @@
 
 #include "hardware_interface/sensor_interface.hpp"
 
+using hardware_interface::InterfaceDescription;
 using hardware_interface::return_type;
 using hardware_interface::SensorInterface;
-using hardware_interface::StateInterface;
 
 namespace test_hardware_components
 {
@@ -49,54 +49,41 @@ class TestForceTorqueSensor : public SensorInterface
       }
     }
 
+    sensor_name_ = info_.sensors[0].name;
     fprintf(stderr, "TestForceTorqueSensor configured successfully.\n");
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<StateInterface> state_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> state_interfaces;
 
-    const auto & sensor_name = info_.sensors[0].name;
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "fx", &values_.fx));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "fy", &values_.fy));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "fz", &values_.fz));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "tx", &values_.tx));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "ty", &values_.ty));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "tz", &values_.tz));
+    hardware_interface::InterfaceInfo info;
+    info.initial_value = "0.0";
+
+    for (const auto & interface_name : inteface_names_)
+    {
+      info.name = interface_name;
+      state_interfaces.push_back(hardware_interface::InterfaceDescription(sensor_name_, info));
+    }
 
     return state_interfaces;
   }
 
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    values_.fx = fmod((values_.fx + 1.0), 10);
-    values_.fy = fmod((values_.fy + 1.0), 10);
-    values_.fz = fmod((values_.fz + 1.0), 10);
-    values_.tx = fmod((values_.tx + 1.0), 10);
-    values_.ty = fmod((values_.ty + 1.0), 10);
-    values_.tz = fmod((values_.tz + 1.0), 10);
+    for (const auto & interface_name : inteface_names_)
+    {
+      const auto name = sensor_name_ + "/" + interface_name;
+
+      set_state(name, fmod((get_state(name) + 1.0), 10));
+    }
     return return_type::OK;
   }
 
 private:
-  struct FTValues
-  {
-    double fx = 0.0;
-    double fy = 0.0;
-    double fz = 0.0;
-    double tx = 0.0;
-    double ty = 0.0;
-    double tz = 0.0;
-  };
-
-  FTValues values_;
+  std::vector<std::string> inteface_names_{"fx", "fy", "fz", "tx", "ty", "tz"};
+  std::string sensor_name_;
 };
 
 }  // namespace test_hardware_components

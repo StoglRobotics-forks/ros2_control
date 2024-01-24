@@ -49,42 +49,29 @@ class TestActuator : public ActuatorInterface
      * CallbackReturn::ERROR;}
      */
 
+    pos_state_ = info_.joints[0].name + "/position";
+    vel_state_ = info_.joints[0].name + "/velocity";
+    vel_command_ = info_.joints[0].name + "/velocity";
+
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<StateInterface> state_interfaces;
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[0].name, info_.joints[0].state_interfaces[0].name, &position_state_));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[0].name, info_.joints[0].state_interfaces[1].name, &velocity_state_));
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(info_.joints[0].name, "some_unlisted_interface", nullptr));
+    std::vector<hardware_interface::InterfaceDescription> interfaces;
+    hardware_interface::InterfaceInfo info;
+    info.name = "some_unlisted_interface";
+    hardware_interface::InterfaceDescription unlisted_state_interface(info_.joints[0].name, info);
+    interfaces.push_back(unlisted_state_interface);
 
-    return state_interfaces;
-  }
-
-  std::vector<CommandInterface> export_command_interfaces() override
-  {
-    std::vector<CommandInterface> command_interfaces;
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[0].name, info_.joints[0].command_interfaces[0].name, &velocity_command_));
-
-    if (info_.joints[0].command_interfaces.size() > 1)
-    {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[0].name, info_.joints[0].command_interfaces[1].name, &max_velocity_command_));
-    }
-
-    return command_interfaces;
+    return interfaces;
   }
 
   hardware_interface::return_type prepare_command_mode_switch(
     const std::vector<std::string> & /*start_interfaces*/,
     const std::vector<std::string> & /*stop_interfaces*/) override
   {
-    position_state_ += 1.0;
+    set_state(pos_state_, get_state(pos_state_) + 1.0);
     return hardware_interface::return_type::OK;
   }
 
@@ -92,22 +79,22 @@ class TestActuator : public ActuatorInterface
     const std::vector<std::string> & /*start_interfaces*/,
     const std::vector<std::string> & /*stop_interfaces*/) override
   {
-    position_state_ += 100.0;
+    set_state(pos_state_, get_state(pos_state_) + 100.0);
     return hardware_interface::return_type::OK;
   }
 
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on read
-    if (velocity_command_ == test_constants::READ_FAIL_VALUE)
+    if (get_command(vel_command_) == test_constants::READ_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM
       // tests
-      velocity_command_ = 0.0;
+      set_command(vel_command_, 0.0);
       return return_type::ERROR;
     }
     // simulate deactivate on read
-    if (velocity_command_ == test_constants::READ_DEACTIVATE_VALUE)
+    if (get_command(vel_command_) == test_constants::READ_DEACTIVATE_VALUE)
     {
       return return_type::DEACTIVATE;
     }
@@ -116,22 +103,22 @@ class TestActuator : public ActuatorInterface
     // working as it should. This makes value checks clearer and confirms there
     // is no "state = command" line or some other mixture of interfaces
     // somewhere in the test stack.
-    velocity_state_ = velocity_command_ / 2;
+    set_state(vel_state_, get_command(vel_command_) / 2);
     return return_type::OK;
   }
 
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on write
-    if (velocity_command_ == test_constants::WRITE_FAIL_VALUE)
+    if (get_command(vel_command_) == test_constants::WRITE_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM
       // tests
-      velocity_command_ = 0.0;
+      set_command(vel_command_, 0.0);
       return return_type::ERROR;
     }
     // simulate deactivate on write
-    if (velocity_command_ == test_constants::WRITE_DEACTIVATE_VALUE)
+    if (get_command(vel_command_) == test_constants::WRITE_DEACTIVATE_VALUE)
     {
       return return_type::DEACTIVATE;
     }
@@ -139,10 +126,9 @@ class TestActuator : public ActuatorInterface
   }
 
 private:
-  double position_state_ = 0.0;
-  double velocity_state_ = 0.0;
-  double velocity_command_ = 0.0;
-  double max_velocity_command_ = 0.0;
+  std::string pos_state_;
+  std::string vel_state_;
+  std::string vel_command_;
 };
 
 class TestUninitializableActuator : public TestActuator

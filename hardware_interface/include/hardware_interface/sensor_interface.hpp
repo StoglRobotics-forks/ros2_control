@@ -158,13 +158,15 @@ public:
     // create error signal interface
     InterfaceInfo error_interface_info;
     error_interface_info.name = hardware_interface::ERROR_SIGNAL_INTERFACE_NAME;
-    error_interface_info.data_type = "array<uint8_t>[32]";
+    error_interface_info.data_type = "vector<uint8_t>";
+    error_interface_info.size = 32;
     InterfaceDescription error_interface_descr(info_.name, error_interface_info);
     error_signal_ = std::make_shared<StateInterface>(error_interface_descr);
     // create error signal report message interface
     InterfaceInfo error_msg_interface_info;
     error_msg_interface_info.name = hardware_interface::ERROR_SIGNAL_MESSAGE_INTERFACE_NAME;
-    error_msg_interface_info.data_type = "array<string>[32]";
+    error_msg_interface_info.data_type = "vector<string>";
+    error_msg_interface_info.size = 32;
     InterfaceDescription error_msg_interface_descr(info_.name, error_msg_interface_info);
     error_signal_message_ = std::make_shared<StateInterface>(error_msg_interface_descr);
 
@@ -172,13 +174,15 @@ public:
     //  create warning signal interface
     InterfaceInfo warning_interface_info;
     warning_interface_info.name = hardware_interface::WARNING_SIGNAL_INTERFACE_NAME;
-    warning_interface_info.data_type = "array<int8_t>[32]";
+    warning_interface_info.data_type = "vector<int8_t>";
+    warning_interface_info.size = 32;
     InterfaceDescription warning_interface_descr(info_.name, warning_interface_info);
     warning_signal_ = std::make_shared<StateInterface>(warning_interface_descr);
     // create warning signal report message interface
     InterfaceInfo warning_msg_interface_info;
     warning_msg_interface_info.name = hardware_interface::WARNING_SIGNAL_MESSAGE_INTERFACE_NAME;
-    warning_msg_interface_info.data_type = "array<string>[32]";
+    warning_msg_interface_info.data_type = "vector<string>";
+    warning_msg_interface_info.size = 32;
     InterfaceDescription warning_msg_interface_descr(info_.name, warning_msg_interface_info);
     warning_signal_message_ = std::make_shared<StateInterface>(warning_msg_interface_descr);
   }
@@ -311,30 +315,45 @@ public:
 
   double get_state(const std::string & interface_name) const
   {
-    return sensor_states_.at(interface_name)->get_value();
+    return sensor_states_.at(interface_name)->get_value<double>();
   }
 
-  void set_error_code(const double & error_code) { error_signal_->set_value(error_code); }
+  void set_error_code(std::vector<uint8_t> error_codes) { error_signal_->set_value(error_codes); }
 
-  double get_error_code() const { return error_signal_->get_value(); }
-
-  void set_error_message(const double & error_message)
+  std::vector<uint8_t> get_error_code() const
   {
-    error_signal_message_->set_value(error_message);
+    return error_signal_->get_value<std::vector<uint8_t>>();
   }
 
-  double get_error_message() const { return error_signal_message_->get_value(); }
+  void set_error_message(std::vector<std::string> error_messages)
+  {
+    error_signal_message_->set_value(error_messages);
+  }
 
-  void set_warning_code(const double & warning_codes) { warning_signal_->set_value(warning_codes); }
+  std::vector<std::string> get_error_message() const
+  {
+    return error_signal_message_->get_value<std::vector<std::string>>();
+  }
 
-  double get_warning_code() const { return warning_signal_->get_value(); }
+  void set_warning_code(std::vector<int8_t> warning_codes)
+  {
+    warning_signal_->set_value(warning_codes);
+  }
 
-  void set_warning_message(const double & error_message)
+  std::vector<int8_t> get_warning_code() const
+  {
+    return warning_signal_->get_value<std::vector<int8_t>>();
+  }
+
+  void set_warning_message(std::vector<std::string> error_message)
   {
     warning_signal_message_->set_value(error_message);
   }
 
-  double get_warning_message() const { return warning_signal_message_->get_value(); }
+  std::vector<std::string> get_warning_message() const
+  {
+    return warning_signal_message_->get_value<std::vector<std::string>>();
+  }
 
 protected:
   /// Get the logger of the SensorInterface.
