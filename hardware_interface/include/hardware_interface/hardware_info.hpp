@@ -27,6 +27,17 @@ namespace hardware_interface
  */
 struct InterfaceInfo
 {
+  // Add default constructor, so that e.g. size is initialized to sensible value
+  InterfaceInfo()
+  {
+    // cpp_lint complains about min and max include otherwise
+    name = "";
+    min = "";
+    max = "";
+    initial_value = "";
+    data_type = "";
+    size = 0;
+  }
   /**
    * Name of the command interfaces that can be set, e.g. "position", "velocity", etc.
    * Used by joints and GPIOs.
