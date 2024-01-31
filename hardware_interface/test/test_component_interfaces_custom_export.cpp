@@ -244,10 +244,10 @@ TEST(TestComponentInterfaces, dummy_sensor_default_custom_export)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   const auto listed_interface_size = 1u;
-  const auto interfaces_sizeze = listed_interface_size + error_signals_size + warnig_signals_size;
+  const auto interfaces_sizes = listed_interface_size + error_signals_size + warnig_signals_size;
   auto state_interfaces = sensor_hw.export_state_interfaces();
   // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
-  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
+  ASSERT_EQ(interfaces_sizes + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/voltage");
@@ -283,10 +283,10 @@ TEST(TestComponentInterfaces, dummy_system_default_custom_export)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   const auto listed_interface_size = 6u;
-  const auto interfaces_sizeze = listed_interface_size + report_signals_size;
+  const auto interfaces_sizes = listed_interface_size + report_signals_size;
   auto state_interfaces = system_hw.export_state_interfaces();
   // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
-  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
+  ASSERT_EQ(interfaces_sizes + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");

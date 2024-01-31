@@ -383,9 +383,9 @@ TEST(TestComponentInterfaces, dummy_actuator_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 2;
+  const auto listed_interface_size = 2;
   auto state_interfaces = actuator_hw.export_state_interfaces();
-  ASSERT_EQ(state_interface_offset + report_signals_size, state_interfaces.size());
+  ASSERT_EQ(listed_interface_size + report_signals_size, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");
@@ -500,10 +500,10 @@ TEST(TestComponentInterfaces, dummy_sensor_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 1;
+  const auto listed_interface_size = 1;
   auto state_interfaces = sensor_hw.export_state_interfaces();
   ASSERT_EQ(
-    state_interface_offset + warnig_signals_size + error_signals_size, state_interfaces.size());
+    listed_interface_size + warnig_signals_size + error_signals_size, state_interfaces.size());
   // check that the normal interfaces get exported as expected
   {
     auto [contains, position] =
@@ -586,9 +586,9 @@ TEST(TestComponentInterfaces, dummy_system_default)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 6;
+  const auto listed_interface_size = 6;
   auto state_interfaces = system_hw.export_state_interfaces();
-  ASSERT_EQ(state_interface_offset + report_signals_size, state_interfaces.size());
+  ASSERT_EQ(listed_interface_size + report_signals_size, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");
@@ -754,7 +754,6 @@ TEST(TestComponentInterfaces, dummy_actuator_default_read_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 2;
   auto state_interfaces = actuator_hw.export_state_interfaces();
   auto command_interfaces = actuator_hw.export_command_interfaces();
   state = actuator_hw.configure();
@@ -885,7 +884,6 @@ TEST(TestComponentInterfaces, dummy_actuator_default_write_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 2;
   auto state_interfaces = actuator_hw.export_state_interfaces();
   auto command_interfaces = actuator_hw.export_command_interfaces();
   state = actuator_hw.configure();
@@ -992,7 +990,6 @@ TEST(TestComponentInterfaces, dummy_sensor_default_read_error_behavior)
   const hardware_interface::HardwareInfo voltage_sensor_res = control_resources[0];
   auto state = sensor_hw.initialize(voltage_sensor_res);
 
-  const auto state_interface_offset = 1;
   auto state_interfaces = sensor_hw.export_state_interfaces();
   // Updated because is is INACTIVE
   state = sensor_hw.configure();
@@ -1089,7 +1086,6 @@ TEST(TestComponentInterfaces, dummy_system_default_read_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 6;
   auto state_interfaces = system_hw.export_state_interfaces();
   auto command_interfaces = system_hw.export_command_interfaces();
   state = system_hw.configure();
@@ -1221,7 +1217,6 @@ TEST(TestComponentInterfaces, dummy_system_default_write_error_behavior)
   EXPECT_EQ(lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED, state.id());
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
-  const auto state_interface_offset = 6;
   auto state_interfaces = system_hw.export_state_interfaces();
   auto command_interfaces = system_hw.export_command_interfaces();
   state = system_hw.configure();
