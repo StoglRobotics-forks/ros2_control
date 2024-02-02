@@ -36,13 +36,12 @@ class Handle
 public:
   [[deprecated("Use InterfaceDescription for initializing the Interface")]]
 
-  Handle(
-    const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr)
+  Handle(const std::string & prefix_name, const std::string & interface_name)
+  : prefix_name_(prefix_name), interface_name_(interface_name)
   {
-    // default to double
-    value_ = std::numeric_limits<double>::quiet_NaN();
+    // init to default value defined by init_handle_value()
+    InterfaceInfo info;
+    init_handle_value(info);
   }
 
   explicit Handle(const InterfaceDescription & interface_description)
@@ -50,23 +49,6 @@ public:
     interface_name_(interface_description.interface_info.name)
   {
     init_handle_value(interface_description.interface_info);
-  }
-
-  [[deprecated("Use InterfaceDescription for initializing the Interface")]]
-
-  explicit Handle(const std::string & interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
-  {
-    // default to double
-    value_ = std::numeric_limits<double>::quiet_NaN();
-  }
-
-  [[deprecated("Use InterfaceDescription for initializing the Interface")]]
-
-  explicit Handle(const char * interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
-  {  // default to double
-    value_ = std::numeric_limits<double>::quiet_NaN();
   }
 
   Handle(const Handle & other) = default;

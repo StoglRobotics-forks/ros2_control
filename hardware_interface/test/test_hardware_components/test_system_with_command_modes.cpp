@@ -74,31 +74,42 @@ public:
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<hardware_interface::StateInterface> state_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> state_interfaces;
     for (auto i = 0u; i < info_.joints.size(); i++)
     {
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_ACCELERATION, &acceleration_state_[i]));
+      hardware_interface::InterfaceInfo info;
+      info.initial_value = "0.0";
+
+      info.name = hardware_interface::HW_IF_POSITION;
+      state_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
+      info.name = hardware_interface::HW_IF_VELOCITY;
+      state_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
+      info.name = hardware_interface::HW_IF_ACCELERATION;
+      state_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
     }
 
     return state_interfaces;
   }
 
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
   {
-    std::vector<hardware_interface::CommandInterface> command_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> command_interfaces;
     for (auto i = 0u; i < info_.joints.size(); i++)
     {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_command_[i]));
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_command_[i]));
+      hardware_interface::InterfaceInfo info;
+      info.initial_value = "0.0";
+
+      info.name = hardware_interface::HW_IF_POSITION;
+      command_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
+      info.name = hardware_interface::HW_IF_VELOCITY;
+      command_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
     }
 
     return command_interfaces;
@@ -120,7 +131,10 @@ public:
     const std::vector<std::string> & start_interfaces,
     const std::vector<std::string> & stop_interfaces) override
   {
-    acceleration_state_[0] += 1.0;
+    const auto first_joint_acc =
+      info_.joints[0].name + "/" + hardware_interface::HW_IF_ACCELERATION;
+    const auto old_acc = get_state(first_joint_acc);
+    set_state(first_joint_acc, old_acc + 1.0);
 
     // Starting interfaces
     start_modes_.clear();
@@ -168,7 +182,10 @@ public:
     const std::vector<std::string> & start_interfaces,
     const std::vector<std::string> & /*stop_interfaces*/) override
   {
-    acceleration_state_[0] += 100.0;
+    const auto first_joint_acc =
+      info_.joints[0].name + "/" + hardware_interface::HW_IF_ACCELERATION;
+    const auto old_acc = get_state(first_joint_acc);
+    set_state(first_joint_acc, old_acc + 100.0);
     // Test of failure in perform command mode switch
     // Fail if given an empty list.
     // This should never occur in a real system as the same start_interfaces list is sent to both
@@ -183,12 +200,6 @@ public:
 private:
   std::vector<std::string> start_modes_ = {"position", "position"};
   std::vector<bool> stop_modes_ = {false, false};
-
-  std::array<double, 2> position_command_ = {0.0, 0.0};
-  std::array<double, 2> velocity_command_ = {0.0, 0.0};
-  std::array<double, 2> position_state_ = {0.0, 0.0};
-  std::array<double, 2> velocity_state_ = {0.0, 0.0};
-  std::array<double, 2> acceleration_state_ = {0.0, 0.0};
 };
 
 }  // namespace test_hardware_components

@@ -64,30 +64,35 @@ class TestSingleJointActuator : public ActuatorInterface
         return CallbackReturn::ERROR;
       }
     }
+    joint_name_ = info_.joints[0].name;
+    joint_pos_ = joint_name_ + "/" + hardware_interface::HW_IF_POSITION;
+    joint_vel_ = joint_name_ + "/" + hardware_interface::HW_IF_VELOCITY;
     fprintf(stderr, "TestSingleJointActuator configured successfully.\n");
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<StateInterface> state_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> state_interfaces;
+    hardware_interface::InterfaceInfo info;
+    info.initial_value = "0.0";
 
-    const auto & joint_name = info_.joints[0].name;
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      joint_name, hardware_interface::HW_IF_POSITION, &position_state_));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      joint_name, hardware_interface::HW_IF_VELOCITY, &velocity_state_));
+    info.name = hardware_interface::HW_IF_POSITION;
+    state_interfaces.push_back(hardware_interface::InterfaceDescription(joint_name_, info));
+    info.name = hardware_interface::HW_IF_VELOCITY;
+    state_interfaces.push_back(hardware_interface::InterfaceDescription(joint_name_, info));
 
     return state_interfaces;
   }
 
-  std::vector<CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
   {
-    std::vector<CommandInterface> command_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> command_interfaces;
+    hardware_interface::InterfaceInfo info;
+    info.initial_value = "0.0";
 
-    const auto & joint_name = info_.joints[0].name;
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      joint_name, hardware_interface::HW_IF_POSITION, &position_command_));
+    info.name = hardware_interface::HW_IF_POSITION;
+    command_interfaces.push_back(hardware_interface::InterfaceDescription(joint_name_, info));
 
     return command_interfaces;
   }
@@ -99,15 +104,15 @@ class TestSingleJointActuator : public ActuatorInterface
 
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    velocity_state_ = position_command_ - position_state_;
-    position_state_ = position_command_;
+    set_state(joint_vel_, get_command(joint_pos_) - get_state(joint_pos_));
+    set_state(joint_pos_, get_command(joint_pos_));
     return return_type::OK;
   }
 
 private:
-  double position_state_ = 0.0;
-  double velocity_state_ = 0.0;
-  double position_command_ = 0.0;
+  std::string joint_name_;
+  std::string joint_pos_;
+  std::string joint_vel_;
 };
 
 }  // namespace test_hardware_components
