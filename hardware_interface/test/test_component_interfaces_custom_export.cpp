@@ -42,6 +42,8 @@
 
 // Values to send over command interface to trigger error in write and read methods
 
+// Values to send over command interface to trigger error in write and read methods
+
 namespace
 {
 const auto emergency_stop_signal_size = 1;
@@ -242,10 +244,10 @@ TEST(TestComponentInterfaces, dummy_sensor_default_custom_export)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   const auto listed_interface_size = 1u;
-  const auto interfaces_sizeze = listed_interface_size + error_signals_size + warnig_signals_size;
+  const auto interfaces_sizes = listed_interface_size + error_signals_size + warnig_signals_size;
   auto state_interfaces = sensor_hw.export_state_interfaces();
   // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
-  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
+  ASSERT_EQ(interfaces_sizes + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/voltage");
@@ -253,7 +255,7 @@ TEST(TestComponentInterfaces, dummy_sensor_default_custom_export)
     EXPECT_EQ("joint1/voltage", state_interfaces[position]->get_name());
     EXPECT_EQ("voltage", state_interfaces[position]->get_interface_name());
     EXPECT_EQ("joint1", state_interfaces[position]->get_prefix_name());
-    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value()));
+    EXPECT_TRUE(std::isnan(state_interfaces[position]->get_value<double>()));
   }
   {
     auto [contains, position] =
@@ -281,10 +283,10 @@ TEST(TestComponentInterfaces, dummy_system_default_custom_export)
   EXPECT_EQ(hardware_interface::lifecycle_state_names::UNCONFIGURED, state.label());
 
   const auto listed_interface_size = 6u;
-  const auto interfaces_sizeze = listed_interface_size + report_signals_size;
+  const auto interfaces_sizes = listed_interface_size + report_signals_size;
   auto state_interfaces = system_hw.export_state_interfaces();
   // interfaces size + the one unlisted interface "joint1/some_unlisted_interface"
-  ASSERT_EQ(interfaces_sizeze + 1u, state_interfaces.size());
+  ASSERT_EQ(interfaces_sizes + 1u, state_interfaces.size());
   {
     auto [contains, position] =
       test_components::vector_contains(state_interfaces, "joint1/position");

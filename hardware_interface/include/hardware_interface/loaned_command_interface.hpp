@@ -65,7 +65,7 @@ public:
 
   void set_value(double val) { command_interface_.set_value(val); }
 
-  double get_value() const { return command_interface_.get_value(); }
+  double get_value() const { return command_interface_.get_value<double>(); }
 
 protected:
   CommandInterface & command_interface_;

@@ -68,25 +68,33 @@ class TestTwoJointSystem : public SystemInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<StateInterface> state_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> state_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_state_[i]));
+      hardware_interface::InterfaceInfo info;
+      info.initial_value = "0.0";
+
+      info.name = hardware_interface::HW_IF_POSITION;
+      state_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
     }
 
     return state_interfaces;
   }
 
-  std::vector<CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
   {
-    std::vector<CommandInterface> command_interfaces;
+    std::vector<hardware_interface::InterfaceDescription> command_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_command_[i]));
+      hardware_interface::InterfaceInfo info;
+      info.initial_value = "0.0";
+
+      info.name = hardware_interface::HW_IF_POSITION;
+      command_interfaces.push_back(
+        hardware_interface::InterfaceDescription(info_.joints[i].name, info));
     }
 
     return command_interfaces;
@@ -101,10 +109,6 @@ class TestTwoJointSystem : public SystemInterface
   {
     return return_type::OK;
   }
-
-private:
-  std::array<double, 2> position_command_ = {0.0, 0.0};
-  std::array<double, 2> position_state_ = {0.0, 0.0};
 };
 
 }  // namespace test_hardware_components

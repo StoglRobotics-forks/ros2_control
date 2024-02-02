@@ -15,22 +15,20 @@
 #ifndef HARDWARE_INTERFACE__HANDLE_HPP_
 #define HARDWARE_INTERFACE__HANDLE_HPP_
 
-#include <array>
 #include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/macros.hpp"
-#include "hardware_interface/types/hardware_interface_error_signals.hpp"
-#include "hardware_interface/types/hardware_interface_warning_signals.hpp"
-#include "hardware_interface/visibility_control.h"
+#include "hardware_interface/types/handle_datatype.hpp"
+
 namespace hardware_interface
 {
-
-typedef std::variant<double> HANDLE_DATATYPE;
 
 /// A handle used to get and set a value on a given interface.
 class Handle
@@ -38,35 +36,19 @@ class Handle
 public:
   [[deprecated("Use InterfaceDescription for initializing the Interface")]]
 
-  Handle(
-    const std::string & prefix_name, const std::string & interface_name,
-    double * value_ptr = nullptr)
-  : prefix_name_(prefix_name), interface_name_(interface_name), value_ptr_(value_ptr)
+  Handle(const std::string & prefix_name, const std::string & interface_name)
+  : prefix_name_(prefix_name), interface_name_(interface_name)
   {
+    // init to default value defined by init_handle_value()
+    InterfaceInfo info;
+    init_handle_value(info);
   }
 
   explicit Handle(const InterfaceDescription & interface_description)
   : prefix_name_(interface_description.prefix_name),
     interface_name_(interface_description.interface_info.name)
   {
-    // As soon as multiple datatypes are used in HANDLE_DATATYPE
-    // we need to initialize according the type passed in interface description
-    value_ = std::numeric_limits<double>::quiet_NaN();
-    value_ptr_ = std::get_if<double>(&value_);
-  }
-
-  [[deprecated("Use InterfaceDescription for initializing the Interface")]]
-
-  explicit Handle(const std::string & interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
-  {
-  }
-
-  [[deprecated("Use InterfaceDescription for initializing the Interface")]]
-
-  explicit Handle(const char * interface_name)
-  : interface_name_(interface_name), value_ptr_(nullptr)
-  {
+    init_handle_value(interface_description.interface_info);
   }
 
   Handle(const Handle & other) = default;
@@ -95,32 +77,95 @@ public:
 
   const std::string & get_prefix_name() const { return prefix_name_; }
 
-  double get_value() const
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  T get_value() const
   {
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) return value_ if old functionality is removed
-    THROW_ON_NULLPTR(value_ptr_);
-    return *value_ptr_;
-    // END
+    return std::get<T>(value_);
   }
 
-  void set_value(double value)
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  void set_value(T value)
   {
-    // BEGIN (Handle export change): for backward compatibility
-    // TODO(Manuel) set value_ directly if old functionality is removed
-    THROW_ON_NULLPTR(this->value_ptr_);
-    *this->value_ptr_ = value;
-    // END
+    value_ = value;
   }
 
 protected:
+  // used for the
+  bool correct_vector_size(const size_t & expected, const size_t & actual)
+  {
+    return expected == actual;
+  }
+
+  void init_handle_value(const InterfaceInfo & interface_info)
+  {
+    if (interface_info.data_type == "bool")
+    {
+      value_ = interface_info.initial_value.empty() ? false
+                                                    : (interface_info.initial_value == "true" ||
+                                                       interface_info.initial_value == "True");
+    }
+    else if (interface_info.data_type == "vector<int8_t>")
+    {
+      if (
+        interface_info.size != 0 && hardware_interface::warning_signal_count != interface_info.size)
+      {
+        throw std::runtime_error(
+          "The size:{" + std::to_string(interface_info.size) + "} for data_type{" +
+          interface_info.data_type + "} for the InterfaceInfo with name:{" + interface_info.name +
+          "} does not equal the expected size:{" +
+          std::to_string(hardware_interface::warning_signal_count) + "}.");
+      }
+      value_ = std::vector<int8_t>(hardware_interface::warning_signal_count, 0);
+    }
+    else if (interface_info.data_type == "vector<uint8_t>")
+    {
+      if (interface_info.size != 0 && hardware_interface::error_signal_count != interface_info.size)
+      {
+        throw std::runtime_error(
+          "The size:{" + std::to_string(interface_info.size) + "} for data_type{" +
+          interface_info.data_type + "} for the InterfaceInfo with name:{" + interface_info.name +
+          "} does not equal the expected size:{" +
+          std::to_string(hardware_interface::error_signal_count) + "}.");
+      }
+
+      value_ = std::vector<uint8_t>(hardware_interface::error_signal_count, 0);
+    }
+    else if (interface_info.data_type == "vector<string>")
+    {
+      if (
+        interface_info.size != 0 && hardware_interface::warning_signal_count != interface_info.size)
+      {
+        throw std::runtime_error(
+          "The size:{" + std::to_string(interface_info.size) + "} for data_type{" +
+          interface_info.data_type + "} for the InterfaceInfo with name:{" + interface_info.name +
+          "} does not equal the expected size:{" +
+          std::to_string(hardware_interface::warning_signal_count) + "}.");
+      }
+
+      value_ = std::vector<std::string>(hardware_interface::warning_signal_count, "");
+    }
+    // Default for empty is double
+    else if (interface_info.data_type.empty() || interface_info.data_type == "double")
+    {
+      value_ = interface_info.initial_value.empty() ? std::numeric_limits<double>::quiet_NaN()
+                                                    : std::stod(interface_info.initial_value);
+    }
+    // If not empty and it belongs to none of the above types, we still want to throw as there might
+    // be a typo in the data_type like "bol" or user wants some unsupported type
+    else
+    {
+      throw std::runtime_error(
+        "The data_type:{" + interface_info.data_type + "} for the InterfaceInfo with name:{" +
+        interface_info.name +
+        "} is not supported for Handles. Supported data_types are: bool, double, vector<int8_t>, "
+        "vector<uint8_t> and vector<string>.");
+    }
+  }
+
   std::string prefix_name_;
   std::string interface_name_;
   HANDLE_DATATYPE value_;
-  // BEGIN (Handle export change): for backward compatibility
-  // TODO(Manuel) redeclare as HANDLE_DATATYPE * value_ptr_ if old functionality is removed
   double * value_ptr_;
-  // END
 };
 
 class StateInterface : public Handle
