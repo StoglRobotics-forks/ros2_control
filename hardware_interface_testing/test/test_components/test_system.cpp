@@ -27,64 +27,18 @@ using hardware_interface::SystemInterface;
 
 class TestSystem : public SystemInterface
 {
-  std::vector<StateInterface> export_state_interfaces() override
-  {
-    std::vector<StateInterface> state_interfaces;
-    for (auto i = 0u; i < info_.joints.size(); ++i)
-    {
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_ACCELERATION, &acceleration_state_[i]));
-    }
-
-    if (info_.gpios.size() > 0)
-    {
-      // Add configuration/max_tcp_jerk interface
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.gpios[0].name, info_.gpios[0].state_interfaces[0].name, &configuration_state_));
-    }
-
-    return state_interfaces;
-  }
-
-  std::vector<CommandInterface> export_command_interfaces() override
-  {
-    std::vector<CommandInterface> command_interfaces;
-    for (auto i = 0u; i < info_.joints.size(); ++i)
-    {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_command_[i]));
-    }
-    // Add max_acceleration command interface
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[0].name, info_.joints[0].command_interfaces[1].name,
-      &max_acceleration_command_));
-
-    if (info_.gpios.size() > 0)
-    {
-      // Add configuration/max_tcp_jerk interface
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.gpios[0].name, info_.gpios[0].command_interfaces[0].name, &configuration_command_));
-    }
-
-    return command_interfaces;
-  }
-
   return_type read(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on read
-    if (velocity_command_[0] == test_constants::READ_FAIL_VALUE)
+    if (get_command(info_.joints[0].name + "/velocity") == test_constants::READ_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM
       // tests
-      velocity_command_[0] = 0.0;
+      set_command(info_.joints[0].name + "/velocity", 0.0);
       return return_type::ERROR;
     }
     // simulate deactivate on read
-    if (velocity_command_[0] == test_constants::READ_DEACTIVATE_VALUE)
+    if (get_command(info_.joints[0].name + "/velocity") == test_constants::READ_DEACTIVATE_VALUE)
     {
       return return_type::DEACTIVATE;
     }
@@ -94,15 +48,15 @@ class TestSystem : public SystemInterface
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     // simulate error on write
-    if (velocity_command_[0] == test_constants::WRITE_FAIL_VALUE)
+    if (get_command(info_.joints[0].name + "/velocity") == test_constants::WRITE_FAIL_VALUE)
     {
       // reset value to get out from error on the next call - simplifies CM
       // tests
-      velocity_command_[0] = 0.0;
+      set_command(info_.joints[0].name + "/velocity", 0.0);
       return return_type::ERROR;
     }
     // simulate deactivate on write
-    if (velocity_command_[0] == test_constants::WRITE_DEACTIVATE_VALUE)
+    if (get_command(info_.joints[0].name + "/velocity") == test_constants::WRITE_DEACTIVATE_VALUE)
     {
       return return_type::DEACTIVATE;
     }
@@ -110,10 +64,6 @@ class TestSystem : public SystemInterface
   }
 
 private:
-  std::array<double, 2> velocity_command_ = {{0.0, 0.0}};
-  std::array<double, 2> position_state_ = {{0.0, 0.0}};
-  std::array<double, 2> velocity_state_ = {{0.0, 0.0}};
-  std::array<double, 2> acceleration_state_ = {{0.0, 0.0}};
   double max_acceleration_command_ = 0.0;
   double configuration_state_ = 0.0;
   double configuration_command_ = 0.0;

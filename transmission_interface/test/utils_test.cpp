@@ -25,8 +25,11 @@ using transmission_interface::JointHandle;
 TEST(UtilsTest, AccessorTest)
 {
   const std::string NAME = "joint";
-  double joint_value = 0.0;
-  const JointHandle joint_handle(NAME, HW_IF_POSITION, &joint_value);
+  hardware_interface::InterfaceInfo info;
+  info.name = HW_IF_POSITION;
+  info.initial_value = "0.0";
+  hardware_interface::InterfaceDescription joint_handle_desc(NAME, info);
+  const JointHandle joint_handle(joint_handle_desc);
   const std::vector<JointHandle> joint_handles = {joint_handle};
 
   ASSERT_EQ(transmission_interface::get_names(joint_handles), std::vector<std::string>{NAME});

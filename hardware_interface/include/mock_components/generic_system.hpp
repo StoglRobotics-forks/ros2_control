@@ -18,6 +18,8 @@
 #define MOCK_COMPONENTS__GENERIC_SYSTEM_HPP_
 
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
@@ -41,9 +43,7 @@ class HARDWARE_INTERFACE_PUBLIC GenericSystem : public hardware_interface::Syste
 public:
   CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override;
 
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
-
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override;
 
   return_type prepare_command_mode_switch(
     const std::vector<std::string> & start_interfaces,
@@ -71,54 +71,43 @@ protected:
   const std::vector<std::string> standard_interfaces_ = {
     hardware_interface::HW_IF_POSITION, hardware_interface::HW_IF_VELOCITY,
     hardware_interface::HW_IF_ACCELERATION, hardware_interface::HW_IF_EFFORT};
+  // added dynamically during on_init
+  std::vector<std::string> non_standard_interfaces_;
 
-  /// The size of this vector is (standard_interfaces_.size() x nr_joints)
-  std::vector<std::vector<double>> joint_commands_;
-  std::vector<std::vector<double>> joint_states_;
+  struct MimicJoint
+  {
+    std::string joint_name;
+    std::string mimic_joint_name;
+    double multiplier = 1.0;
+  };
+  std::vector<MimicJoint> mimic_joints_;
 
-  std::vector<std::string> other_interfaces_;
-  /// The size of this vector is (other_interfaces_.size() x nr_joints)
-  std::vector<std::vector<double>> other_commands_;
-  std::vector<std::vector<double>> other_states_;
+  // All the joints that are of type defined by standard_interfaces_ vector -> In {pos, vel, acc,
+  // effort}
+  std::vector<std::string> std_joint_names_;
+  std::unordered_set<std::string> std_joint_command_interface_names_;
+  std::unordered_set<std::string> std_joint_state_interface_names_;
 
-  std::vector<std::string> sensor_interfaces_;
-  /// The size of this vector is (sensor_interfaces_.size() x nr_joints)
-  std::vector<std::vector<double>> sensor_mock_commands_;
-  std::vector<std::vector<double>> sensor_states_;
-
-  std::vector<std::string> gpio_interfaces_;
-  /// The size of this vector is (gpio_interfaces_.size() x nr_joints)
-  std::vector<std::vector<double>> gpio_mock_commands_;
-  std::vector<std::vector<double>> gpio_commands_;
-  std::vector<std::vector<double>> gpio_states_;
+  // All the joints that are of not of a type defined by standard_interfaces_ vector -> Not in {pos,
+  // vel, acc, effort}
+  std::vector<std::string> other_joint_names_;
+  std::unordered_set<std::string> other_joint_command_interface_names_;
+  std::unordered_set<std::string> other_joint_state_interface_names_;
 
 private:
-  template <typename HandleType>
-  bool get_interface(
-    const std::string & name, const std::vector<std::string> & interface_list,
-    const std::string & interface_name, const size_t vector_index,
-    std::vector<std::vector<double>> & values, std::vector<HandleType> & interfaces);
-
-  void initialize_storage_vectors(
-    std::vector<std::vector<double>> & commands, std::vector<std::vector<double>> & states,
-    const std::vector<std::string> & interfaces,
-    const std::vector<hardware_interface::ComponentInfo> & component_infos);
-
-  template <typename InterfaceType>
-  bool populate_interfaces(
+  void search_and_add_interface_names(
     const std::vector<hardware_interface::ComponentInfo> & components,
-    std::vector<std::string> & interfaces, std::vector<std::vector<double>> & storage,
-    std::vector<InterfaceType> & target_interfaces, bool using_state_interfaces);
+    const std::vector<std::string> & interface_list, std::vector<std::string> & vector_to_add);
 
   bool use_mock_gpio_command_interfaces_;
   bool use_mock_sensor_command_interfaces_;
 
   double position_state_following_offset_;
   std::string custom_interface_with_following_offset_;
-  size_t index_custom_interface_with_following_offset_;
+  std::string custom_interface_name_with_following_offset_;
 
   bool calculate_dynamics_;
-  std::vector<size_t> joint_control_mode_;
+  std::unordered_map<std::string, size_t> joint_control_mode_;
 
   bool command_propagation_disabled_;
 };

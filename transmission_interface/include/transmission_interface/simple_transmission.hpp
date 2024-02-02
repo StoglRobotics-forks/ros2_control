@@ -128,13 +128,13 @@ protected:
   double reduction_;
   double jnt_offset_;
 
-  JointHandle joint_position_ = {"", "", nullptr};
-  JointHandle joint_velocity_ = {"", "", nullptr};
-  JointHandle joint_effort_ = {"", "", nullptr};
+  JointHandle joint_position_(std::string(), std::string());
+  JointHandle joint_velocity_(std::string(), std::string());
+  JointHandle joint_effort_(std::string(), std::string());
 
-  ActuatorHandle actuator_position_ = {"", "", nullptr};
-  ActuatorHandle actuator_velocity_ = {"", "", nullptr};
-  ActuatorHandle actuator_effort_ = {"", "", nullptr};
+  ActuatorHandle actuator_position_(std::string(), std::string());
+  ActuatorHandle actuator_velocity_(std::string(), std::string());
+  ActuatorHandle actuator_effort_(std::string(), std::string());
 };
 
 inline SimpleTransmission::SimpleTransmission(

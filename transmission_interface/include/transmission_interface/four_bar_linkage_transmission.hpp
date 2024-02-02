@@ -259,8 +259,6 @@ inline void FourBarLinkageTransmission::actuator_to_joint()
   auto & joint_pos = joint_position_;
   if (act_pos.size() == num_actuators() && joint_pos.size() == num_joints())
   {
-    assert(act_pos[0] && act_pos[1] && joint_pos[0] && joint_pos[1]);
-
     joint_pos[0].set_value(act_pos[0].get_value<double>() / (jr[0] * ar[0]) + joint_offset_[0]);
     joint_pos[1].set_value(
       (act_pos[1].get_value<double>() / ar[1] - act_pos[0].get_value<double>() / (jr[0] * ar[0])) /
@@ -273,8 +271,6 @@ inline void FourBarLinkageTransmission::actuator_to_joint()
   auto & joint_vel = joint_velocity_;
   if (act_vel.size() == num_actuators() && joint_vel.size() == num_joints())
   {
-    assert(act_vel[0] && act_vel[1] && joint_vel[0] && joint_vel[1]);
-
     joint_vel[0].set_value(act_vel[0].get_value<double>() / (jr[0] * ar[0]));
     joint_vel[1].set_value(
       (act_vel[1].get_value<double>() / ar[1] - act_vel[0].get_value<double>() / (jr[0] * ar[0])) /
@@ -286,8 +282,6 @@ inline void FourBarLinkageTransmission::actuator_to_joint()
   auto & joint_eff = joint_effort_;
   if (act_eff.size() == num_actuators() && joint_eff.size() == num_joints())
   {
-    assert(act_eff[0] && act_eff[1] && joint_eff[0] && joint_eff[1]);
-
     joint_eff[0].set_value(jr[0] * act_eff[0].get_value<double>() * ar[0]);
     joint_eff[1].set_value(
       jr[1] *
@@ -305,8 +299,6 @@ inline void FourBarLinkageTransmission::joint_to_actuator()
   auto & joint_pos = joint_position_;
   if (act_pos.size() == num_actuators() && joint_pos.size() == num_joints())
   {
-    assert(act_pos[0] && act_pos[1] && joint_pos[0] && joint_pos[1]);
-
     double joints_offset_applied[2] = {
       joint_pos[0].get_value<double>() - joint_offset_[0],
       joint_pos[1].get_value<double>() - joint_offset_[1]};
@@ -319,8 +311,6 @@ inline void FourBarLinkageTransmission::joint_to_actuator()
   auto & joint_vel = joint_velocity_;
   if (act_vel.size() == num_actuators() && joint_vel.size() == num_joints())
   {
-    assert(act_vel[0] && act_vel[1] && joint_vel[0] && joint_vel[1]);
-
     act_vel[0].set_value(joint_vel[0].get_value<double>() * jr[0] * ar[0]);
     act_vel[1].set_value(
       (joint_vel[0].get_value<double>() + joint_vel[1].get_value<double>() * jr[1]) * ar[1]);
@@ -331,8 +321,6 @@ inline void FourBarLinkageTransmission::joint_to_actuator()
   auto & joint_eff = joint_effort_;
   if (act_eff.size() == num_actuators() && joint_eff.size() == num_joints())
   {
-    assert(act_eff[0] && act_eff[1] && joint_eff[0] && joint_eff[1]);
-
     act_eff[0].set_value(joint_eff[0].get_value<double>() / (ar[0] * jr[0]));
     act_eff[1].set_value(
       (joint_eff[0].get_value<double>() + joint_eff[1].get_value<double>() / jr[1]) / ar[1]);

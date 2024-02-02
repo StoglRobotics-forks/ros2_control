@@ -309,22 +309,26 @@ TEST_F(ResourceManagerTest, resource_claiming)
 
 class ExternalComponent : public hardware_interface::ActuatorInterface
 {
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
   {
-    std::vector<hardware_interface::StateInterface> state_interfaces;
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface("external_joint", "external_state_interface", nullptr));
+    std::vector<hardware_interface::InterfaceDescription> interfaces;
+    hardware_interface::InterfaceInfo info;
+    info.name = "external_state_interface";
+    hardware_interface::InterfaceDescription unlisted_state_interface("external_joint", info);
+    interfaces.push_back(unlisted_state_interface);
 
-    return state_interfaces;
+    return interfaces;
   }
 
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
   {
-    std::vector<hardware_interface::CommandInterface> command_interfaces;
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      "external_joint", "external_command_interface", nullptr));
+    std::vector<hardware_interface::InterfaceDescription> interfaces;
+    hardware_interface::InterfaceInfo info;
+    info.name = "external_command_interface";
+    hardware_interface::InterfaceDescription unlisted_state_interface("external_joint", info);
+    interfaces.push_back(unlisted_state_interface);
 
-    return command_interfaces;
+    return interfaces;
   }
 
   std::string get_name() const override { return "ExternalComponent"; }
@@ -1191,8 +1195,11 @@ TEST_F(ResourceManagerTest, managing_controllers_reference_interfaces)
 
   for (size_t i = 0; i < REFERENCE_INTERFACE_NAMES.size(); ++i)
   {
-    reference_interfaces.push_back(hardware_interface::CommandInterface(
-      CONTROLLER_NAME, REFERENCE_INTERFACE_NAMES[i], &(reference_interface_values[i])));
+    hardware_interface::InterfaceInfo info;
+    info.name = REFERENCE_INTERFACE_NAMES[i];
+    info.initial_value = std::to_string(reference_interface_values[i]);
+    hardware_interface::InterfaceDescription ref_interface(CONTROLLER_NAME, info);
+    reference_interfaces.push_back(hardware_interface::CommandInterface(ref_interface));
   }
 
   rm.import_controller_reference_interfaces(CONTROLLER_NAME, reference_interfaces);
