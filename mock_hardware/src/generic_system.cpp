@@ -261,7 +261,7 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
 
   for (const auto & transmission_info : info_.transmissions)
   {
-    // only simple transmissions are supported in this demo
+    // only simple transmissions are supported
     if (transmission_info.type != "transmission_interface/SimpleTransmission")
     {
       std::string msg(
@@ -277,13 +277,20 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
     std::vector<transmission_interface::JointHandle> joint_handles;
     for (const auto & joint_info : transmission_info.joints)
     {
-      // this demo supports only one interface per joint
-      if (!(joint_info.state_interfaces.size() == 1 &&
-            joint_info.state_interfaces[0] == hardware_interface::HW_IF_POSITION &&
-            joint_info.command_interfaces.size() == 1 &&
-            joint_info.command_interfaces[0] == hardware_interface::HW_IF_POSITION))
+      // We currently only support HW_IF_POSITION -> search for HW_IF_POSITION in command_interfaces
+      // and state_interfaces and throw is not present in one of them
+      // TODO(Manuel) add arbitrary interface does this make sense? Or only velocity and effort?
+      if (
+        (std::find(
+           joint_info.state_interfaces.begin(), joint_info.state_interfaces.end(),
+           hardware_interface::HW_IF_POSITION) == joint_info.state_interfaces.end()) ||
+        (std::find(
+           joint_info.command_interfaces.begin(), joint_info.command_interfaces.end(),
+           hardware_interface::HW_IF_POSITION) == joint_info.command_interfaces.end()))
       {
-        std::string msg("Invalid transmission joint " + joint_info.name + " configuration");
+        std::string msg(
+          "Invalid transmission joint " + joint_info.name +
+          " configuration. No position interface found.");
         throw std::runtime_error(msg);
       }
 
