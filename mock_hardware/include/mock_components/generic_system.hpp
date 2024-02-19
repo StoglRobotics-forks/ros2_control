@@ -99,8 +99,6 @@ protected:
   std::vector<std::vector<double>> gpio_commands_;
   std::vector<std::vector<double>> gpio_states_;
 
-  double actuator_slowdown_;
-
   // used for the Transmission pass through.
   // read: actuator_interface.state_->Transmission->joint_interface.state_
   // write: joint_interface.command_->Transmission->actuator_interface.command_

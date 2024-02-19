@@ -243,8 +243,6 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
     initialize_storage_vectors(gpio_commands_, gpio_states_, gpio_interfaces_, info_.gpios);
   }
 
-  actuator_slowdown_ = std::stod(info_.hardware_parameters["actuator_slowdown"]);
-
   const auto num_joints = std::accumulate(
     info_.transmissions.begin(), info_.transmissions.end(), 0ul,
     [](const auto & acc, const auto & trans_info) { return acc + trans_info.joints.size(); });
@@ -792,14 +790,12 @@ return_type GenericSystem::write(const rclcpp::Time & /*time*/, const rclcpp::Du
     [](auto & actuator_interface)
     { actuator_interface.command_ = actuator_interface.transmission_passthrough_; });
 
-  // simulate motor motion
   std::for_each(
     actuator_interfaces_.begin(), actuator_interfaces_.end(),
     [&](auto & actuator_interface)
     {
       actuator_interface.state_ =
-        actuator_interface.state_ +
-        (actuator_interface.command_ - actuator_interface.state_) / actuator_slowdown_;
+        actuator_interface.state_ + (actuator_interface.command_ - actuator_interface.state_);
     });
 
   return hardware_interface::return_type::OK;
