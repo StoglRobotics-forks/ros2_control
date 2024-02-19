@@ -309,7 +309,17 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
       actuator_handles.push_back(actuator_handle);
     }
 
-    // TODO(Manuel) set initial to NaN and on_init initialize to given value in info or 0.0
+    for (auto & joint_interface : joint_interfaces_)
+    {
+      joint_interface.state_ = 0.0;
+      joint_interface.command_ = 0.0;
+    }
+
+    for (auto & actuator_interface : actuator_interfaces_)
+    {
+      actuator_interface.state_ = 0.0;
+      actuator_interface.command_ = 0.0;
+    }
 
     /// @note no need to store the joint and actuator handles, the transmission
     /// will keep whatever info it needs after is done with them

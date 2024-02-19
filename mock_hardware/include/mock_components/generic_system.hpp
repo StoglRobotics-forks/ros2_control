@@ -17,6 +17,7 @@
 #ifndef MOCK_COMPONENTS__GENERIC_SYSTEM_HPP_
 #define MOCK_COMPONENTS__GENERIC_SYSTEM_HPP_
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -105,13 +106,11 @@ protected:
   // And StateInterface(joint_interface.state_)
   struct InterfaceData
   {
-    // TODO(Manuel) set initial to NaN and on_init initialize to given value in info or 0.0
     explicit InterfaceData(const std::string & name)
     : name_(name),
-      command_(0.0),  // command_(std::numeric_limits<double>::quiet_NaN()),
-      state_(0.0),    // state_(std::numeric_limits<double>::quiet_NaN()),
-      transmission_passthrough_(
-        0.0)  // transmission_passthrough_(std::numeric_limits<double>::quiet_NaN())
+      command_(std::numeric_limits<double>::quiet_NaN()),
+      state_(std::numeric_limits<double>::quiet_NaN()),
+      transmission_passthrough_(std::numeric_limits<double>::quiet_NaN())
     {
     }
 
