@@ -353,11 +353,20 @@ std::vector<hardware_interface::StateInterface> GenericSystem::export_state_inte
       joint_interfaces_.begin(), joint_interfaces_.end(),
       [&](const InterfaceData & interface) { return interface.name_ == joint.name; });
 
-    // joint is not used by transmissions so we use the storage matrix for each StateInterface
-    if (joint_interface == joint_interfaces_.end())
+    for (const auto & interface : joint.state_interfaces)
     {
-      for (const auto & interface : joint.state_interfaces)
+      // joint is used by transmissions, because we found it in joint_interfaces vector which is
+      // used for storing the transmission and its of the supported types for transmission so we use
+      // separate InterfaceData storage vector.
+      if (
+        joint_interface != joint_interfaces_.end() &&
+        interface.name == hardware_interface::HW_IF_POSITION)
       {
+        state_interfaces.emplace_back(hardware_interface::StateInterface(
+          joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->state_));
+      }
+      else
+      {  // joint is not used by transmissions so we use the storage matrix for each StateInterface
         // Add interface: if not in the standard list then use "other" interface list
         if (!get_interface(
               joint.name, standard_interfaces_, interface.name, i, joint_states_, state_interfaces))
@@ -371,12 +380,6 @@ std::vector<hardware_interface::StateInterface> GenericSystem::export_state_inte
           }
         }
       }
-    }
-    // joint is used by transmissions so we use the separate InterfaceData storage vector.
-    else
-    {
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->state_));
     }
     ++i;
   }
@@ -413,11 +416,21 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
       joint_interfaces_.begin(), joint_interfaces_.end(),
       [&](const InterfaceData & interface) { return interface.name_ == joint.name; });
 
-    // joint is not used by transmissions so we use the storage matrix for each CommandInterface
-    if (joint_interface == joint_interfaces_.end())
+    for (const auto & interface : joint.command_interfaces)
     {
-      for (const auto & interface : joint.command_interfaces)
+      // joint is used by transmissions, because we found it in joint_interfaces vector which is
+      // used for storing the transmission and its of the supported types for transmission so we use
+      // separate InterfaceData storage vector.
+      if (
+        joint_interface != joint_interfaces_.end() &&
+        interface.name == hardware_interface::HW_IF_POSITION)
       {
+        command_interfaces.emplace_back(hardware_interface::CommandInterface(
+          joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->command_));
+      }
+      else
+      {
+        // joint is not used by transmissions so we use the storage matrix for each CommandInterface
         // Add interface: if not in the standard list than use "other" interface list
         if (!get_interface(
               joint.name, standard_interfaces_, interface.name, i, joint_commands_,
@@ -433,12 +446,6 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
           }
         }
       }
-    }
-    // joint is used by transmissions so we use the separate InterfaceData storage vector.
-    else
-    {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->command_));
     }
     ++i;
   }
