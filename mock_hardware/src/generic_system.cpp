@@ -18,10 +18,14 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <cmath>
 #include <iterator>
 #include <limits>
+#include <memory>
+#include <numeric>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -29,6 +33,8 @@
 #include "hardware_interface/lexical_casts.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rcutils/logging_macros.h"
+#include "transmission_interface/simple_transmission_loader.hpp"
+#include "transmission_interface/transmission_interface_exception.hpp"
 
 namespace mock_components
 {
@@ -237,6 +243,98 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
     initialize_storage_vectors(gpio_commands_, gpio_states_, gpio_interfaces_, info_.gpios);
   }
 
+  const auto num_joints = std::accumulate(
+    info_.transmissions.begin(), info_.transmissions.end(), 0ul,
+    [](const auto & acc, const auto & trans_info) { return acc + trans_info.joints.size(); });
+
+  const auto num_actuators = std::accumulate(
+    info_.transmissions.begin(), info_.transmissions.end(), 0ul,
+    [](const auto & acc, const auto & trans_info) { return acc + trans_info.actuators.size(); });
+
+  // reserve the space needed for joint and actuator data structures
+  joint_interfaces_.reserve(num_joints);
+  actuator_interfaces_.reserve(num_actuators);
+
+  // TODO(Manuel) Add all types of transmissions
+  // create transmissions, joint and actuator handles
+  auto transmission_loader = transmission_interface::SimpleTransmissionLoader();
+
+  for (const auto & transmission_info : info_.transmissions)
+  {
+    // only simple transmissions are supported
+    if (transmission_info.type != "transmission_interface/SimpleTransmission")
+    {
+      std::string msg(
+        "Transmission " + transmission_info.name + " of type " + transmission_info.type.c_str() +
+        " not supported");
+      throw std::runtime_error(msg);
+    }
+
+    std::shared_ptr<transmission_interface::Transmission> transmission;
+
+    transmission = transmission_loader.load(transmission_info);
+
+    std::vector<transmission_interface::JointHandle> joint_handles;
+    for (const auto & joint_info : transmission_info.joints)
+    {
+      // We currently only support HW_IF_POSITION -> search for HW_IF_POSITION in command_interfaces
+      // and state_interfaces and throw is not present in one of them
+      // TODO(Manuel) add arbitrary interface does this make sense? Or only velocity and effort?
+      if (
+        (std::find(
+           joint_info.state_interfaces.begin(), joint_info.state_interfaces.end(),
+           hardware_interface::HW_IF_POSITION) == joint_info.state_interfaces.end()) ||
+        (std::find(
+           joint_info.command_interfaces.begin(), joint_info.command_interfaces.end(),
+           hardware_interface::HW_IF_POSITION) == joint_info.command_interfaces.end()))
+      {
+        std::string msg(
+          "Invalid transmission joint " + joint_info.name +
+          " configuration. No position interface found.");
+        throw std::runtime_error(msg);
+      }
+
+      const auto joint_interface =
+        joint_interfaces_.insert(joint_interfaces_.end(), InterfaceData(joint_info.name));
+
+      transmission_interface::JointHandle joint_handle(
+        joint_info.name, hardware_interface::HW_IF_POSITION,
+        &joint_interface->transmission_passthrough_);
+      joint_handles.push_back(joint_handle);
+    }
+
+    std::vector<transmission_interface::ActuatorHandle> actuator_handles;
+    for (const auto & actuator_info : transmission_info.actuators)
+    {
+      // no check for actuators types
+
+      const auto actuator_interface =
+        actuator_interfaces_.insert(actuator_interfaces_.end(), InterfaceData(actuator_info.name));
+      transmission_interface::ActuatorHandle actuator_handle(
+        actuator_info.name, hardware_interface::HW_IF_POSITION,
+        &actuator_interface->transmission_passthrough_);
+      actuator_handles.push_back(actuator_handle);
+    }
+
+    for (auto & joint_interface : joint_interfaces_)
+    {
+      joint_interface.state_ = 0.0;
+      joint_interface.command_ = 0.0;
+    }
+
+    for (auto & actuator_interface : actuator_interfaces_)
+    {
+      actuator_interface.state_ = 0.0;
+      actuator_interface.command_ = 0.0;
+    }
+
+    /// @note no need to store the joint and actuator handles, the transmission
+    /// will keep whatever info it needs after is done with them
+    transmission->configure(joint_handles, actuator_handles);
+
+    transmissions_.push_back(transmission);
+  }
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -245,24 +343,45 @@ std::vector<hardware_interface::StateInterface> GenericSystem::export_state_inte
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
   // Joints' state interfaces
-  for (auto i = 0u; i < info_.joints.size(); i++)
+  // we manually use the loop_counter because we want to iterate over the interfaces themselves so
+  // we can use std::find them but still need the loop counter for our storage matrix
+  size_t i = 0;
+  for (const auto & joint : info_.joints)
   {
-    const auto & joint = info_.joints[i];
+    /// @pre all joint interfaces exist, checked in on_init()
+    auto joint_interface = std::find_if(
+      joint_interfaces_.begin(), joint_interfaces_.end(),
+      [&](const InterfaceData & interface) { return interface.name_ == joint.name; });
+
     for (const auto & interface : joint.state_interfaces)
     {
-      // Add interface: if not in the standard list then use "other" interface list
-      if (!get_interface(
-            joint.name, standard_interfaces_, interface.name, i, joint_states_, state_interfaces))
+      // joint is used by transmissions, because we found it in joint_interfaces vector which is
+      // used for storing the transmission and its of the supported types for transmission so we use
+      // separate InterfaceData storage vector.
+      if (
+        joint_interface != joint_interfaces_.end() &&
+        interface.name == hardware_interface::HW_IF_POSITION)
       {
+        state_interfaces.emplace_back(hardware_interface::StateInterface(
+          joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->state_));
+      }
+      else
+      {  // joint is not used by transmissions so we use the storage matrix for each StateInterface
+        // Add interface: if not in the standard list then use "other" interface list
         if (!get_interface(
-              joint.name, other_interfaces_, interface.name, i, other_states_, state_interfaces))
+              joint.name, standard_interfaces_, interface.name, i, joint_states_, state_interfaces))
         {
-          throw std::runtime_error(
-            "Interface is not found in the standard nor other list. "
-            "This should never happen!");
+          if (!get_interface(
+                joint.name, other_interfaces_, interface.name, i, other_states_, state_interfaces))
+          {
+            throw std::runtime_error(
+              "Interface is not found in the standard nor other list. "
+              "This should never happen!");
+          }
         }
       }
     }
+    ++i;
   }
 
   // Sensor state interfaces
@@ -286,27 +405,49 @@ std::vector<hardware_interface::CommandInterface> GenericSystem::export_command_
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  // Joints' state interfaces
-  for (size_t i = 0; i < info_.joints.size(); ++i)
+  // Joints' command interfaces
+  // we manually use the loop_counter because we want to iterate over the interfaces themselves so
+  // we can use std::find them but still need the loop counter for our storage matrix
+  size_t i = 0;
+  for (const auto & joint : info_.joints)
   {
-    const auto & joint = info_.joints[i];
+    /// @pre all joint interfaces exist, checked in on_init()
+    auto joint_interface = std::find_if(
+      joint_interfaces_.begin(), joint_interfaces_.end(),
+      [&](const InterfaceData & interface) { return interface.name_ == joint.name; });
+
     for (const auto & interface : joint.command_interfaces)
     {
-      // Add interface: if not in the standard list than use "other" interface list
-      if (!get_interface(
-            joint.name, standard_interfaces_, interface.name, i, joint_commands_,
-            command_interfaces))
+      // joint is used by transmissions, because we found it in joint_interfaces vector which is
+      // used for storing the transmission and its of the supported types for transmission so we use
+      // separate InterfaceData storage vector.
+      if (
+        joint_interface != joint_interfaces_.end() &&
+        interface.name == hardware_interface::HW_IF_POSITION)
       {
+        command_interfaces.emplace_back(hardware_interface::CommandInterface(
+          joint.name, hardware_interface::HW_IF_POSITION, &joint_interface->command_));
+      }
+      else
+      {
+        // joint is not used by transmissions so we use the storage matrix for each CommandInterface
+        // Add interface: if not in the standard list than use "other" interface list
         if (!get_interface(
-              joint.name, other_interfaces_, interface.name, i, other_commands_,
+              joint.name, standard_interfaces_, interface.name, i, joint_commands_,
               command_interfaces))
         {
-          throw std::runtime_error(
-            "Interface is not found in the standard nor other list. "
-            "This should never happen!");
+          if (!get_interface(
+                joint.name, other_interfaces_, interface.name, i, other_commands_,
+                command_interfaces))
+          {
+            throw std::runtime_error(
+              "Interface is not found in the standard nor other list. "
+              "This should never happen!");
+          }
         }
       }
     }
+    ++i;
   }
   // Set position control mode per default
   joint_control_mode_.resize(info_.joints.size(), POSITION_INTERFACE_INDEX);
@@ -570,15 +711,12 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
     }
     else
     {
-      for (size_t k = 0; k < joint_states_[POSITION_INTERFACE_INDEX].size(); ++k)
+      if (!std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][j]))
       {
-        if (!std::isnan(joint_commands_[POSITION_INTERFACE_INDEX][k]))
-        {
-          joint_states_[POSITION_INTERFACE_INDEX][k] =  // apply offset to positions only
-            joint_commands_[POSITION_INTERFACE_INDEX][k] +
-            (custom_interface_with_following_offset_.empty() ? position_state_following_offset_
-                                                             : 0.0);
-        }
+        joint_states_[POSITION_INTERFACE_INDEX][j] =  // apply offset to positions only
+          joint_commands_[POSITION_INTERFACE_INDEX][j] +
+          (custom_interface_with_following_offset_.empty() ? position_state_following_offset_
+                                                           : 0.0);
       }
     }
   }
@@ -636,7 +774,55 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
     mirror_command_to_state(gpio_states_, gpio_commands_);
   }
 
+  // do loopback over all transmission interface an update
+  // actuator: state -> transmission
+  std::for_each(
+    actuator_interfaces_.begin(), actuator_interfaces_.end(),
+    [](auto & actuator_interface)
+    { actuator_interface.transmission_passthrough_ = actuator_interface.state_; });
+
+  // transmission: actuator -> joint
+  std::for_each(
+    transmissions_.begin(), transmissions_.end(),
+    [](auto & transmission) { transmission->actuator_to_joint(); });
+
+  // joint: transmission -> state
+  std::for_each(
+    joint_interfaces_.begin(), joint_interfaces_.end(),
+    [](auto & joint_interface)
+    { joint_interface.state_ = joint_interface.transmission_passthrough_; });
+
   return return_type::OK;
+}
+
+return_type GenericSystem::write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+{
+  // joint: command -> transmission
+  std::for_each(
+    joint_interfaces_.begin(), joint_interfaces_.end(),
+    [](auto & joint_interface)
+    { joint_interface.transmission_passthrough_ = joint_interface.command_; });
+
+  // transmission: joint -> actuator
+  std::for_each(
+    transmissions_.begin(), transmissions_.end(),
+    [](auto & transmission) { transmission->joint_to_actuator(); });
+
+  // actuator: transmission -> command
+  std::for_each(
+    actuator_interfaces_.begin(), actuator_interfaces_.end(),
+    [](auto & actuator_interface)
+    { actuator_interface.command_ = actuator_interface.transmission_passthrough_; });
+
+  std::for_each(
+    actuator_interfaces_.begin(), actuator_interfaces_.end(),
+    [&](auto & actuator_interface)
+    {
+      actuator_interface.state_ =
+        actuator_interface.state_ + (actuator_interface.command_ - actuator_interface.state_);
+    });
+
+  return hardware_interface::return_type::OK;
 }
 
 // Private methods

@@ -17,6 +17,8 @@
 #ifndef MOCK_COMPONENTS__GENERIC_SYSTEM_HPP_
 #define MOCK_COMPONENTS__GENERIC_SYSTEM_HPP_
 
+#include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -25,6 +27,7 @@
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include "transmission_interface/transmission.hpp"
 
 using hardware_interface::return_type;
 
@@ -55,10 +58,7 @@ public:
 
   return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
-  return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
-  {
-    return return_type::OK;
-  }
+  return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override;
 
 protected:
   /// Use standard interfaces for joints because they are relevant for dynamic behavior
@@ -99,6 +99,33 @@ protected:
   std::vector<std::vector<double>> gpio_mock_commands_;
   std::vector<std::vector<double>> gpio_commands_;
   std::vector<std::vector<double>> gpio_states_;
+
+  // used for the Transmission pass through.
+  // read: actuator_interface.state_->Transmission->joint_interface.state_
+  // write: joint_interface.command_->Transmission->actuator_interface.command_
+  // And StateInterface(joint_interface.state_)
+  struct InterfaceData
+  {
+    explicit InterfaceData(const std::string & name)
+    : name_(name),
+      command_(std::numeric_limits<double>::quiet_NaN()),
+      state_(std::numeric_limits<double>::quiet_NaN()),
+      transmission_passthrough_(std::numeric_limits<double>::quiet_NaN())
+    {
+    }
+
+    std::string name_;
+    double command_;
+    double state_;
+    // this is the "sink" that will be part of the transmission Joint/Actuator handles
+    double transmission_passthrough_;
+  };
+
+  std::vector<InterfaceData> joint_interfaces_;
+  std::vector<InterfaceData> actuator_interfaces_;
+
+  // transmissions
+  std::vector<std::shared_ptr<transmission_interface::Transmission>> transmissions_;
 
 private:
   template <typename HandleType>
