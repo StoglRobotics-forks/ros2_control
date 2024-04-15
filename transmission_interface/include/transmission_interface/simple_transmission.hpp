@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "transmission_interface/exception.hpp"
 #include "transmission_interface/transmission.hpp"
@@ -128,13 +129,13 @@ protected:
   double reduction_;
   double jnt_offset_;
 
-  JointHandle joint_position_(std::string(), std::string());
-  JointHandle joint_velocity_(std::string(), std::string());
-  JointHandle joint_effort_(std::string(), std::string());
+  JointHandle joint_position_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  JointHandle joint_velocity_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  JointHandle joint_effort_{hardware_interface::InterfaceDescription{{}, std::string{}}};
 
-  ActuatorHandle actuator_position_(std::string(), std::string());
-  ActuatorHandle actuator_velocity_(std::string(), std::string());
-  ActuatorHandle actuator_effort_(std::string(), std::string());
+  ActuatorHandle actuator_position_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  ActuatorHandle actuator_velocity_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  ActuatorHandle actuator_effort_{hardware_interface::InterfaceDescription{{}, std::string{}}};
 };
 
 inline SimpleTransmission::SimpleTransmission(
@@ -156,7 +157,9 @@ HandleType get_by_interface(
     [&interface_name](const auto handle) { return handle.get_interface_name() == interface_name; });
   if (result == handles.cend())
   {
-    return HandleType(handles.cbegin()->get_prefix_name(), interface_name, nullptr);
+    // return new Handle where data is set to std::monotype by default
+    return HandleType(hardware_interface::InterfaceDescription(
+      handles.cbegin()->get_prefix_name(), interface_name));
   }
   return *result;
 }

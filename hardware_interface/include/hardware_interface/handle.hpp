@@ -34,16 +34,6 @@ namespace hardware_interface
 class Handle
 {
 public:
-  [[deprecated("Use InterfaceDescription for initializing the Interface")]]
-
-  Handle(const std::string & prefix_name, const std::string & interface_name)
-  : prefix_name_(prefix_name), interface_name_(interface_name)
-  {
-    // init to default value defined by init_handle_value()
-    InterfaceInfo info;
-    init_handle_value(info);
-  }
-
   explicit Handle(const InterfaceDescription & interface_description)
   : prefix_name_(interface_description.prefix_name),
     interface_name_(interface_description.interface_info.name)
@@ -51,9 +41,21 @@ public:
     init_handle_value(interface_description.interface_info);
   }
 
+  Handle() = delete;
+
   Handle(const Handle & other) = default;
 
   Handle(Handle && other) = default;
+
+  /// Returns true if handle is valid. We define valid if the handle has a non empty prefix name and
+  /// a non empty interface name. This allows us to construct empty non valid default Handles which
+  /// can later be assigned e.g. in Transmissions
+  inline operator bool() const
+  {
+    return !(
+      prefix_name_.empty() || interface_name_.empty() ||
+      std::holds_alternative<std::monostate>(value_));
+  }
 
   Handle & operator=(const Handle & other) = default;
 
@@ -141,11 +143,15 @@ protected:
 
       value_ = std::vector<std::string>(hardware_interface::warning_signal_count, "");
     }
-    // Default for empty is double
-    else if (interface_info.data_type.empty() || interface_info.data_type == "double")
+    else if (interface_info.data_type == "double")
     {
       value_ = interface_info.initial_value.empty() ? std::numeric_limits<double>::quiet_NaN()
                                                     : std::stod(interface_info.initial_value);
+    }
+    // Default for empty is std::monostate
+    else if (interface_info.data_type.empty())
+    {
+      value_ = {std::monostate()};
     }
     // If not empty and it belongs to none of the above types, we still want to throw as there might
     // be a typo in the data_type like "bol" or user wants some unsupported type

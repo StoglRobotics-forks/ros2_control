@@ -38,6 +38,19 @@ struct InterfaceInfo
     data_type = "";
     size = 0;
   }
+
+  explicit InterfaceInfo(const std::string & name_in) : InterfaceInfo() { name = name_in; }
+
+  explicit InterfaceInfo(
+    const std::string & name_in, const std::string & initial_value_in,
+    const std::string & data_type_in)
+  : InterfaceInfo()
+  {
+    name = name_in;
+    initial_value = initial_value_in;
+    data_type = data_type_in;
+  }
+
   /**
    * Name of the command interfaces that can be set, e.g. "position", "velocity", etc.
    * Used by joints and GPIOs.
@@ -141,6 +154,12 @@ struct InterfaceDescription
 {
   InterfaceDescription(const std::string & prefix_name_in, const InterfaceInfo & interface_info_in)
   : prefix_name(prefix_name_in), interface_info(interface_info_in)
+  {
+  }
+
+  explicit InterfaceDescription(
+    const std::string & prefix_name_in, const std::string & interface_info_name)
+  : prefix_name(prefix_name_in), interface_info(interface_info_name)
   {
   }
 

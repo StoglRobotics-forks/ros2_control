@@ -114,8 +114,8 @@ protected:
   virtual return_type update_and_write_commands(
     const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
 
-  /// Storage of values for reference interfaces
-  std::vector<double> reference_interfaces_;
+  /// Storage of reference Interface
+  std::unordered_map<std::string, CommandInterface> reference_interfaces_;
 
 private:
   /// A flag marking if a chainable controller is currently preceded by another controller.

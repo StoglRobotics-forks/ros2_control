@@ -26,8 +26,12 @@
 namespace hardware_interface
 {
 
-using HANDLE_DATATYPE =
-  std::variant<bool, double, std::vector<int8_t>, std::vector<uint8_t>, std::vector<std::string>>;
+// std::monostate is that we have a well defined alternative empty default initialization
+// !!! IF YOU ADD TYPES TO HANDLE_DATATYPE, std::monostate MUST ALWAYS REMAIN AT THE FIRST POSITION
+// This i needed so that e.g.: HANDLE_DATATYPE our_variant = {}; -> defaults to std::monostate
+using HANDLE_DATATYPE = std::variant<
+  std::monostate, bool, double, std::vector<int8_t>, std::vector<uint8_t>,
+  std::vector<std::string>>;
 
 // Define a type trait for allowed types
 template <typename T>

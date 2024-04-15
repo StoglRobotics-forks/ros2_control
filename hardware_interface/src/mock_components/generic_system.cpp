@@ -457,7 +457,7 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
 
   if (calculate_dynamics_)
   {
-    for (const auto joint_name : std_joint_names_)
+    for (const auto & joint_name : std_joint_names_)
     {
       const auto joint_pos = joint_name + "/" + hardware_interface::HW_IF_POSITION;
       const auto joint_vel = joint_name + "/" + hardware_interface::HW_IF_VELOCITY;
@@ -532,7 +532,7 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
   }
   else
   {
-    for (const auto joint_name : std_joint_names_)
+    for (const auto & joint_name : std_joint_names_)
     {
       const auto joint_pos = joint_name + "/" + hardware_interface::HW_IF_POSITION;
       if (
@@ -568,9 +568,9 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
       mimic_joint.joint_name, get_state(mimic_joint.mimic_joint_name) * mimic_joint.multiplier);
   }
 
-  for (const auto joint_name : other_joint_names_)
+  for (const auto & joint_name : other_joint_names_)
   {
-    for (const auto interface_name : non_standard_interfaces_)
+    for (const auto & interface_name : non_standard_interfaces_)
     {
       const auto joint_inteface = joint_name + "/" + interface_name;
       const auto joint_pos = joint_name + "/" + hardware_interface::HW_IF_POSITION;

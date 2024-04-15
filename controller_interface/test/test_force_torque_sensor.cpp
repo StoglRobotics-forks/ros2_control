@@ -47,20 +47,42 @@ TEST_F(ForceTorqueSensorTest, validate_all_with_default_names)
   std::vector<std::string> interface_names = force_torque_sensor_->get_state_interface_names();
 
   // assign values to force
-  hardware_interface::StateInterface force_x{
-    sensor_name_, fts_interface_names_[0], &force_values_[0]};
-  hardware_interface::StateInterface force_y{
-    sensor_name_, fts_interface_names_[1], &force_values_[1]};
-  hardware_interface::StateInterface force_z{
-    sensor_name_, fts_interface_names_[2], &force_values_[2]};
+  hardware_interface::InterfaceInfo fts_info_x;
+  fts_info_x.name = fts_interface_names_[0];
+  fts_info_x.initial_value = std::to_string(force_values_[0]);
+  hardware_interface::InterfaceDescription fts_descr_x(sensor_name_, fts_info_x);
+  hardware_interface::StateInterface force_x{fts_descr_x};
+
+  hardware_interface::InterfaceInfo fts_info_y;
+  fts_info_y.name = fts_interface_names_[1];
+  fts_info_y.initial_value = std::to_string(force_values_[1]);
+  hardware_interface::InterfaceDescription fts_descr_y(sensor_name_, fts_info_y);
+  hardware_interface::StateInterface force_y{fts_descr_y};
+
+  hardware_interface::InterfaceInfo fts_info_z;
+  fts_info_z.name = fts_interface_names_[2];
+  fts_info_z.initial_value = std::to_string(force_values_[2]);
+  hardware_interface::InterfaceDescription fts_descr_z(sensor_name_, fts_info_z);
+  hardware_interface::StateInterface force_z{fts_descr_z};
 
   // assign values to torque
-  hardware_interface::StateInterface torque_x{
-    sensor_name_, fts_interface_names_[3], &torque_values_[0]};
-  hardware_interface::StateInterface torque_y{
-    sensor_name_, fts_interface_names_[4], &torque_values_[1]};
-  hardware_interface::StateInterface torque_z{
-    sensor_name_, fts_interface_names_[5], &torque_values_[2]};
+  hardware_interface::InterfaceInfo trq_info_x;
+  trq_info_x.name = fts_interface_names_[3];
+  trq_info_x.initial_value = std::to_string(torque_values_[0]);
+  hardware_interface::InterfaceDescription torque_descr_x(sensor_name_, trq_info_x);
+  hardware_interface::StateInterface torque_x{torque_descr_x};
+
+  hardware_interface::InterfaceInfo trq_info_y;
+  trq_info_y.name = fts_interface_names_[4];
+  trq_info_y.initial_value = std::to_string(torque_values_[1]);
+  hardware_interface::InterfaceDescription torque_descr_y(sensor_name_, trq_info_y);
+  hardware_interface::StateInterface torque_y{torque_descr_y};
+
+  hardware_interface::InterfaceInfo trq_info_z;
+  trq_info_z.name = fts_interface_names_[5];
+  trq_info_z.initial_value = std::to_string(torque_values_[2]);
+  hardware_interface::InterfaceDescription torque_descr_z(sensor_name_, trq_info_z);
+  hardware_interface::StateInterface torque_z{torque_descr_z};
 
   // create local state interface vector
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
@@ -131,16 +153,30 @@ TEST_F(ForceTorqueSensorTest, validate_all_with_custom_names)
   std::vector<std::string> interface_names = force_torque_sensor_->get_state_interface_names();
 
   // assign values to force.x and force.z
-  hardware_interface::StateInterface force_x{
-    sensor_name_, fts_interface_names_[0], &force_values_[0]};
-  hardware_interface::StateInterface force_z{
-    sensor_name_, fts_interface_names_[2], &force_values_[2]};
+  hardware_interface::InterfaceInfo fts_info_x;
+  fts_info_x.name = fts_interface_names_[0];
+  fts_info_x.initial_value = std::to_string(force_values_[0]);
+  hardware_interface::InterfaceDescription fts_descr_x(sensor_name_, fts_info_x);
+  hardware_interface::StateInterface force_x{fts_descr_x};
+
+  hardware_interface::InterfaceInfo fts_info_z;
+  fts_info_z.name = fts_interface_names_[2];
+  fts_info_z.initial_value = std::to_string(force_values_[2]);
+  hardware_interface::InterfaceDescription fts_descr_z(sensor_name_, fts_info_z);
+  hardware_interface::StateInterface force_z{fts_descr_z};
 
   // assign values to torque.y and torque.z
-  hardware_interface::StateInterface torque_y{
-    sensor_name_, fts_interface_names_[4], &torque_values_[1]};
-  hardware_interface::StateInterface torque_z{
-    sensor_name_, fts_interface_names_[5], &torque_values_[2]};
+  hardware_interface::InterfaceInfo trq_info_y;
+  trq_info_y.name = fts_interface_names_[4];
+  trq_info_y.initial_value = std::to_string(torque_values_[1]);
+  hardware_interface::InterfaceDescription torque_descr_y(sensor_name_, trq_info_y);
+  hardware_interface::StateInterface torque_y{torque_descr_y};
+
+  hardware_interface::InterfaceInfo trq_info_z;
+  trq_info_z.name = fts_interface_names_[5];
+  trq_info_z.initial_value = std::to_string(torque_values_[2]);
+  hardware_interface::InterfaceDescription torque_descr_z(sensor_name_, trq_info_z);
+  hardware_interface::StateInterface torque_z{torque_descr_z};
 
   // create local state interface vector
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
@@ -213,20 +249,42 @@ TEST_F(ForceTorqueSensorTest, validate_all_custom_names)
   ASSERT_EQ(force_torque_sensor_->interface_names_[5], sensor_name_ + "/" + "torque.z");
 
   // assign values to force
-  hardware_interface::StateInterface force_x{
-    sensor_name_, fts_interface_names_[0], &force_values_[0]};
-  hardware_interface::StateInterface force_y{
-    sensor_name_, fts_interface_names_[1], &force_values_[1]};
-  hardware_interface::StateInterface force_z{
-    sensor_name_, fts_interface_names_[2], &force_values_[2]};
+  hardware_interface::InterfaceInfo fts_info_x;
+  fts_info_x.name = fts_interface_names_[0];
+  fts_info_x.initial_value = std::to_string(force_values_[0]);
+  hardware_interface::InterfaceDescription fts_descr_x(sensor_name_, fts_info_x);
+  hardware_interface::StateInterface force_x{fts_descr_x};
+
+  hardware_interface::InterfaceInfo fts_info_y;
+  fts_info_y.name = fts_interface_names_[1];
+  fts_info_y.initial_value = std::to_string(force_values_[1]);
+  hardware_interface::InterfaceDescription fts_descr_y(sensor_name_, fts_info_y);
+  hardware_interface::StateInterface force_y{fts_descr_y};
+
+  hardware_interface::InterfaceInfo fts_info_z;
+  fts_info_z.name = fts_interface_names_[2];
+  fts_info_z.initial_value = std::to_string(force_values_[2]);
+  hardware_interface::InterfaceDescription fts_descr_z(sensor_name_, fts_info_z);
+  hardware_interface::StateInterface force_z{fts_descr_z};
 
   // assign values to torque
-  hardware_interface::StateInterface torque_x{
-    sensor_name_, fts_interface_names_[3], &torque_values_[0]};
-  hardware_interface::StateInterface torque_y{
-    sensor_name_, fts_interface_names_[4], &torque_values_[1]};
-  hardware_interface::StateInterface torque_z{
-    sensor_name_, fts_interface_names_[5], &torque_values_[2]};
+  hardware_interface::InterfaceInfo trq_info_x;
+  trq_info_x.name = fts_interface_names_[3];
+  trq_info_x.initial_value = std::to_string(torque_values_[0]);
+  hardware_interface::InterfaceDescription torque_descr_x(sensor_name_, trq_info_x);
+  hardware_interface::StateInterface torque_x{torque_descr_x};
+
+  hardware_interface::InterfaceInfo trq_info_y;
+  trq_info_y.name = fts_interface_names_[4];
+  trq_info_y.initial_value = std::to_string(torque_values_[1]);
+  hardware_interface::InterfaceDescription torque_descr_y(sensor_name_, trq_info_y);
+  hardware_interface::StateInterface torque_y{torque_descr_y};
+
+  hardware_interface::InterfaceInfo trq_info_z;
+  trq_info_z.name = fts_interface_names_[5];
+  trq_info_z.initial_value = std::to_string(torque_values_[2]);
+  hardware_interface::InterfaceDescription torque_descr_z(sensor_name_, trq_info_z);
+  hardware_interface::StateInterface torque_z{torque_descr_z};
 
   // create local state interface vector
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
