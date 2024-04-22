@@ -456,7 +456,7 @@ public:
       available_state_interfaces_.capacity() + interface_names.size());
   }
 
-  void insert_command_interface(std::shared_ptr<CommandInterface> command_interface)
+  void insert_command_interface(const std::shared_ptr<CommandInterface> command_interface)
   {
     const auto [it, success] = command_interface_map_.insert(
       std::make_pair(command_interface->get_name(), command_interface));
@@ -524,11 +524,11 @@ public:
   }
 
   std::vector<std::string> add_command_interfaces(
-    std::vector<std::shared_ptr<CommandInterface>> & interfaces)
+    const std::vector<std::shared_ptr<CommandInterface>> & interfaces)
   {
     std::vector<std::string> interface_names;
     interface_names.reserve(interfaces.size());
-    for (auto & interface : interfaces)
+    for (const auto & interface : interfaces)
     {
       auto key = interface->get_name();
       insert_command_interface(interface);
@@ -903,7 +903,8 @@ bool ResourceManager::state_interface_is_available(const std::string & name) con
 
 // CM API: Called in "callback/slow"-thread
 void ResourceManager::import_controller_reference_interfaces(
-  const std::string & controller_name, std::vector<CommandInterface> & interfaces)
+  const std::string & controller_name,
+  const std::vector<std::shared_ptr<hardware_interface::CommandInterface>> & interfaces)
 {
   std::scoped_lock guard(resource_interfaces_lock_, claimed_command_interfaces_lock_);
   auto interface_names = resource_storage_->add_command_interfaces(interfaces);
