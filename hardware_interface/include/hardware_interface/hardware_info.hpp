@@ -41,6 +41,13 @@ struct InterfaceInfo
 
   explicit InterfaceInfo(const std::string & name_in) : InterfaceInfo() { name = name_in; }
 
+  explicit InterfaceInfo(const std::string & name_in, const std::string & data_type_in)
+  : InterfaceInfo()
+  {
+    name = name_in;
+    data_type = data_type_in;
+  }
+
   explicit InterfaceInfo(
     const std::string & name_in, const std::string & initial_value_in,
     const std::string & data_type_in)

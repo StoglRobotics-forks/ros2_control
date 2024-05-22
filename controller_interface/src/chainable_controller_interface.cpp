@@ -70,8 +70,9 @@ ChainableControllerInterface::export_reference_interfaces()
 
   // check if the names of the reference interfaces begin with the controller's name
   const auto ref_interface_size = reference_interfaces.size();
-  for (auto & interface : reference_interfaces)
+  for (size_t i = 0; i < reference_interfaces.size(); ++i)
   {
+    auto & interface = reference_interfaces[i];
     if (interface.get_prefix_name() != get_node()->get_name())
     {
       std::string error_msg = "The name of the interface " + interface.get_name() +
@@ -84,8 +85,21 @@ ChainableControllerInterface::export_reference_interfaces()
 
     std::shared_ptr<hardware_interface::CommandInterface> interface_ptr =
       std::make_shared<hardware_interface::CommandInterface>(std::move(interface));
-    reference_interfaces_ptrs_vec.push_back(interface_ptr);
+    if (
+      reference_interfaces_ptrs_.find(interface_ptr->get_name()) !=
+      reference_interfaces_ptrs_.end())
+    {
+      std::string error_msg = "The controller " + std::string(get_node()->get_name()) +
+                              "exports reference the reference interface with the name:'" +
+                              interface_ptr->get_name() +
+                              "' twice. Names of interfaces have to be unique";
+      throw std::runtime_error(error_msg);
+    }
     reference_interfaces_ptrs_.insert(std::make_pair(interface_ptr->get_name(), interface_ptr));
+    // BEGIN (Handle export change): for backward compatibility
+    ref_interface_to_value_.insert({interface_ptr->get_name(), std::ref(reference_interfaces_[i])});
+    // END
+    reference_interfaces_ptrs_vec.push_back(interface_ptr);
   }
 
   if (reference_interfaces_ptrs_.size() != ref_interface_size)

@@ -96,7 +96,6 @@ TEST(PreconditionsTest, AccessorValidation)
 void testConfigureWithBadHandles(std::string interface_name)
 {
   FourBarLinkageTransmission trans({1.0, 1.0}, {1.0, 1.0});
-  double dummy;
 
   auto a1_handle = ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(interface_name)));
   auto a2_handle = ActuatorHandle(InterfaceDescription("act2", InterfaceInfo(interface_name)));
@@ -138,11 +137,6 @@ TEST(ConfigureTest, FailsWithBadHandles)
 class TransmissionSetup : public ::testing::Test
 {
 protected:
-  // Input/output transmission data
-  double a_val[2];
-  double j_val[2];
-  std::vector<double *> a_vec = {&a_val[0], &a_val[1]};
-  std::vector<double *> j_vec = {&j_val[0], &j_val[1]};
 };
 
 /// \brief Exercises the actuator->joint->actuator roundtrip, which should yield the identity map.
@@ -159,24 +153,28 @@ protected:
     const std::string & interface_name)
   {
     // set actuator values to reference
-    a_val[0] = ref_val[0];
-    a_val[1] = ref_val[1];
+    auto a_val = ref_val[0];
+    auto a_val_1 = ref_val[1];
     // create handles and configure
-    auto a1_handle = ActuatorHandle(InterfaceDescription(
-      "act1", InterfaceInfo(interface_name, std::to_string(a_val[0]), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", InterfaceInfo(interface_name a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", InterfaceInfo(interface_name j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(interface_name, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(interface_name, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(interface_name, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
 
     // actuator->joint->actuator roundtrip
     // but we also set actuator values to an extremal value
     // to ensure joint_to_actuator is not a no-op
     trans.actuator_to_joint();
-    a_val[0] = a_val[1] = EXTREMAL_VALUE;
+    a1_handle.set_value(EXTREMAL_VALUE);
+    a2_handle.set_value(EXTREMAL_VALUE);
     trans.joint_to_actuator();
-    EXPECT_THAT(ref_val[0], DoubleNear(a_val[0], EPS));
-    EXPECT_THAT(ref_val[1], DoubleNear(a_val[1], EPS));
+    EXPECT_THAT(a_val, DoubleNear(a1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(a_val_1, DoubleNear(a2_handle.get_value<double>(), EPS));
   }
 
   // Generate a set of transmission instances
@@ -246,43 +244,55 @@ TEST_F(WhiteBoxTest, DontMoveJoints)
   FourBarLinkageTransmission trans(actuator_reduction, joint_reduction, joint_offset);
 
   // Actuator input (used for effort, velocity and position)
-  a_val[0] = 0.0;
-  a_val[1] = 0.0;
+  auto a_val = 0.0;
+  auto a_val_1 = 0.0;
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_EFFORT, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_EFFORT, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_EFFORT, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_EFFORT, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(
+      InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_VELOCITY, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_VELOCITY, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_VELOCITY, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_VELOCITY, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_POSITION, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_POSITION, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_POSITION, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_POSITION, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(joint_offset[0], DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(joint_offset[1], DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(joint_offset[0], DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(joint_offset[1], DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 }
 
@@ -295,44 +305,56 @@ TEST_F(WhiteBoxTest, MoveFirstJointOnly)
 
   // Effort interface
   {
-    a_val[0] = 5.0;
-    a_val[1] = 10.0;
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_EFFORT, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_EFFORT, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_EFFORT, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_EFFORT, j_vec[1]));
+    auto a_val = 5.0;
+    auto a_val_1 = 10.0;
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(
+      InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(100.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(100.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    a_val[0] = 10.0;
-    a_val[1] = 5.0;
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_VELOCITY, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_VELOCITY, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_VELOCITY, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_VELOCITY, j_vec[1]));
+    auto a_val = 10.0;
+    auto a_val_1 = 5.0;
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.5, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    a_val[0] = 10.0;
-    a_val[1] = 5.0;
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_POSITION, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_POSITION, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_POSITION, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_POSITION, j_vec[1]));
+    auto a_val = 10.0;
+    auto a_val_1 = 5.0;
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.5, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 }
 
@@ -344,43 +366,55 @@ TEST_F(WhiteBoxTest, MoveSecondJointOnly)
   FourBarLinkageTransmission trans(actuator_reduction, joint_reduction);
 
   // Actuator input (used for effort, velocity and position)
-  a_val[0] = 0.0;
-  a_val[1] = 10.0;
+  auto a_val = 0.0;
+  auto a_val_1 = 10.0;
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_EFFORT, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_EFFORT, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_EFFORT, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_EFFORT, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(
+      InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(200.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(200.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_VELOCITY, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_VELOCITY, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_VELOCITY, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_VELOCITY, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.5, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_POSITION, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_POSITION, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_POSITION, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_POSITION, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(0.5, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 }
 
@@ -397,42 +431,54 @@ TEST_F(WhiteBoxTest, MoveBothJoints)
   FourBarLinkageTransmission trans(actuator_reduction, joint_reduction, joint_offset);
 
   // Actuator input (used for effort, velocity and position)
-  a_val[0] = 3.0;
-  a_val[1] = 5.0;
+  auto a_val = 3.0;
+  auto a_val_1 = 5.0;
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_EFFORT, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_EFFORT, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_EFFORT, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_EFFORT, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(
+      InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-60.0, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(-160.0, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(-60.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(-160.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_VELOCITY, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_VELOCITY, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_VELOCITY, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_VELOCITY, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-0.15, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(-0.025, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(-0.15, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(-0.025, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(InterfaceDescription("act1", HW_IF_POSITION, a_vec[0]));
-    auto a2_handle = ActuatorHandle(InterfaceDescription("act2", HW_IF_POSITION, a_vec[1]));
-    auto joint1_handle = JointHandle(InterfaceDescription("joint1", HW_IF_POSITION, j_vec[0]));
-    auto joint2_handle = JointHandle(InterfaceDescription("joint2", HW_IF_POSITION, j_vec[1]));
+    auto a1_handle = ActuatorHandle(
+      InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
+    auto a2_handle = ActuatorHandle(InterfaceDescription(
+      "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
+    auto joint1_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle =
+      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-2.15, DoubleNear(j_val[0], EPS));
-    EXPECT_THAT(3.975, DoubleNear(j_val[1], EPS));
+    EXPECT_THAT(-2.15, DoubleNear(joint1_handle.get_value<double>(), EPS));
+    EXPECT_THAT(3.975, DoubleNear(joint2_handle.get_value<double>(), EPS));
   }
 }

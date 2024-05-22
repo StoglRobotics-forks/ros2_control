@@ -57,6 +57,28 @@ public:
       std::holds_alternative<std::monostate>(value_));
   }
 
+  template <
+    typename T, typename std::enable_if<
+                  std::is_integral<T>::value || std::is_floating_point<T>::value, int>::type = 0>
+  void operator+=(const T & value)
+  {
+    value_ = std::get<T>(value_) + value;
+  }
+
+  template <
+    typename T, typename std::enable_if<
+                  std::is_integral<T>::value || std::is_floating_point<T>::value, int>::type = 0>
+  void operator-=(const T & value)
+  {
+    value_ = std::get<T>(value_) - value;
+  }
+
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  void operator=(const T & value)
+  {
+    value_ = value;
+  }
+
   Handle & operator=(const Handle & other) = default;
 
   Handle & operator=(Handle && other) = default;
@@ -102,6 +124,10 @@ protected:
       value_ = interface_info.initial_value.empty() ? false
                                                     : (interface_info.initial_value == "true" ||
                                                        interface_info.initial_value == "True");
+    }
+    else if (interface_info.data_type == "int")
+    {
+      value_ = interface_info.initial_value.empty() ? 0 : std::stoi(interface_info.initial_value);
     }
     else if (interface_info.data_type == "vector<int8_t>")
     {

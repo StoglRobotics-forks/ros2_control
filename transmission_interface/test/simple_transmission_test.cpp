@@ -15,12 +15,15 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "transmission_interface/simple_transmission.hpp"
 
 using hardware_interface::HW_IF_EFFORT;
 using hardware_interface::HW_IF_POSITION;
 using hardware_interface::HW_IF_VELOCITY;
+using hardware_interface::InterfaceDescription;
+using hardware_interface::InterfaceInfo;
 using std::vector;
 using transmission_interface::ActuatorHandle;
 using transmission_interface::Exception;
@@ -62,12 +65,13 @@ TEST(PreconditionsTest, AccessorValidation)
 TEST(PreconditionsTest, ConfigureFailsWithInvalidHandles)
 {
   SimpleTransmission trans(2.0, -1.0);
-  double dummy;
 
-  auto actuator_handle = ActuatorHandle("act1", HW_IF_POSITION, &dummy);
-  auto actuator2_handle = ActuatorHandle("act2", HW_IF_POSITION, &dummy);
-  auto joint_handle = JointHandle("joint1", HW_IF_POSITION, &dummy);
-  auto joint2_handle = JointHandle("joint2", HW_IF_POSITION, &dummy);
+  auto actuator_handle =
+    ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION)));
+  auto actuator2_handle =
+    ActuatorHandle(InterfaceDescription("act2", InterfaceInfo(HW_IF_POSITION)));
+  auto joint_handle = JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION)));
+  auto joint2_handle = JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION)));
 
   EXPECT_THROW(trans.configure({}, {}), transmission_interface::Exception);
   EXPECT_THROW(trans.configure({joint_handle}, {}), transmission_interface::Exception);
@@ -80,8 +84,10 @@ TEST(PreconditionsTest, ConfigureFailsWithInvalidHandles)
     trans.configure({joint_handle, joint2_handle}, {actuator_handle}),
     transmission_interface::Exception);
 
-  auto invalid_actuator_handle = ActuatorHandle("act1", HW_IF_VELOCITY, nullptr);
-  auto invalid_joint_handle = JointHandle("joint1", HW_IF_VELOCITY, nullptr);
+  auto invalid_actuator_handle =
+    ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY)));
+  auto invalid_joint_handle =
+    JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY)));
   EXPECT_THROW(
     trans.configure({invalid_joint_handle}, {invalid_actuator_handle}),
     transmission_interface::Exception);
@@ -95,15 +101,6 @@ TEST(PreconditionsTest, ConfigureFailsWithInvalidHandles)
 class TransmissionSetup
 {
 protected:
-  // Input/output transmission data
-  double a_val = 0.0;
-  double j_val = 0.0;
-
-  void reset_values()
-  {
-    a_val = 0.0;
-    j_val = 0.0;
-  }
 };
 
 /// Exercises the actuator->joint->actuator roundtrip, which should yield the identity map.
@@ -121,15 +118,19 @@ protected:
   {
     // Effort interface
     {
-      auto actuator_handle = ActuatorHandle("act1", interface_name, &a_val);
-      auto joint_handle = JointHandle("joint1", interface_name, &j_val);
+      auto actuator_handle = ActuatorHandle(
+        InterfaceDescription("act1", InterfaceInfo(interface_name, "0.0", "double")));
+      auto joint_handle =
+        JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name, "0.0", "double")));
       trans.configure({joint_handle}, {actuator_handle});
 
-      a_val = ref_val;
+      actuator_handle.set_value(ref_val);
 
       trans.actuator_to_joint();
       trans.joint_to_actuator();
-      EXPECT_THAT(ref_val, DoubleNear(a_val, EPS));
+      EXPECT_THAT(ref_val, DoubleNear(actuator_handle.get_value<double>(), EPS));
+      actuator_handle.set_value(0.0);
+      joint_handle.set_value(0.0);
     }
   }
 };
@@ -141,23 +142,15 @@ TEST_P(BlackBoxTest, IdentityMap)
 
   // Test transmission for positive, zero, and negative inputs
   testIdentityMap(trans, HW_IF_POSITION, 1.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_POSITION, 0.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_POSITION, -1.0);
-  reset_values();
 
   testIdentityMap(trans, HW_IF_VELOCITY, 1.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_VELOCITY, 0.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_VELOCITY, -1.0);
-  reset_values();
 
   testIdentityMap(trans, HW_IF_EFFORT, 1.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_EFFORT, 0.0);
-  reset_values();
   testIdentityMap(trans, HW_IF_EFFORT, -1.0);
 }
 
@@ -180,53 +173,61 @@ TEST_F(WhiteBoxTest, MoveJoint)
 
   SimpleTransmission trans(10.0, 1.0);
 
-  a_val = 1.0;
-
   // Effort interface
   {
-    auto actuator_handle = ActuatorHandle("act1", HW_IF_EFFORT, &a_val);
-    auto joint_handle = JointHandle("joint1", HW_IF_EFFORT, &j_val);
+    auto actuator_handle =
+      ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, "1.0", "double")));
+    auto joint_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "0.0", "double")));
     trans.configure({joint_handle}, {actuator_handle});
 
     trans.actuator_to_joint();
-    EXPECT_THAT(10.0, DoubleNear(j_val, EPS));
+    EXPECT_THAT(10.0, DoubleNear(joint_handle.get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto actuator_handle = ActuatorHandle("act1", HW_IF_VELOCITY, &a_val);
-    auto joint_handle = JointHandle("joint1", HW_IF_VELOCITY, &j_val);
+    auto actuator_handle =
+      ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, "1.0", "double")));
+    auto joint_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "0.0", "double")));
     trans.configure({joint_handle}, {actuator_handle});
 
     trans.actuator_to_joint();
-    EXPECT_THAT(0.1, DoubleNear(j_val, EPS));
+    EXPECT_THAT(0.1, DoubleNear(joint_handle.get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto actuator_handle = ActuatorHandle("act1", HW_IF_POSITION, &a_val);
-    auto joint_handle = JointHandle("joint1", HW_IF_POSITION, &j_val);
+    auto actuator_handle =
+      ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, "1.0", "double")));
+    auto joint_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "0.0", "double")));
     trans.configure({joint_handle}, {actuator_handle});
 
     trans.actuator_to_joint();
-    EXPECT_THAT(1.1, DoubleNear(j_val, EPS));
+    EXPECT_THAT(1.1, DoubleNear(joint_handle.get_value<double>(), EPS));
   }
 
   // Mismatched interface is ignored
   {
     double unique_value = 13.37;
 
-    auto actuator_handle = ActuatorHandle("act1", HW_IF_POSITION, &a_val);
-    auto actuator_handle2 = ActuatorHandle("act1", HW_IF_VELOCITY, &unique_value);
-    auto joint_handle = JointHandle("joint1", HW_IF_POSITION, &j_val);
-    auto joint_handle2 = JointHandle("joint1", HW_IF_VELOCITY, &unique_value);
+    auto actuator_handle =
+      ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, "1.0", "double")));
+    auto actuator_handle2 = ActuatorHandle(InterfaceDescription(
+      "act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(unique_value), "double")));
+    auto joint_handle =
+      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "1.0", "double")));
+    auto joint_handle2 = JointHandle(InterfaceDescription(
+      "joint1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(unique_value), "double")));
 
     trans.configure({joint_handle, joint_handle2}, {actuator_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(unique_value, DoubleNear(13.37, EPS));
+    EXPECT_THAT(joint_handle.get_value<double>(), DoubleNear(13.37, EPS));
 
     trans.configure({joint_handle}, {actuator_handle, actuator_handle2});
     trans.actuator_to_joint();
-    EXPECT_THAT(unique_value, DoubleNear(13.37, EPS));
+    EXPECT_THAT(joint_handle.get_value<double>(), DoubleNear(13.37, EPS));
   }
 }

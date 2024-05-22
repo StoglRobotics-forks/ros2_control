@@ -30,15 +30,16 @@ namespace hardware_interface
 // !!! IF YOU ADD TYPES TO HANDLE_DATATYPE, std::monostate MUST ALWAYS REMAIN AT THE FIRST POSITION
 // This i needed so that e.g.: HANDLE_DATATYPE our_variant = {}; -> defaults to std::monostate
 using HANDLE_DATATYPE = std::variant<
-  std::monostate, bool, double, std::vector<int8_t>, std::vector<uint8_t>,
+  std::monostate, bool, int, double, std::vector<int8_t>, std::vector<uint8_t>,
   std::vector<std::string>>;
 
 // Define a type trait for allowed types
 template <typename T>
 struct HANDLE_DATATYPE_TYPES
 : std::disjunction<
-    std::is_same<T, bool>, std::is_same<T, double>, std::is_same<T, std::vector<int8_t>>,
-    std::is_same<T, std::vector<uint8_t>>, std::is_same<T, std::vector<std::string>>>
+    std::is_same<T, bool>, std::is_same<T, int>, std::is_same<T, double>,
+    std::is_same<T, std::vector<int8_t>>, std::is_same<T, std::vector<uint8_t>>,
+    std::is_same<T, std::vector<std::string>>>
 {
 };
 

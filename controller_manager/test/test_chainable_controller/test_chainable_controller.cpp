@@ -18,10 +18,16 @@
 #include <string>
 #include <vector>
 
+#include "hardware_interface/hardware_info.hpp"
+
 #include "lifecycle_msgs/msg/state.hpp"
 
 namespace test_chainable_controller
 {
+
+using hardware_interface::InterfaceDescription;
+using hardware_interface::InterfaceInfo;
+
 TestChainableController::TestChainableController()
 : controller_interface::ChainableControllerInterface(),
   cmd_iface_cfg_{controller_interface::interface_configuration_type::NONE},
@@ -157,8 +163,8 @@ TestChainableController::on_export_reference_interfaces()
 
   for (size_t i = 0; i < reference_interface_names_.size(); ++i)
   {
-    reference_interfaces.push_back(hardware_interface::CommandInterface(
-      get_node()->get_name(), reference_interface_names_[i], &reference_interfaces_[i]));
+    reference_interfaces.push_back(hardware_interface::CommandInterface(InterfaceDescription(
+      get_node()->get_name(), InterfaceInfo(reference_interface_names_[i], "double"))));
   }
 
   return reference_interfaces;

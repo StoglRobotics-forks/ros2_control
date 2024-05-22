@@ -15,6 +15,7 @@
 #ifndef CONTROLLER_INTERFACE__CHAINABLE_CONTROLLER_INTERFACE_HPP_
 #define CONTROLLER_INTERFACE__CHAINABLE_CONTROLLER_INTERFACE_HPP_
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -121,6 +122,7 @@ protected:
   /// Storage of values for reference interfaces
   // BEGIN (Handle export change): for backward compatibility
   std::vector<double> reference_interfaces_;
+  std::unordered_map<std::string, std::reference_wrapper<double>> ref_interface_to_value_;
   // END
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::CommandInterface>>
     reference_interfaces_ptrs_;

@@ -22,6 +22,7 @@
 
 #include "controller_interface/chainable_controller_interface.hpp"
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/hardware_info.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 
 constexpr char TEST_CONTROLLER_NAME[] = "testable_chainable_controller";
@@ -30,6 +31,9 @@ constexpr double INTERFACE_VALUE_SUBSCRIBER_ERROR = 12345.0;
 constexpr double INTERFACE_VALUE_UPDATE_ERROR = 67890.0;
 constexpr double INTERFACE_VALUE_INITIAL_REF = 1984.0;
 
+using hardware_interface::InterfaceDescription;
+using hardware_interface::InterfaceInfo;
+
 class TestableChainableControllerInterface
 : public controller_interface::ChainableControllerInterface
 {
@@ -37,11 +41,7 @@ public:
   FRIEND_TEST(ChainableControllerInterfaceTest, reference_interfaces_storage_not_correct_size);
   FRIEND_TEST(ChainableControllerInterfaceTest, test_update_logic);
 
-  TestableChainableControllerInterface()
-  {
-    reference_interfaces_.reserve(1);
-    reference_interfaces_.push_back(INTERFACE_VALUE);
-  }
+  TestableChainableControllerInterface() { update_ref_itf_full_name(); }
 
   controller_interface::CallbackReturn on_init() override
   {
@@ -68,15 +68,16 @@ public:
   {
     std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-    command_interfaces.push_back(hardware_interface::CommandInterface(
-      name_prefix_of_reference_interfaces_, "test_itf", &reference_interfaces_[0]));
+    command_interfaces.push_back(hardware_interface::CommandInterface(InterfaceDescription(
+      name_prefix_of_reference_interfaces_,
+      InterfaceInfo(ref_itf_name_, std::to_string(INTERFACE_VALUE), "double"))));
 
     return command_interfaces;
   }
 
   bool on_set_chained_mode(bool /*chained_mode*/) override
   {
-    if (reference_interfaces_[0] == 0.0)
+    if (reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() == 0.0)
     {
       return true;
     }
@@ -89,24 +90,28 @@ public:
   controller_interface::return_type update_reference_from_subscribers(
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    if (reference_interface_value_ == INTERFACE_VALUE_SUBSCRIBER_ERROR)
+    if (
+      reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() ==
+      INTERFACE_VALUE_SUBSCRIBER_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
 
-    reference_interfaces_[0] = reference_interface_value_;
+    reference_interfaces_ptrs_[ref_itf_full_name_]->set_value(reference_interface_value_);
     return controller_interface::return_type::OK;
   }
 
   controller_interface::return_type update_and_write_commands(
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
-    if (reference_interfaces_[0] == INTERFACE_VALUE_UPDATE_ERROR)
+    if (
+      reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() ==
+      INTERFACE_VALUE_UPDATE_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
 
-    reference_interfaces_[0] -= 1;
+    reference_interfaces_ptrs_[ref_itf_full_name_]->operator-=(1);
 
     return controller_interface::return_type::OK;
   }
@@ -114,14 +119,23 @@ public:
   void set_name_prefix_of_reference_interfaces(const std::string & prefix)
   {
     name_prefix_of_reference_interfaces_ = prefix;
+    update_ref_itf_full_name();
   }
 
   void set_new_reference_interface_value(const double ref_itf_value)
   {
     reference_interface_value_ = ref_itf_value;
+    update_ref_itf_full_name();
+  }
+
+  void update_ref_itf_full_name()
+  {
+    ref_itf_full_name_ = name_prefix_of_reference_interfaces_ + "/" + ref_itf_name_;
   }
 
   std::string name_prefix_of_reference_interfaces_;
+  std::string ref_itf_name_ = "test_itf";
+  std::string ref_itf_full_name_;
   double reference_interface_value_ = INTERFACE_VALUE_INITIAL_REF;
 };
 
