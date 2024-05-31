@@ -63,8 +63,8 @@ struct MimicJoint
 enum class MimicAttribute
 {
   NOT_SET,
-  TRUE,
-  FALSE
+  MIMIC,
+  NO_MIMIC
 };
 
 /**
