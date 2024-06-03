@@ -63,10 +63,9 @@ struct MimicJoint
 enum class MimicAttribute
 {
   NOT_SET,
-  MIMIC,
-  NO_MIMIC
+  TRUE,
+  FALSE
 };
-
 /**
  * This structure stores information about components defined for a specific hardware
  * in robot's URDF.

@@ -330,8 +330,8 @@ ComponentInfo parse_component_from_xml(const tinyxml2::XMLElement * component_it
     try
     {
       component.is_mimic = parse_bool(get_attribute_value(component_it, kMimicAttribute, kJointTag))
-                             ? MimicAttribute::MIMIC
-                             : MimicAttribute::NO_MIMIC;
+                             ? MimicAttribute::TRUE
+                             : MimicAttribute::FALSE;
     }
     catch (const std::runtime_error & e)
     {
@@ -692,12 +692,12 @@ std::vector<HardwareInfo> parse_control_resources_from_urdf(const std::string & 
         {
           throw std::runtime_error("Joint " + joint.name + " not found in URDF");
         }
-        if (!urdf_joint->mimic && joint.is_mimic == MimicAttribute::MIMIC)
+        if (!urdf_joint->mimic && joint.is_mimic == MimicAttribute::TRUE)
         {
           throw std::runtime_error(
             "Joint '" + joint.name + "' has no mimic information in the URDF.");
         }
-        if (urdf_joint->mimic && joint.is_mimic != MimicAttribute::NO_MIMIC)
+        if (urdf_joint->mimic && joint.is_mimic != MimicAttribute::FALSE)
         {
           if (joint.command_interfaces.size() > 0)
           {
