@@ -515,6 +515,11 @@ return_type GenericSystem::read(const rclcpp::Time & /*time*/, const rclcpp::Dur
             joint_states_[ACCELERATION_INTERFACE_INDEX][j] =
               (joint_states_[VELOCITY_INTERFACE_INDEX][j] - old_velocity) / period.seconds();
           }
+          else
+          {
+            joint_states_[VELOCITY_INTERFACE_INDEX][j] = 0.0;
+            joint_states_[ACCELERATION_INTERFACE_INDEX][j] = 0.0;
+          }
           break;
         }
         case POSITION_INTERFACE_INDEX:
