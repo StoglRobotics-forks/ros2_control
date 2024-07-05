@@ -31,7 +31,6 @@
 
 namespace joint_limits
 {
-using JointLimitsStateDataType = trajectory_msgs::msg::JointTrajectoryPoint;
 
 template <typename JointLimitsStateDataType>
 class JointLimiterInterface
