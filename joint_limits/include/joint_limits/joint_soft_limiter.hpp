@@ -27,7 +27,7 @@ constexpr double VALUE_CONSIDERED_ZERO = 1e-10;
 namespace joint_limits
 {
 
-class SoftJointLimiter : public JointSaturationLimiter<JointControlInterfacesData>
+class JointSoftLimiter : public JointSaturationLimiter<JointControlInterfacesData>
 {
 public:
   bool on_init() override

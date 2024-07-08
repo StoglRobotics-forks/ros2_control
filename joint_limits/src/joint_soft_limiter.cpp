@@ -18,7 +18,7 @@
 namespace joint_limits
 {
 
-bool SoftJointLimiter::on_enforce(
+bool JointSoftLimiter::on_enforce(
   JointControlInterfacesData & actual, JointControlInterfacesData & desired,
   const rclcpp::Duration & dt)
 {
@@ -260,7 +260,7 @@ bool SoftJointLimiter::on_enforce(
 
 #include "pluginlib/class_list_macros.hpp"
 
-typedef joint_limits::SoftJointLimiter JointInterfacesSoftLimiter;
+typedef joint_limits::JointSoftLimiter JointInterfacesSoftLimiter;
 typedef joint_limits::JointLimiterInterface<joint_limits::JointControlInterfacesData>
   JointInterfacesLimiterInterfaceBase;
 PLUGINLIB_EXPORT_CLASS(JointInterfacesSoftLimiter, JointInterfacesLimiterInterfaceBase)

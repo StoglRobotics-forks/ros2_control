@@ -673,10 +673,13 @@ public:
       limiters_data_[hw_info.name] = {};
       for (const auto & [joint_name, limits] : hw_info.limits)
       {
+        RCUTILS_LOG_INFO_NAMED(
+          "resource_manager", "%s with limits:%s", joint_name.c_str(), limits.to_string().c_str());
+
         std::unique_ptr<
           joint_limits::JointLimiterInterface<joint_limits::JointControlInterfacesData>>
           limits_interface;
-        const joint_limits::JointLimits hard_limits{limits};
+        const joint_limits::JointLimits hard_limit{limits};
         joint_limits::JointInterfacesCommandLimiterData data;
         data.joint_name = joint_name;
         limiters_data_[hw_info.name].push_back(data);
@@ -685,16 +688,15 @@ public:
         {
           std::vector<joint_limits::SoftJointLimits> soft_limits = {
             hw_info.soft_limits.at(joint_name)};
-          limits_interface = std::make_unique<
-            joint_limits::SoftJointLimiter<joint_limits::JointControlInterfacesData>>();
+          limits_interface = std::make_unique<joint_limits::JointSoftLimiter>();
+          limits_interface->init({joint_name}, {hard_limit}, soft_limits, nullptr, nullptr);
         }
         // no soft limits given so we use the joint saturation limiter (joint_range_limiter.hpp)
         else
         {
           limits_interface = std::make_unique<
             joint_limits::JointSaturationLimiter<joint_limits::JointControlInterfacesData>>();
-
-          limits_interface->init({joint_name}, hard_limits, soft_limits, nullptr, nullptr);
+          limits_interface->init({joint_name}, {hard_limit}, {}, nullptr, nullptr);
         }
         joint_limiters_interface_[hw_info.name].push_back(std::move(limits_interface));
       }
@@ -713,28 +715,28 @@ public:
       interface_map.end())
     {
       state.position =
-        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_POSITION).get_value();
+        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_POSITION)->get_value();
     }
     if (
       interface_map.find(joint_name + "/" + hardware_interface::HW_IF_VELOCITY) !=
       interface_map.end())
     {
       state.velocity =
-        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_VELOCITY).get_value();
+        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_VELOCITY)->get_value();
     }
     if (
       interface_map.find(joint_name + "/" + hardware_interface::HW_IF_EFFORT) !=
       interface_map.end())
     {
       state.effort =
-        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_EFFORT).get_value();
+        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_EFFORT)->get_value();
     }
     if (
       interface_map.find(joint_name + "/" + hardware_interface::HW_IF_ACCELERATION) !=
       interface_map.end())
     {
       state.acceleration =
-        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_ACCELERATION).get_value();
+        interface_map.at(joint_name + "/" + hardware_interface::HW_IF_ACCELERATION)->get_value();
     }
   }
 
@@ -749,7 +751,7 @@ public:
       state.position.has_value())
     {
       interface_map.at(state.joint_name + "/" + hardware_interface::HW_IF_POSITION)
-        .set_value(state.position.value());
+        ->set_value(state.position.value());
     }
     if (
       interface_map.find(state.joint_name + "/" + hardware_interface::HW_IF_VELOCITY) !=
@@ -757,7 +759,7 @@ public:
       state.velocity.has_value())
     {
       interface_map.at(state.joint_name + "/" + hardware_interface::HW_IF_VELOCITY)
-        .set_value(state.velocity.value());
+        ->set_value(state.velocity.value());
     }
     if (
       interface_map.find(state.joint_name + "/" + hardware_interface::HW_IF_EFFORT) !=
@@ -765,7 +767,7 @@ public:
       state.effort.has_value())
     {
       interface_map.at(state.joint_name + "/" + hardware_interface::HW_IF_EFFORT)
-        .set_value(state.effort.value());
+        ->set_value(state.effort.value());
     }
     if (
       interface_map.find(state.joint_name + "/" + hardware_interface::HW_IF_ACCELERATION) !=
@@ -773,15 +775,15 @@ public:
       state.acceleration.has_value())
     {
       interface_map.at(state.joint_name + "/" + hardware_interface::HW_IF_ACCELERATION)
-        .set_value(state.acceleration.value());
+        ->set_value(state.acceleration.value());
     }
   }
 
   void update_joint_limiters_data()
   {
-    for (auto & joint_limiter_data : limiters_data_)
+    for (auto & [hw_info_name, joint_limiter_data] : limiters_data_)
     {
-      for (auto & data : joint_limiter_data.second)
+      for (auto & data : joint_limiter_data)
       {
         update_joint_limiters_state(data.joint_name, state_interface_map_, data.actual);
         update_joint_limiters_state(data.joint_name, command_interface_map_, data.command);
