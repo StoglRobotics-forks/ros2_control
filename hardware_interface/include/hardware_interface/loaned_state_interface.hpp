@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "hardware_interface/handle.hpp"
+#include "hardware_interface/types/handle_datatype.hpp"
 
 namespace hardware_interface
 {
@@ -63,7 +64,11 @@ public:
 
   const std::string & get_prefix_name() const { return state_interface_.get_prefix_name(); }
 
-  double get_value() const { return state_interface_.get_value<double>(); }
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  T get_value() const
+  {
+    return state_interface_.get_value<T>();
+  }
 
 protected:
   StateInterface & state_interface_;

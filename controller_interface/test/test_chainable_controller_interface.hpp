@@ -32,6 +32,8 @@ constexpr double INTERFACE_VALUE_UPDATE_ERROR = 67890.0;
 constexpr double INTERFACE_VALUE_INITIAL_REF = 1984.0;
 constexpr double EXPORTED_STATE_INTERFACE_VALUE = 21833.0;
 constexpr double EXPORTED_STATE_INTERFACE_VALUE_IN_CHAINMODE = 82802.0;
+constexpr double EXPORTED_REF_INTERFACE_VALUE_IN_CHAINMODE = 8280.0;
+constexpr int DEFAULT_INIT_POS = 1;
 
 using hardware_interface::InterfaceDescription;
 using hardware_interface::InterfaceInfo;
@@ -44,17 +46,23 @@ public:
   FRIEND_TEST(ChainableControllerInterfaceTest, test_update_logic);
 
   TestableChainableControllerInterface()
+  : ref_itf_names_({}), state_itf_names_({}), val_for_default_init_(-1)
   {
-    reference_interfaces_.reserve(1);
-    reference_interfaces_.push_back(INTERFACE_VALUE);
-    state_interfaces_values_.reserve(1);
-    state_interfaces_values_.push_back(EXPORTED_STATE_INTERFACE_VALUE);
+  }
+
+  TestableChainableControllerInterface(
+    const std::vector<std::string> & ref_itf_names,
+    const std::vector<std::string> & state_itf_names)
+  : ref_itf_names_(ref_itf_names),
+    state_itf_names_(state_itf_names),
+    val_for_default_init_(DEFAULT_INIT_POS)
+  {
   }
 
   controller_interface::CallbackReturn on_init() override
   {
     // set default value
-    name_prefix_of_interfaces_ = get_node()->get_name();
+    prefix_of_interfaces_ = get_node()->get_name();
 
     return controller_interface::CallbackReturn::SUCCESS;
   }
@@ -72,33 +80,70 @@ public:
   }
 
   // Implementation of ChainableController virtual methods
-  std::vector<hardware_interface::StateInterface> on_export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override
   {
-    std::vector<hardware_interface::StateInterface> state_interfaces;
+    using hardware_interface::InterfaceDescription;
+    using hardware_interface::InterfaceInfo;
+    std::vector<InterfaceDescription> exported_state_interfaces_descr;
 
-    state_interfaces.push_back(hardware_interface::StateInterface(
-      name_prefix_of_interfaces_, "test_state", &state_interfaces_values_[0]));
+    int i = 0;
+    for (const auto & state_itf_name : state_itf_names_)
+    {
+      if (i == val_for_default_init_)
+      {
+        exported_state_interfaces_descr.emplace_back(
+          prefix_of_interfaces_, InterfaceInfo(state_itf_name, "double"));
+      }
+      else
+      {
+        exported_state_interfaces_descr.emplace_back(
+          prefix_of_interfaces_,
+          InterfaceInfo(state_itf_name, "double", std::to_string(EXPORTED_STATE_INTERFACE_VALUE)));
+      }
+      ++i;
+    }
 
-    return state_interfaces;
+    return exported_state_interfaces_descr;
   }
 
   // Implementation of ChainableController virtual methods
-  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_reference_interface_descriptions()
+    override
   {
-    std::vector<hardware_interface::CommandInterface> command_interfaces;
+    using hardware_interface::InterfaceDescription;
+    using hardware_interface::InterfaceInfo;
+    std::vector<InterfaceDescription> reference_interface_descr;
 
-    command_interfaces.push_back(hardware_interface::CommandInterface(InterfaceDescription(
-      name_prefix_of_reference_interfaces_,
-      InterfaceInfo(ref_itf_name_, std::to_string(INTERFACE_VALUE), "double"))));
+    int i = 0;
+    for (const auto & ref_itf_name : ref_itf_names_)
+    {
+      if (i == val_for_default_init_)
+      {
+        reference_interface_descr.emplace_back(
+          prefix_of_interfaces_, InterfaceInfo(ref_itf_name, "double"));
+      }
+      else
+      {
+        reference_interface_descr.emplace_back(
+          prefix_of_interfaces_,
+          InterfaceInfo(ref_itf_name, "double", std::to_string(INTERFACE_VALUE)));
+      }
+      ++i;
+    }
 
-    return command_interfaces;
+    return reference_interface_descr;
   }
 
   bool on_set_chained_mode(bool /*chained_mode*/) override
   {
-    if (reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() == 0.0)
+    if (reference_interfaces_[exported_reference_interface_names_[0]]->get_value<double>() == 0.0)
     {
-      state_interfaces_values_[0] = EXPORTED_STATE_INTERFACE_VALUE_IN_CHAINMODE;
+      reference_interfaces_[exported_reference_interface_names_[1]]->set_value(
+        EXPORTED_REF_INTERFACE_VALUE_IN_CHAINMODE);
+      exported_state_interfaces_[exported_state_interface_names_[0]]->set_value(
+        EXPORTED_STATE_INTERFACE_VALUE_IN_CHAINMODE);
+
       return true;
     }
     else
@@ -111,13 +156,16 @@ public:
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     if (
-      reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() ==
+      reference_interfaces_[exported_reference_interface_names_[0]]->get_value<double>() ==
       INTERFACE_VALUE_SUBSCRIBER_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
 
-    reference_interfaces_ptrs_[ref_itf_full_name_]->set_value(reference_interface_value_);
+    reference_interfaces_[exported_reference_interface_names_[0]]->set_value(
+      INTERFACE_VALUE_INITIAL_REF);
+    exported_state_interfaces_[exported_reference_interface_names_[0]]->set_value(
+      INTERFACE_VALUE_INITIAL_REF);
     return controller_interface::return_type::OK;
   }
 
@@ -125,43 +173,41 @@ public:
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override
   {
     if (
-      reference_interfaces_ptrs_[ref_itf_full_name_]->get_value<double>() ==
+      reference_interfaces_[exported_reference_interface_names_[0]]->get_value<double>() ==
       INTERFACE_VALUE_UPDATE_ERROR)
     {
       return controller_interface::return_type::ERROR;
     }
 
-    reference_interfaces_ptrs_[ref_itf_full_name_]->operator-=(1);
+    reference_interfaces_[exported_reference_interface_names_[0]]->operator-=(1);
+    exported_state_interfaces_[exported_state_interface_names_[0]]->operator+=(1);
 
     return controller_interface::return_type::OK;
   }
 
   void set_name_prefix_of_reference_interfaces(const std::string & prefix)
   {
-    name_prefix_of_reference_interfaces_ = prefix;
-    update_ref_itf_full_name();
+    prefix_of_interfaces_ = prefix;
   }
 
-  void set_new_reference_interface_value(const double ref_itf_value)
-  {
-    reference_interface_value_ = ref_itf_value;
-    update_ref_itf_full_name();
-  }
-
-  void update_ref_itf_full_name()
-  {
-    ref_itf_full_name_ = name_prefix_of_reference_interfaces_ + "/" + ref_itf_name_;
-  }
-
-  std::string name_prefix_of_interfaces_;
-  std::string ref_itf_name_ = "test_itf";
-  std::string ref_itf_full_name_;
-  double reference_interface_value_ = INTERFACE_VALUE_INITIAL_REF;
+  std::string prefix_of_interfaces_;
+  const std::vector<std::string> ref_itf_names_;
+  const std::vector<std::string> state_itf_names_;
+  const int val_for_default_init_;
 };
 
 class ChainableControllerInterfaceTest : public ::testing::Test
 {
 public:
+  static const std::vector<std::string> ref_itf_names;
+  static const std::vector<std::string> state_itf_names;
+  static const std::vector<std::string> ref_itf_names_duplicate;
+  static const std::vector<std::string> state_itf_names_duplicate;
+  static const std::string full_ref_itf_name_1;
+  static const std::string full_ref_itf_name_2;
+  static const std::string full_state_itf_name_1;
+  static const std::string full_state_itf_name_2;
+
   static void SetUpTestCase() { rclcpp::init(0, nullptr); }
 
   static void TearDownTestCase() { rclcpp::shutdown(); }

@@ -44,7 +44,8 @@ class HARDWARE_INTERFACE_PUBLIC GenericSystem : public hardware_interface::Syste
 public:
   CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override;
 
-  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override;
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override;
 
   return_type prepare_command_mode_switch(
     const std::vector<std::string> & start_interfaces,

@@ -113,7 +113,7 @@ Migration of unlisted Command-/StateInterfaces not defined in ``ros2_control`` X
 --------------------------------------------------------------------------------------
 If you want some unlisted ``Command-/StateInterfaces`` not included in the ``ros2_control`` XML-tag you can follow those steps:
 
-1. Override the ``virtual std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2()`` or ``virtual std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2()``
+1. Override the ``virtual std::vector<hardware_interface::InterfaceDescription> export_command_interface_descriptions()`` or ``virtual std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()``
 2. Create the InterfaceDescription for each of the interfaces you want to create in the override ``export_command_interfaces_2()`` or ``export_state_interfaces_2()`` function, add it to a vector and return the vector:
 
   .. code-block:: c++

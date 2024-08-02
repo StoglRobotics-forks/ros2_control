@@ -19,16 +19,16 @@
 #include <string>
 #include <vector>
 
+#include "control_msgs/msg/interface_value.hpp"
 #include "controller_interface/chainable_controller_interface.hpp"
 #include "controller_manager/visibility_control.h"
 #include "rclcpp/subscription.hpp"
 #include "realtime_tools/realtime_buffer.h"
 #include "semantic_components/imu_sensor.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
 
 namespace test_chainable_controller
 {
-using CmdType = std_msgs::msg::Float64MultiArray;
+using CmdType = control_msgs::msg::InterfaceValue;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 // indicating the node name under which the controller node
@@ -63,10 +63,12 @@ public:
   CallbackReturn on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
 
   CONTROLLER_MANAGER_PUBLIC
-  std::vector<hardware_interface::StateInterface> on_export_state_interfaces() override;
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override;
 
   CONTROLLER_MANAGER_PUBLIC
-  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
+  std::vector<hardware_interface::InterfaceDescription> export_reference_interface_descriptions()
+    override;
 
   controller_interface::return_type update_reference_from_subscribers(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
@@ -98,7 +100,7 @@ public:
   controller_interface::InterfaceConfiguration cmd_iface_cfg_;
   controller_interface::InterfaceConfiguration state_iface_cfg_;
   std::vector<std::string> reference_interface_names_;
-  std::vector<std::string> exported_state_interface_names_;
+  std::vector<std::string> state_interface_names_;
   std::unique_ptr<semantic_components::IMUSensor> imu_sensor_;
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>> rt_command_ptr_;

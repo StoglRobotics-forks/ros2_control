@@ -77,24 +77,27 @@ TestChainableController::state_interface_configuration() const
 controller_interface::return_type TestChainableController::update_reference_from_subscribers(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  for (size_t i = 0; i < reference_interfaces_.size(); ++i)
+  auto joint_commands = rt_command_ptr_.readFromRT();
+  const auto itf_names = (*joint_commands)->interface_names;
+  const auto itf_values = (*joint_commands)->values;
+
+  assert(exported_reference_interface_names_.size() == itf_names.size());
+
+  for (size_t i = 0; i < (*joint_commands)->interface_names.size(); ++i)
   {
     RCLCPP_INFO(
       get_node()->get_logger(),
       "Value of reference interface '%s' before checking external input is %f",
-      (std::string(get_node()->get_name()) + "/" + reference_interface_names_[i]).c_str(),
-      reference_interfaces_[i]);
+      itf_names[i].c_str(), reference_interfaces_[itf_names[i]]->get_value<double>());
+    reference_interfaces_[itf_names[i]]->set_value(itf_values[i]);
   }
 
-  auto joint_commands = rt_command_ptr_.readFromRT();
-  reference_interfaces_ = (*joint_commands)->data;
-  for (size_t i = 0; i < reference_interfaces_.size(); ++i)
+  for (const auto & ref_itf_name : exported_reference_interface_names_)
   {
     RCLCPP_INFO(
       get_node()->get_logger(),
       "Updated value of reference interface '%s' after applying external input is %f",
-      (std::string(get_node()->get_name()) + "/" + reference_interface_names_[i]).c_str(),
-      reference_interfaces_[i]);
+      ref_itf_name.c_str(), reference_interfaces_[ref_itf_name]->get_value<double>());
   }
 
   return controller_interface::return_type::OK;
@@ -107,13 +110,16 @@ controller_interface::return_type TestChainableController::update_and_write_comm
 
   for (size_t i = 0; i < command_interfaces_.size(); ++i)
   {
-    command_interfaces_[i].set_value(reference_interfaces_[i] - state_interfaces_[i].get_value());
+    command_interfaces_[i].set_value(
+      reference_interfaces_[exported_reference_interface_names_[i]]->get_value<double>() -
+      state_interfaces_[i].get_value<double>());
   }
   // If there is a command interface then integrate and set it to the exported state interface data
   for (size_t i = 0; i < exported_state_interface_names_.size() && i < command_interfaces_.size();
        ++i)
   {
-    state_interfaces_values_[i] = command_interfaces_[i].get_value() * CONTROLLER_DT;
+    exported_state_interfaces_[exported_state_interface_names_[i]]->set_value(
+      command_interfaces_[i].get_value<double>() * CONTROLLER_DT);
   }
   // If there is no command interface and if there is a state interface then just forward the same
   // value as in the state interface
@@ -121,7 +127,8 @@ controller_interface::return_type TestChainableController::update_and_write_comm
                      command_interfaces_.empty();
        ++i)
   {
-    state_interfaces_values_[i] = state_interfaces_[i].get_value();
+    exported_state_interfaces_[exported_state_interface_names_[i]]->set_value(
+      state_interfaces_[i].get_value<double>());
   }
 
   return controller_interface::return_type::OK;
@@ -138,7 +145,7 @@ CallbackReturn TestChainableController::on_configure(
     {
       auto joint_commands = rt_command_ptr_.readFromNonRT();
 
-      if (msg->data.size() != (*joint_commands)->data.size())
+      if (msg->interface_names.size() != (*joint_commands)->interface_names.size())
       {
         rt_command_ptr_.writeFromNonRT(msg);
       }
@@ -147,12 +154,13 @@ CallbackReturn TestChainableController::on_configure(
         RCLCPP_ERROR_THROTTLE(
           get_node()->get_logger(), *get_node()->get_clock(), 1000,
           "command size (%zu) does not match number of reference interfaces (%zu)",
-          (*joint_commands)->data.size(), reference_interfaces_.size());
+          (*joint_commands)->interface_names.size(), reference_interfaces_.size());
       }
     });
 
   auto msg = std::make_shared<CmdType>();
-  msg->data.resize(reference_interfaces_.size());
+  msg->interface_names.resize(exported_reference_interface_names_.size());
+  msg->values.resize(exported_reference_interface_names_.size());
   rt_command_ptr_.writeFromNonRT(msg);
 
   return CallbackReturn::SUCCESS;
@@ -164,7 +172,12 @@ CallbackReturn TestChainableController::on_activate(
   if (!is_in_chained_mode())
   {
     auto msg = rt_command_ptr_.readFromRT();
-    (*msg)->data = reference_interfaces_;
+    for (size_t i = 0; i < exported_state_interface_names_.size(); ++i)
+    {
+      (*msg)->interface_names[i] = exported_reference_interface_names_[i];
+      (*msg)->values[i] =
+        reference_interfaces_[exported_reference_interface_names_[i]]->get_value<double>();
+    }
   }
 
   return CallbackReturn::SUCCESS;
@@ -177,29 +190,32 @@ CallbackReturn TestChainableController::on_cleanup(
   return CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::StateInterface>
-TestChainableController::on_export_state_interfaces()
+std::vector<hardware_interface::InterfaceDescription>
+TestChainableController::export_state_interface_descriptions()
 {
-  std::vector<hardware_interface::StateInterface> state_interfaces;
+  using hardware_interface::InterfaceDescription;
+  using hardware_interface::InterfaceInfo;
+  std::vector<InterfaceDescription> state_interfaces;
 
-  for (size_t i = 0; i < exported_state_interface_names_.size(); ++i)
+  for (const auto & interface_name : state_interface_names_)
   {
-    state_interfaces.push_back(hardware_interface::StateInterface(
-      get_node()->get_name(), exported_state_interface_names_[i], &state_interfaces_values_[i]));
+    state_interfaces.emplace_back(get_node()->get_name(), InterfaceInfo(interface_name, "double"));
   }
 
   return state_interfaces;
 }
 
-std::vector<hardware_interface::CommandInterface>
-TestChainableController::on_export_reference_interfaces()
+std::vector<hardware_interface::InterfaceDescription>
+TestChainableController::export_reference_interface_descriptions()
 {
-  std::vector<hardware_interface::CommandInterface> reference_interfaces;
+  using hardware_interface::InterfaceDescription;
+  using hardware_interface::InterfaceInfo;
+  std::vector<InterfaceDescription> reference_interfaces;
 
-  for (size_t i = 0; i < reference_interface_names_.size(); ++i)
+  for (const auto & interface_name : reference_interface_names_)
   {
-    reference_interfaces.push_back(hardware_interface::CommandInterface(InterfaceDescription(
-      get_node()->get_name(), InterfaceInfo(reference_interface_names_[i], "double"))));
+    reference_interfaces.emplace_back(
+      get_node()->get_name(), InterfaceInfo(interface_name, "double"));
   }
 
   return reference_interfaces;
@@ -221,16 +237,12 @@ void TestChainableController::set_reference_interface_names(
   const std::vector<std::string> & reference_interface_names)
 {
   reference_interface_names_ = reference_interface_names;
-
-  reference_interfaces_.resize(reference_interface_names.size(), 0.0);
 }
 
 void TestChainableController::set_exported_state_interface_names(
   const std::vector<std::string> & state_interface_names)
 {
-  exported_state_interface_names_ = state_interface_names;
-
-  state_interfaces_values_.resize(exported_state_interface_names_.size(), 0.0);
+  state_interface_names_ = state_interface_names;
 }
 
 void TestChainableController::set_imu_sensor_name(const std::string & name)
@@ -246,7 +258,7 @@ std::vector<double> TestChainableController::get_state_interface_data() const
   std::vector<double> state_intr_data;
   for (const auto & interface : state_interfaces_)
   {
-    state_intr_data.push_back(interface.get_value());
+    state_intr_data.push_back(interface.get_value<double>());
   }
   return state_intr_data;
 }

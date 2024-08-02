@@ -353,7 +353,8 @@ TEST_F(ResourceManagerTest, resource_claiming)
 
 class ExternalComponent : public hardware_interface::ActuatorInterface
 {
-  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override
   {
     std::vector<hardware_interface::InterfaceDescription> interfaces;
     hardware_interface::InterfaceInfo info;
@@ -364,7 +365,8 @@ class ExternalComponent : public hardware_interface::ActuatorInterface
     return interfaces;
   }
 
-  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interface_descriptions()
+    override
   {
     std::vector<hardware_interface::InterfaceDescription> interfaces;
     hardware_interface::InterfaceInfo info;
@@ -1289,13 +1291,13 @@ TEST_F(ResourceManagerTest, managing_controllers_reference_interfaces)
     EXPECT_TRUE(rm.command_interface_is_claimed(FULL_REFERENCE_INTERFACE_NAMES[2]));
 
     // access interface value
-    EXPECT_EQ(claimed_itf1.get_value(), 1.0);
-    EXPECT_EQ(claimed_itf3.get_value(), 3.0);
+    EXPECT_EQ(claimed_itf1.get_value<double>(), 1.0);
+    EXPECT_EQ(claimed_itf3.get_value<double>(), 3.0);
 
     claimed_itf1.set_value(11.1);
     claimed_itf3.set_value(33.3);
-    EXPECT_EQ(claimed_itf1.get_value(), 11.1);
-    EXPECT_EQ(claimed_itf3.get_value(), 33.3);
+    EXPECT_EQ(claimed_itf1.get_value<double>(), 11.1);
+    EXPECT_EQ(claimed_itf3.get_value<double>(), 33.3);
 
     EXPECT_EQ(reference_interface_values[0], 11.1);
     EXPECT_EQ(reference_interface_values[1], 2.0);

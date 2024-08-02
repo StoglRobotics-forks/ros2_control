@@ -250,7 +250,8 @@ CallbackReturn GenericSystem::on_init(const hardware_interface::HardwareInfo & i
   return CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::InterfaceDescription> GenericSystem::export_command_interfaces_2()
+std::vector<hardware_interface::InterfaceDescription>
+GenericSystem::export_state_interface_descriptions()
 {
   // we check if we should mock command interfaces or not. After they have been exported we can then
   // use them as we would normally via (set/get)_(state/command)

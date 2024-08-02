@@ -63,9 +63,17 @@ public:
 
   const std::string & get_prefix_name() const { return command_interface_.get_prefix_name(); }
 
-  void set_value(double val) { command_interface_.set_value(val); }
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  void set_value(T val)
+  {
+    command_interface_.set_value(val);
+  }
 
-  double get_value() const { return command_interface_.get_value<double>(); }
+  template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
+  T get_value() const
+  {
+    return command_interface_.get_value<T>();
+  }
 
 protected:
   CommandInterface & command_interface_;

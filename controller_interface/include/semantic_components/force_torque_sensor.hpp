@@ -102,7 +102,7 @@ public:
     {
       if (existing_axes_[i])
       {
-        forces_[i] = state_interfaces_[interface_counter].get().get_value();
+        forces_[i] = state_interfaces_[interface_counter].get().get_value<double>();
         ++interface_counter;
       }
     }
@@ -126,7 +126,7 @@ public:
     {
       if (existing_axes_[i])
       {
-        torques_[i - 3] = state_interfaces_[torque_interface_counter].get().get_value();
+        torques_[i - 3] = state_interfaces_[torque_interface_counter].get().get_value<double>();
         ++torque_interface_counter;
       }
     }

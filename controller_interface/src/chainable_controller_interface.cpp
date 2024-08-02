@@ -47,17 +47,17 @@ return_type ChainableControllerInterface::update(
 std::vector<std::shared_ptr<hardware_interface::StateInterface>>
 ChainableControllerInterface::export_state_interfaces()
 {
-  auto state_interfaces = on_export_state_interfaces();
+  auto state_interfaces_descr = export_state_interface_descriptions();
   std::vector<std::shared_ptr<hardware_interface::StateInterface>> state_interfaces_ptrs_vec;
-  state_interfaces_ptrs_vec.reserve(state_interfaces.size());
+  state_interfaces_ptrs_vec.reserve(state_interfaces_descr.size());
 
   // check if the names of the controller state interfaces begin with the controller's name
-  for (auto & interface : state_interfaces)
+  for (auto & descr : state_interfaces_descr)
   {
-    if (interface.get_prefix_name() != get_node()->get_name())
+    if (descr.prefix_name != get_node()->get_name())
     {
       std::string error_msg =
-        "The prefix of the interface '" + interface.get_prefix_name() +
+        "The prefix of the interface description'" + descr.prefix_name +
         "' does not equal the controller's name '" + get_node()->get_name() +
         "'. This is mandatory for state interfaces. No state interface will be exported. Please "
         "correct and recompile the controller with name '" +
@@ -65,8 +65,41 @@ ChainableControllerInterface::export_state_interfaces()
       throw std::runtime_error(error_msg);
     }
 
-    state_interfaces_ptrs_vec.push_back(
-      std::make_shared<hardware_interface::StateInterface>(interface));
+    auto state_interface = std::make_shared<hardware_interface::StateInterface>(descr);
+    const auto inteface_name = state_interface->get_name();
+    // check the exported interface name is unique
+    auto [it, succ] = exported_state_interfaces_.insert({inteface_name, state_interface});
+    // either we have name duplicate which we want to avoid under all circumstances since interfaces
+    // need to be uniquely identify able or something else really went wrong. In any case abort and
+    // inform cm by throwing exception
+    if (!succ)
+    {
+      std::string error_msg =
+        "Could not insert StateInterface<" + inteface_name +
+        "> into exported_state_interfaces_ map. Check if you export duplicates. The "
+        "map returned iterator with interface_name<" +
+        it->second->get_name() +
+        ">. If its a duplicate adjust exportation of InterfacesDescription so that all the "
+        "interface names are unique.";
+      exported_state_interfaces_.clear();
+      exported_state_interface_names_.clear();
+      state_interfaces_ptrs_vec.clear();
+      throw std::runtime_error(error_msg);
+    }
+    exported_state_interface_names_.push_back(inteface_name);
+    state_interfaces_ptrs_vec.push_back(state_interface);
+  }
+
+  if (exported_state_interfaces_.size() != state_interfaces_descr.size())
+  {
+    std::string error_msg =
+      "The internal storage for reference ptrs 'exported_state_interfaces_' variable has size '" +
+      std::to_string(exported_state_interfaces_.size()) +
+      "', but it is expected to have the size '" + std::to_string(state_interfaces_descr.size()) +
+      "' equal to the number of exported reference interfaces. Please correct and recompile the "
+      "controller with name '" +
+      get_node()->get_name() + "' and try again.";
+    throw std::runtime_error(error_msg);
   }
 
   return state_interfaces_ptrs_vec;
@@ -75,46 +108,16 @@ ChainableControllerInterface::export_state_interfaces()
 std::vector<std::shared_ptr<hardware_interface::CommandInterface>>
 ChainableControllerInterface::export_reference_interfaces()
 {
-  auto reference_interfaces = on_export_reference_interfaces();
+  auto reference_interface_descr = export_reference_interface_descriptions();
   std::vector<std::shared_ptr<hardware_interface::CommandInterface>> reference_interfaces_ptrs_vec;
-  reference_interfaces_ptrs_vec.reserve(reference_interfaces.size());
-  std::vector<std::shared_ptr<hardware_interface::CommandInterface>> reference_interfaces_ptrs_vec;
-  reference_interfaces_ptrs_vec.reserve(reference_interfaces.size());
-
-  // BEGIN (Handle export change): for backward compatibility
-  // BEGIN (Handle export change): for backward compatibility
-  // check if the "reference_interfaces_" variable is resized to number of interfaces
-  if (reference_interfaces_.size() != reference_interfaces.size())
-  {
-    // TODO(destogl): Should here be "FATAL"? It is fatal in terms of controller but not for the
-    // framework
-    std::string error_msg =
-      "The internal storage for reference values 'reference_interfaces_' variable has size '" +
-      std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
-      std::to_string(reference_interfaces.size()) +
-      "' equal to the number of exported reference interfaces. Please correct and recompile the "
-      "controller with name '" +
-      get_node()->get_name() + "' and try again.";
-    throw std::runtime_error(error_msg);
-    std::string error_msg =
-      "The internal storage for reference values 'reference_interfaces_' variable has size '" +
-      std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
-      std::to_string(reference_interfaces.size()) +
-      "' equal to the number of exported reference interfaces. Please correct and recompile the "
-      "controller with name '" +
-      get_node()->get_name() + "' and try again.";
-    throw std::runtime_error(error_msg);
-  }
-  // END
+  reference_interfaces_ptrs_vec.reserve(reference_interface_descr.size());
 
   // check if the names of the reference interfaces begin with the controller's name
-  const auto ref_interface_size = reference_interfaces.size();
-  for (auto & interface : reference_interfaces)
+  for (auto & descr : reference_interface_descr)
   {
-    auto & interface = reference_interfaces[i];
-    if (interface.get_prefix_name() != get_node()->get_name())
+    if (descr.prefix_name != get_node()->get_name())
     {
-      std::string error_msg = "The name of the interface " + interface.get_name() +
+      std::string error_msg = "The name of the interface descr " + descr.prefix_name +
                               " does not begin with the controller's name. This is mandatory for "
                               "reference interfaces. Please "
                               "correct and recompile the controller with name " +
@@ -122,25 +125,43 @@ ChainableControllerInterface::export_reference_interfaces()
       throw std::runtime_error(error_msg);
     }
 
-    std::shared_ptr<hardware_interface::CommandInterface> interface_ptr =
-      std::make_shared<hardware_interface::CommandInterface>(std::move(interface));
-    reference_interfaces_ptrs_vec.push_back(interface_ptr);
-    reference_interfaces_ptrs_.insert(std::make_pair(interface_ptr->get_name(), interface_ptr));
+    auto reference_interface = std::make_shared<hardware_interface::CommandInterface>(descr);
+    const auto inteface_name = reference_interface->get_name();
+    // check the exported interface name is unique
+    auto [it, succ] = reference_interfaces_.insert({inteface_name, reference_interface});
+    // either we have name duplicate which we want to avoid under all circumstances since interfaces
+    // need to be uniquely identify able or something else really went wrong. In any case abort and
+    // inform cm by throwing exception
+    if (!succ)
+    {
+      std::string error_msg =
+        "Could not insert Reference interface<" + inteface_name +
+        "> into reference_interfaces_ map. Check if you export duplicates. The "
+        "map returned iterator with interface_name<" +
+        it->second->get_name() +
+        ">. If its a duplicate adjust exportation of InterfacesDescription so that all the "
+        "interface names are unique.";
+      reference_interfaces_.clear();
+      exported_reference_interface_names_.clear();
+      reference_interfaces_ptrs_vec.clear();
+      throw std::runtime_error(error_msg);
+    }
+    exported_reference_interface_names_.push_back(inteface_name);
+    reference_interfaces_ptrs_vec.push_back(reference_interface);
   }
 
-  if (reference_interfaces_ptrs_.size() != ref_interface_size)
+  if (reference_interfaces_.size() != reference_interface_descr.size())
   {
     std::string error_msg =
-      "The internal storage for reference ptrs 'reference_interfaces_ptrs_' variable has size '" +
-      std::to_string(reference_interfaces_ptrs_.size()) +
-      "', but it is expected to have the size '" + std::to_string(ref_interface_size) +
+      "The internal storage for reference ptrs 'reference_interfaces_' variable has size '" +
+      std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
+      std::to_string(reference_interface_descr.size()) +
       "' equal to the number of exported reference interfaces. Please correct and recompile the "
       "controller with name '" +
       get_node()->get_name() + "' and try again.";
     throw std::runtime_error(error_msg);
   }
 
-  return reference_interfaces_ptrs_vec;
   return reference_interfaces_ptrs_vec;
 }
 
@@ -172,31 +193,5 @@ bool ChainableControllerInterface::set_chained_mode(bool chained_mode)
 bool ChainableControllerInterface::is_in_chained_mode() const { return in_chained_mode_; }
 
 bool ChainableControllerInterface::on_set_chained_mode(bool /*chained_mode*/) { return true; }
-
-std::vector<hardware_interface::StateInterface>
-ChainableControllerInterface::on_export_state_interfaces()
-{
-  state_interfaces_values_.resize(exported_state_interface_names_.size(), 0.0);
-  std::vector<hardware_interface::StateInterface> state_interfaces;
-  for (size_t i = 0; i < exported_state_interface_names_.size(); ++i)
-  {
-    state_interfaces.emplace_back(
-      get_node()->get_name(), exported_state_interface_names_[i], &state_interfaces_values_[i]);
-  }
-  return state_interfaces;
-}
-
-std::vector<hardware_interface::CommandInterface>
-ChainableControllerInterface::on_export_reference_interfaces()
-{
-  reference_interfaces_.resize(exported_reference_interface_names_.size(), 0.0);
-  std::vector<hardware_interface::CommandInterface> reference_interfaces;
-  for (size_t i = 0; i < exported_reference_interface_names_.size(); ++i)
-  {
-    reference_interfaces.emplace_back(hardware_interface::CommandInterface(
-      get_node()->get_name(), exported_reference_interface_names_[i], &reference_interfaces_[i]));
-  }
-  return reference_interfaces;
-}
 
 }  // namespace controller_interface

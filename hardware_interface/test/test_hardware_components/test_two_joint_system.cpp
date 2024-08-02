@@ -67,7 +67,8 @@ class TestTwoJointSystem : public SystemInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<hardware_interface::InterfaceDescription> export_state_interfaces_2() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override
   {
     std::vector<hardware_interface::InterfaceDescription> state_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
@@ -83,7 +84,8 @@ class TestTwoJointSystem : public SystemInterface
     return state_interfaces;
   }
 
-  std::vector<hardware_interface::InterfaceDescription> export_command_interfaces_2() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interface_descriptions()
+    override
   {
     std::vector<hardware_interface::InterfaceDescription> command_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)

@@ -512,21 +512,40 @@ public:
 
     // check if values are set properly in controllers
     ASSERT_EQ(
-      diff_drive_controller->reference_interfaces_[0], reference[0]);  // command from Position to
+      diff_drive_controller
+        ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+        ->get_value<double>(),
+      reference[0]);  // command from Position to
     ASSERT_EQ(
-      diff_drive_controller->reference_interfaces_[1], reference[1]);  // DiffDrive is forwarded
+      diff_drive_controller
+        ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[1]]
+        ->get_value<double>(),
+      reference[1]);  // DiffDrive is forwarded
 
     // Command of DiffDrive controller are references of PID controllers
     EXP_LEFT_WHEEL_REF = chained_ctrl_calculation(reference[0], EXP_LEFT_WHEEL_HW_STATE);
     EXP_RIGHT_WHEEL_REF = chained_ctrl_calculation(reference[1], EXP_RIGHT_WHEEL_HW_STATE);
-    ASSERT_EQ(diff_drive_controller->command_interfaces_[0].get_value(), EXP_LEFT_WHEEL_REF);
-    ASSERT_EQ(diff_drive_controller->command_interfaces_[1].get_value(), EXP_RIGHT_WHEEL_REF);
-    ASSERT_EQ(pid_left_wheel_controller->reference_interfaces_[0], EXP_LEFT_WHEEL_REF);
-    ASSERT_EQ(pid_right_wheel_controller->reference_interfaces_[0], EXP_RIGHT_WHEEL_REF);
+    ASSERT_EQ(
+      diff_drive_controller->command_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_REF);
+    ASSERT_EQ(
+      diff_drive_controller->command_interfaces_[1].get_value<double>(), EXP_RIGHT_WHEEL_REF);
+    ASSERT_EQ(
+      pid_left_wheel_controller
+        ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+        ->get_value<double>(),
+      EXP_LEFT_WHEEL_REF);
+    ASSERT_EQ(
+      pid_right_wheel_controller
+        ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+        ->get_value<double>(),
+      EXP_RIGHT_WHEEL_REF);
 
     EXP_STATE_ODOM_X = chained_estimate_calculation(reference[0], EXP_LEFT_WHEEL_HW_STATE);
     EXP_STATE_ODOM_Y = chained_estimate_calculation(reference[1], EXP_RIGHT_WHEEL_HW_STATE);
-    ASSERT_EQ(sensor_fusion_controller->state_interfaces_values_.size(), 3u);
+    ASSERT_EQ(sensor_fusion_controller->exported_state_interfaces_.size(), 3u);
+    ASSERT_EQ(
+      sensor_fusion_controller->exported_state_interfaces_.size(),
+      sensor_fusion_controller->exported_state_interface_names_.size());
     ASSERT_EQ(robot_localization_controller->get_state_interface_data().size(), 3u);
     ASSERT_EQ(robot_localization_controller->get_state_interface_data()[0], EXP_STATE_ODOM_X);
     ASSERT_EQ(robot_localization_controller->get_state_interface_data()[1], EXP_STATE_ODOM_Y);
@@ -536,21 +555,27 @@ public:
 
     EXP_LEFT_WHEEL_CMD = chained_ctrl_calculation(EXP_LEFT_WHEEL_REF, EXP_LEFT_WHEEL_HW_STATE);
     EXP_LEFT_WHEEL_HW_STATE = hardware_calculation(EXP_LEFT_WHEEL_CMD);
-    ASSERT_EQ(pid_left_wheel_controller->command_interfaces_[0].get_value(), EXP_LEFT_WHEEL_CMD);
-    ASSERT_EQ(pid_left_wheel_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+    ASSERT_EQ(
+      pid_left_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_CMD);
+    ASSERT_EQ(
+      pid_left_wheel_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
     // DiffDrive uses the same state
-    ASSERT_EQ(diff_drive_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+    ASSERT_EQ(
+      diff_drive_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
     // The state doesn't change wrt to any data from the hardware calculation
     ASSERT_EQ(robot_localization_controller->get_state_interface_data()[0], EXP_STATE_ODOM_X);
     ASSERT_EQ(odom_publisher_controller->get_state_interface_data()[0], EXP_STATE_ODOM_X);
 
     EXP_RIGHT_WHEEL_CMD = chained_ctrl_calculation(EXP_RIGHT_WHEEL_REF, EXP_RIGHT_WHEEL_HW_STATE);
     EXP_RIGHT_WHEEL_HW_STATE = hardware_calculation(EXP_RIGHT_WHEEL_CMD);
-    ASSERT_EQ(pid_right_wheel_controller->command_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_CMD);
     ASSERT_EQ(
-      pid_right_wheel_controller->state_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+      pid_right_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_RIGHT_WHEEL_CMD);
+    ASSERT_EQ(
+      pid_right_wheel_controller->state_interfaces_[0].get_value<double>(),
+      EXP_RIGHT_WHEEL_HW_STATE);
     // DiffDrive uses the same state
-    ASSERT_EQ(diff_drive_controller->state_interfaces_[1].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+    ASSERT_EQ(
+      diff_drive_controller->state_interfaces_[1].get_value<double>(), EXP_RIGHT_WHEEL_HW_STATE);
     // The state doesn't change wrt to any data from the hardware calculation
     ASSERT_EQ(robot_localization_controller->get_state_interface_data()[1], EXP_STATE_ODOM_Y);
     ASSERT_EQ(odom_publisher_controller->get_state_interface_data()[1], EXP_STATE_ODOM_Y);
@@ -759,17 +784,25 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers)
   std::vector<double> reference = {32.0, 128.0};
 
   // update 'Position Tracking' controller
-  for (auto & value : diff_drive_controller->reference_interfaces_)
+  for (auto & [key, ref_itf] : diff_drive_controller->reference_interfaces_)
   {
-    ASSERT_EQ(value, 0.0);  // default reference values are 0.0
+    ASSERT_EQ(ref_itf->get_value<double>(), 0.0);  // default reference values are 0.0
   }
   position_tracking_controller->external_commands_for_testing_[0] = reference[0];
   position_tracking_controller->external_commands_for_testing_[1] = reference[1];
   position_tracking_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
   ASSERT_EQ(position_tracking_controller->internal_counter, 8u);
 
-  ASSERT_EQ(diff_drive_controller->reference_interfaces_[0], reference[0]);  // position_controller
-  ASSERT_EQ(diff_drive_controller->reference_interfaces_[1], reference[1]);  // is pass-through
+  ASSERT_EQ(
+    diff_drive_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    reference[0]);  // position_controller
+  ASSERT_EQ(
+    diff_drive_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[1]]
+      ->get_value<double>(),
+    reference[1]);  // is pass-through
 
   // update 'Diff Drive' Controller
   diff_drive_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
@@ -777,8 +810,16 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers)
   // default reference values are 0.0 - they should be changed now
   EXP_LEFT_WHEEL_REF = chained_ctrl_calculation(reference[0], EXP_LEFT_WHEEL_HW_STATE);    // 32-0
   EXP_RIGHT_WHEEL_REF = chained_ctrl_calculation(reference[1], EXP_RIGHT_WHEEL_HW_STATE);  // 128-0
-  ASSERT_EQ(pid_left_wheel_controller->reference_interfaces_[0], EXP_LEFT_WHEEL_REF);
-  ASSERT_EQ(pid_right_wheel_controller->reference_interfaces_[0], EXP_RIGHT_WHEEL_REF);
+  ASSERT_EQ(
+    pid_left_wheel_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    EXP_LEFT_WHEEL_REF);
+  ASSERT_EQ(
+    pid_right_wheel_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    EXP_RIGHT_WHEEL_REF);
 
   // run the update cycles of the robot localization and odom publisher controller
   sensor_fusion_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
@@ -810,10 +851,13 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers)
   EXP_LEFT_WHEEL_CMD = chained_ctrl_calculation(EXP_LEFT_WHEEL_REF, EXP_LEFT_WHEEL_HW_STATE);
   // 32 / 2
   EXP_LEFT_WHEEL_HW_STATE = hardware_calculation(EXP_LEFT_WHEEL_CMD);
-  ASSERT_EQ(pid_left_wheel_controller->command_interfaces_[0].get_value(), EXP_LEFT_WHEEL_CMD);
-  ASSERT_EQ(pid_left_wheel_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    pid_left_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_CMD);
+  ASSERT_EQ(
+    pid_left_wheel_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
   // DiffDrive uses the same state
-  ASSERT_EQ(diff_drive_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    diff_drive_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
   // The state doesn't change wrt to any data from the hardware calculation
   ASSERT_EQ(robot_localization_controller->get_state_interface_data()[0], EXP_STATE_ODOM_X);
   ASSERT_EQ(odom_publisher_controller->get_state_interface_data()[0], EXP_STATE_ODOM_X);
@@ -822,13 +866,16 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers)
   EXP_RIGHT_WHEEL_CMD = chained_ctrl_calculation(EXP_RIGHT_WHEEL_REF, EXP_RIGHT_WHEEL_HW_STATE);
   // 128 / 2
   EXP_RIGHT_WHEEL_HW_STATE = hardware_calculation(EXP_RIGHT_WHEEL_CMD);
-  ASSERT_EQ(pid_right_wheel_controller->command_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_CMD);
-  ASSERT_EQ(pid_right_wheel_controller->state_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    pid_right_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_RIGHT_WHEEL_CMD);
+  ASSERT_EQ(
+    pid_right_wheel_controller->state_interfaces_[0].get_value<double>(), EXP_RIGHT_WHEEL_HW_STATE);
   ASSERT_EQ(odom_publisher_controller->internal_counter, 2u);
   ASSERT_EQ(sensor_fusion_controller->internal_counter, 6u);
   ASSERT_EQ(robot_localization_controller->internal_counter, 4u);
   // DiffDrive uses the same state
-  ASSERT_EQ(diff_drive_controller->state_interfaces_[1].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    diff_drive_controller->state_interfaces_[1].get_value<double>(), EXP_RIGHT_WHEEL_HW_STATE);
   // The state doesn't change wrt to any data from the hardware calculation
   ASSERT_EQ(robot_localization_controller->get_state_interface_data()[1], EXP_STATE_ODOM_Y);
   ASSERT_EQ(odom_publisher_controller->get_state_interface_data()[1], EXP_STATE_ODOM_Y);
@@ -1880,17 +1927,25 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers_add
   odom_publisher_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
 
   // update 'Position Tracking' controller
-  for (auto & value : diff_drive_controller->reference_interfaces_)
+  for (auto & [key, ref_itf] : diff_drive_controller->reference_interfaces_)
   {
-    ASSERT_EQ(value, 0.0);  // default reference values are 0.0
+    ASSERT_EQ(ref_itf->get_value<double>(), 0.0);  // default reference values are 0.0
   }
   position_tracking_controller->external_commands_for_testing_[0] = reference[0];
   position_tracking_controller->external_commands_for_testing_[1] = reference[1];
   position_tracking_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
   ASSERT_EQ(position_tracking_controller->internal_counter, 8u);
 
-  ASSERT_EQ(diff_drive_controller->reference_interfaces_[0], reference[0]);  // position_controller
-  ASSERT_EQ(diff_drive_controller->reference_interfaces_[1], reference[1]);  // is pass-through
+  ASSERT_EQ(
+    diff_drive_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    reference[0]);  // position_controller
+  ASSERT_EQ(
+    diff_drive_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[1]]
+      ->get_value<double>(),
+    reference[1]);  // is pass-through
 
   // update 'Diff Drive' Controller
   diff_drive_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
@@ -1898,8 +1953,16 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers_add
   // default reference values are 0.0 - they should be changed now
   EXP_LEFT_WHEEL_REF = chained_ctrl_calculation(reference[0], EXP_LEFT_WHEEL_HW_STATE);    // 32-0
   EXP_RIGHT_WHEEL_REF = chained_ctrl_calculation(reference[1], EXP_RIGHT_WHEEL_HW_STATE);  // 128-0
-  ASSERT_EQ(pid_left_wheel_controller->reference_interfaces_[0], EXP_LEFT_WHEEL_REF);
-  ASSERT_EQ(pid_right_wheel_controller->reference_interfaces_[0], EXP_RIGHT_WHEEL_REF);
+  ASSERT_EQ(
+    pid_left_wheel_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    EXP_LEFT_WHEEL_REF);
+  ASSERT_EQ(
+    pid_right_wheel_controller
+      ->reference_interfaces_[diff_drive_controller->exported_reference_interface_names_[0]]
+      ->get_value<double>(),
+    EXP_RIGHT_WHEEL_REF);
 
   // update PID controllers that are writing to hardware
   pid_left_wheel_controller->update(rclcpp::Time(0), rclcpp::Duration::from_seconds(0.01));
@@ -1913,19 +1976,25 @@ TEST_P(TestControllerChainingWithControllerManager, test_chained_controllers_add
   EXP_LEFT_WHEEL_CMD = chained_ctrl_calculation(EXP_LEFT_WHEEL_REF, EXP_LEFT_WHEEL_HW_STATE);
   // 32 / 2
   EXP_LEFT_WHEEL_HW_STATE = hardware_calculation(EXP_LEFT_WHEEL_CMD);
-  ASSERT_EQ(pid_left_wheel_controller->command_interfaces_[0].get_value(), EXP_LEFT_WHEEL_CMD);
-  ASSERT_EQ(pid_left_wheel_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    pid_left_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_CMD);
+  ASSERT_EQ(
+    pid_left_wheel_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
   // DiffDrive uses the same state
-  ASSERT_EQ(diff_drive_controller->state_interfaces_[0].get_value(), EXP_LEFT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    diff_drive_controller->state_interfaces_[0].get_value<double>(), EXP_LEFT_WHEEL_HW_STATE);
 
   // 128 - 0
   EXP_RIGHT_WHEEL_CMD = chained_ctrl_calculation(EXP_RIGHT_WHEEL_REF, EXP_RIGHT_WHEEL_HW_STATE);
   // 128 / 2
   EXP_RIGHT_WHEEL_HW_STATE = hardware_calculation(EXP_RIGHT_WHEEL_CMD);
-  ASSERT_EQ(pid_right_wheel_controller->command_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_CMD);
-  ASSERT_EQ(pid_right_wheel_controller->state_interfaces_[0].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    pid_right_wheel_controller->command_interfaces_[0].get_value<double>(), EXP_RIGHT_WHEEL_CMD);
+  ASSERT_EQ(
+    pid_right_wheel_controller->state_interfaces_[0].get_value<double>(), EXP_RIGHT_WHEEL_HW_STATE);
   // DiffDrive uses the same state
-  ASSERT_EQ(diff_drive_controller->state_interfaces_[1].get_value(), EXP_RIGHT_WHEEL_HW_STATE);
+  ASSERT_EQ(
+    diff_drive_controller->state_interfaces_[1].get_value<double>(), EXP_RIGHT_WHEEL_HW_STATE);
 
   // update all controllers at once and see that all have expected values --> also checks the order
   // of controller execution

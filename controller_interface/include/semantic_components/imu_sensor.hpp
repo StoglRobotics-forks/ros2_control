@@ -59,7 +59,7 @@ public:
     size_t interface_offset = 0;
     for (size_t i = 0; i < orientation_.size(); ++i)
     {
-      orientation_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      orientation_[i] = state_interfaces_[interface_offset + i].get().get_value<double>();
     }
     return orientation_;
   }
@@ -75,7 +75,7 @@ public:
     size_t interface_offset = orientation_.size();
     for (size_t i = 0; i < angular_velocity_.size(); ++i)
     {
-      angular_velocity_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      angular_velocity_[i] = state_interfaces_[interface_offset + i].get().get_value<double>();
     }
     return angular_velocity_;
   }
@@ -91,7 +91,7 @@ public:
     size_t interface_offset = orientation_.size() + angular_velocity_.size();
     for (size_t i = 0; i < linear_acceleration_.size(); ++i)
     {
-      linear_acceleration_[i] = state_interfaces_[interface_offset + i].get().get_value();
+      linear_acceleration_[i] = state_interfaces_[interface_offset + i].get().get_value<double>();
     }
     return linear_acceleration_;
   }

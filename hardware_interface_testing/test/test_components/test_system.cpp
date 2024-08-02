@@ -42,47 +42,53 @@ class TestSystem : public SystemInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override
   {
-    std::vector<StateInterface> state_interfaces;
+    using hardware_interface::InterfaceDescription;
+    using hardware_interface::InterfaceInfo;
+    std::vector<InterfaceDescription> state_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &position_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_state_[i]));
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_ACCELERATION, &acceleration_state_[i]));
+      state_interfaces.emplace_back(
+        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_POSITION)));
+      state_interfaces.emplace_back(
+        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_VELOCITY)));
+      state_interfaces.emplace_back(
+        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_ACCELERATION)));
     }
 
     if (info_.gpios.size() > 0)
     {
       // Add configuration/max_tcp_jerk interface
-      state_interfaces.emplace_back(hardware_interface::StateInterface(
-        info_.gpios[0].name, info_.gpios[0].state_interfaces[0].name, &configuration_state_));
+      state_interfaces.emplace_back(InterfaceDescription(
+        info_.gpios[0].name, InterfaceInfo(info_.gpios[0].state_interfaces[0].name)));
     }
 
     return state_interfaces;
   }
 
-  std::vector<CommandInterface> export_command_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_command_interface_descriptions()
+    override
   {
-    std::vector<CommandInterface> command_interfaces;
+    using hardware_interface::InterfaceDescription;
+    using hardware_interface::InterfaceInfo;
+    std::vector<InterfaceDescription> command_interfaces;
+
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &velocity_command_[i]));
+      command_interfaces.emplace_back(
+        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_VELOCITY)));
     }
     // Add max_acceleration command interface
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[0].name, info_.joints[0].command_interfaces[1].name,
-      &max_acceleration_command_));
+    command_interfaces.emplace_back(InterfaceDescription(
+      info_.joints[0].name, InterfaceInfo(info_.joints[0].command_interfaces[1].name)));
 
     if (info_.gpios.size() > 0)
     {
       // Add configuration/max_tcp_jerk interface
-      command_interfaces.emplace_back(hardware_interface::CommandInterface(
-        info_.gpios[0].name, info_.gpios[0].command_interfaces[0].name, &configuration_command_));
+      command_interfaces.emplace_back(InterfaceDescription(
+        info_.gpios[0].name, InterfaceInfo(info_.gpios[0].command_interfaces[0].name)));
     }
 
     return command_interfaces;

@@ -210,6 +210,8 @@ public:
     warning_signal_message_ = std::make_shared<StateInterface>(warning_msg_interface_descr);
   }
 
+  // BEGIN (Handle export change): for backward compatibility, can be removed if
+  // export_command_interfaces() method is removed
   /// Exports all state interfaces for this hardware interface.
   /**
    * Old way of exporting the StateInterfaces. If a empty vector is returned then
@@ -233,13 +235,11 @@ public:
     // and if so call on_export_state_interfaces()
     return {};
   }
+  // END
 
   /**
    * Override this method to export custom StateInterfaces which are not defined in the URDF file.
    * Those interfaces will be added to the unlisted_state_interfaces_ map.
-   *
-   *  Note method name is going to be changed to export_state_interfaces() as soon as the deprecated
-   * version is removed.
    *
    * \return vector of descriptions to the unlisted StateInterfaces
    */
@@ -295,6 +295,8 @@ public:
     return state_interfaces;
   }
 
+  // BEGIN (Handle export change): for backward compatibility, can be removed if
+  // export_command_interfaces() method is removed
   /// Exports all command interfaces for this hardware interface.
   /**
    * Old way of exporting the CommandInterfaces. If a empty vector is returned then
@@ -318,13 +320,11 @@ public:
     // and if so call on_export_command_interfaces()
     return {};
   }
+  // END
 
   /**
    * Override this method to export custom CommandInterfaces which are not defined in the URDF file.
    * Those interfaces will be added to the unlisted_command_interfaces_ map.
-   *
-   *  Note method name is going to be changed to export_command_interfaces() as soon as the
-   * deprecated version is removed.
    *
    * \return vector of descriptions to the unlisted CommandInterfaces
    */
@@ -544,7 +544,9 @@ protected:
 
 private:
   rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
+  rclcpp_lifecycle::State lifecycle_state_;
   rclcpp::Logger actuator_logger_;
+
   std::unordered_map<std::string, std::shared_ptr<StateInterface>> actuator_states_;
   std::unordered_map<std::string, std::shared_ptr<CommandInterface>> actuator_commands_;
 
@@ -553,8 +555,6 @@ private:
   std::shared_ptr<StateInterface> error_signal_message_;
   std::shared_ptr<StateInterface> warning_signal_;
   std::shared_ptr<StateInterface> warning_signal_message_;
-
-  rclcpp_lifecycle::State lifecycle_state_;
 };
 
 }  // namespace hardware_interface

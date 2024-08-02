@@ -39,25 +39,49 @@ struct InterfaceInfo
     initial_value = "";
     data_type = "";
     size = 0;
+    enable_limits = false;
   }
 
-  explicit InterfaceInfo(const std::string & name_in) : InterfaceInfo() { name = name_in; }
-
-  explicit InterfaceInfo(const std::string & name_in, const std::string & data_type_in)
+  explicit InterfaceInfo(const std::string & name_in, const bool & enable_limits_in = false)
   : InterfaceInfo()
   {
     name = name_in;
-    data_type = data_type_in;
+    enable_limits = enable_limits_in;
   }
 
   explicit InterfaceInfo(
-    const std::string & name_in, const std::string & initial_value_in,
-    const std::string & data_type_in)
+    const std::string & name_in, const std::string & data_type_in,
+    const bool & enable_limits_in = false)
   : InterfaceInfo()
   {
     name = name_in;
-    initial_value = initial_value_in;
     data_type = data_type_in;
+    enable_limits = enable_limits_in;
+  }
+
+  explicit InterfaceInfo(
+    const std::string & name_in, const std::string & data_type_in,
+    const std::string & initial_value_in, const bool & enable_limits_in = false)
+  : InterfaceInfo()
+  {
+    name = name_in;
+    data_type = data_type_in;
+    initial_value = initial_value_in;
+    enable_limits = enable_limits_in;
+  }
+
+  explicit InterfaceInfo(
+    const std::string & name_in, const std::string & data_type_in,
+    const std::string & initial_value_in, const std::string & min_in, const std::string & max_in,
+    const bool & enable_limits_in = false)
+  : InterfaceInfo()
+  {
+    name = name_in;
+    data_type = data_type_in;
+    initial_value = initial_value_in;
+    min = min_in;
+    max = max_in;
+    enable_limits = enable_limits_in;
   }
 
   /**
@@ -65,14 +89,14 @@ struct InterfaceInfo
    * Used by joints and GPIOs.
    */
   std::string name;
+  /// (Optional) The datatype of the interface, e.g. "bool", "int".
+  std::string data_type;
+  /// (Optional) Initial value of the interface.
+  std::string initial_value;
   /// (Optional) Minimal allowed values of the interface.
   std::string min;
   /// (Optional) Maximal allowed values of the interface.
   std::string max;
-  /// (Optional) Initial value of the interface.
-  std::string initial_value;
-  /// (Optional) The datatype of the interface, e.g. "bool", "int".
-  std::string data_type;
   /// (Optional) If the handle is an array, the size of the array.
   int size;
   /// (Optional) enable or disable the limits for the command interfaces

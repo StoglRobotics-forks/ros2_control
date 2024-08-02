@@ -43,10 +43,11 @@ class TestIMUSensor : public SensorInterface
     {
       return CallbackReturn::ERROR;
     }
-    for (const auto & imu_key :
-         {"orientation.x", "orientation.y", "orientation.z", "orientation.w", "angular_velocity.x",
-          "angular_velocity.y", "angular_velocity.z", "linear_acceleration.x",
-          "linear_acceleration.y", "linear_acceleration.z"})
+    std::vector<std::string> imu_keys;
+    imu_keys.insert(imu_keys.end(), quat_.begin(), quat_.end());
+    imu_keys.insert(imu_keys.end(), ang_vel_.begin(), ang_vel_.end());
+    imu_keys.insert(imu_keys.end(), lin_acc_.begin(), lin_acc_.end());
+    for (const auto & imu_key : imu_keys)
     {
       if (
         std::find_if(
@@ -61,31 +62,34 @@ class TestIMUSensor : public SensorInterface
     return CallbackReturn::SUCCESS;
   }
 
-  std::vector<StateInterface> export_state_interfaces() override
+  std::vector<hardware_interface::InterfaceDescription> export_state_interface_descriptions()
+    override
   {
-    std::vector<StateInterface> state_interfaces;
+    using hardware_interface::InterfaceInfo;
+    std::vector<hardware_interface::InterfaceDescription> state_interfaces;
 
     const std::string & sensor_name = info_.sensors[0].name;
+
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "orientation.x", &orientation_.x));
+      sensor_name, InterfaceInfo(quat_.x, quat_.data_type, quat_.initial_x));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "orientation.y", &orientation_.y));
+      sensor_name, InterfaceInfo(quat_.y, quat_.data_type, quat_.initial_y));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "orientation.z", &orientation_.z));
+      sensor_name, InterfaceInfo(quat_.z, quat_.data_type, quat_.initial_z));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "orientation.w", &orientation_.w));
+      sensor_name, InterfaceInfo(quat_.w, quat_.data_type, quat_.initial_w));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "angular_velocity.x", &angular_velocity_.x));
+      sensor_name, InterfaceInfo(ang_vel_.x, ang_vel_.data_type, ang_vel_.initial_x));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "angular_velocity.y", &angular_velocity_.y));
+      sensor_name, InterfaceInfo(ang_vel_.y, ang_vel_.data_type, ang_vel_.initial_y));
     state_interfaces.emplace_back(
-      hardware_interface::StateInterface(sensor_name, "angular_velocity.z", &angular_velocity_.z));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      sensor_name, "linear_acceleration.x", &linear_acceleration_.x));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      sensor_name, "linear_acceleration.y", &linear_acceleration_.y));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      sensor_name, "linear_acceleration.z", &linear_acceleration_.z));
+      sensor_name, InterfaceInfo(ang_vel_.z, ang_vel_.data_type, ang_vel_.initial_z));
+    state_interfaces.emplace_back(
+      sensor_name, InterfaceInfo(lin_acc_.x, lin_acc_.data_type, lin_acc_.initial_x));
+    state_interfaces.emplace_back(
+      sensor_name, InterfaceInfo(lin_acc_.y, lin_acc_.data_type, lin_acc_.initial_y));
+    state_interfaces.emplace_back(
+      sensor_name, InterfaceInfo(lin_acc_.z, lin_acc_.data_type, lin_acc_.initial_z));
 
     return state_interfaces;
   }
@@ -97,42 +101,87 @@ class TestIMUSensor : public SensorInterface
     const double u1 = distribution_1(generator_);
     const double u2 = distribution_1(generator_);
     const double u3 = distribution_1(generator_);
-    orientation_.w = std::sqrt(1. - u1) * std::sin(2 * M_PI * u2);
-    orientation_.x = std::sqrt(1. - u1) * std::cos(2 * M_PI * u2);
-    orientation_.y = std::sqrt(u1) * std::sin(2 * M_PI * u3);
-    orientation_.z = std::sqrt(u1) * std::cos(2 * M_PI * u3);
+    set_state(quat_.w, std::sqrt(1. - u1) * std::sin(2 * M_PI * u2));
+    set_state(quat_.x, std::sqrt(1. - u1) * std::cos(2 * M_PI * u2));
+    set_state(quat_.y, std::sqrt(u1) * std::sin(2 * M_PI * u3));
+    set_state(quat_.z, std::sqrt(u1) * std::cos(2 * M_PI * u3));
 
     // generate random angular velocities and linear accelerations
     std::uniform_real_distribution<double> distribution_2(0.0, 0.1);
-    angular_velocity_.x = distribution_2(generator_);
-    angular_velocity_.y = distribution_2(generator_);
-    angular_velocity_.z = distribution_2(generator_);
+    set_state(ang_vel_.x, distribution_2(generator_));
+    set_state(ang_vel_.y, distribution_2(generator_));
+    set_state(ang_vel_.z, distribution_2(generator_));
 
-    linear_acceleration_.x = distribution_2(generator_);
-    linear_acceleration_.y = distribution_2(generator_);
-    linear_acceleration_.z = distribution_2(generator_);
+    set_state(lin_acc_.x, distribution_2(generator_));
+    set_state(lin_acc_.y, distribution_2(generator_));
+    set_state(lin_acc_.z, distribution_2(generator_));
     return return_type::OK;
   }
 
 private:
-  struct QuaternionValues
+  struct Quaternion
   {
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double w = 1.0;
+    const std::string x = "orientation.x";
+    const std::string y = "orientation.y";
+    const std::string z = "orientation.z";
+    const std::string w = "orientation.w";
+
+    const std::string data_type = "double";
+
+    const std::string initial_x = "0.0";
+    const std::string initial_y = "0.0";
+    const std::string initial_z = "0.0";
+    const std::string initial_w = "1.0";
+
+    std::vector<std::string>::const_iterator begin() const { return component_names_.begin(); }
+    std::vector<std::string>::const_iterator end() const { return component_names_.end(); }
+
+  private:
+    const std::vector<std::string> component_names_{x, y, z, w};
   };
-  struct AxisValues
+
+  struct AngularVel
   {
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    const std::string x = "angular_velocity.x";
+    const std::string y = "angular_velocity.y";
+    const std::string z = "angular_velocity.z";
+
+    const std::string data_type = "double";
+
+    const std::string initial_x = "0.0";
+    const std::string initial_y = "0.0";
+    const std::string initial_z = "0.0";
+
+    std::vector<std::string>::const_iterator begin() const { return component_names_.begin(); }
+    std::vector<std::string>::const_iterator end() const { return component_names_.end(); }
+
+  private:
+    const std::vector<std::string> component_names_{x, y, z};
+  };
+
+  struct LinearAccel
+  {
+    const std::string x = "linear_acceleration.x";
+    const std::string y = "linear_acceleration.y";
+    const std::string z = "linear_acceleration.z";
+
+    const std::string data_type = "double";
+
+    const std::string initial_x = "0.0";
+    const std::string initial_y = "0.0";
+    const std::string initial_z = "0.0";
+
+    std::vector<std::string>::const_iterator begin() const { return component_names_.begin(); }
+    std::vector<std::string>::const_iterator end() const { return component_names_.end(); }
+
+  private:
+    const std::vector<std::string> component_names_{x, y, z};
   };
 
   std::default_random_engine generator_;
-  QuaternionValues orientation_;
-  AxisValues angular_velocity_;
-  AxisValues linear_acceleration_;
+  Quaternion quat_;
+  AngularVel ang_vel_;
+  LinearAccel lin_acc_;
 };
 
 }  // namespace test_hardware_components

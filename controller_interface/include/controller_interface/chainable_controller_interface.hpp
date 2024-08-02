@@ -80,9 +80,10 @@ protected:
    * exported. The method has the same meaning as `export_state_interfaces` method from
    * hardware_interface::SystemInterface or hardware_interface::ActuatorInterface.
    *
-   * \returns list of StateInterfaces that other controller can use as their inputs.
+   * \returns list of StateInterfacesDescriptions that other controller can use as their inputs.
    */
-  virtual std::vector<hardware_interface::StateInterface> on_export_state_interfaces();
+  virtual std::vector<hardware_interface::InterfaceDescription>
+  export_state_interface_descriptions() = 0;
 
   /// Virtual method that each chainable controller should implement to export its read/write
   /// chainable interfaces.
@@ -91,9 +92,10 @@ protected:
    * exported. The method has the same meaning as `export_command_interface` method from
    * hardware_interface::SystemInterface or hardware_interface::ActuatorInterface.
    *
-   * \returns list of CommandInterfaces that other controller can use as their outputs.
+   * \returns list of CommandInterfacesDescriptions that other controller can use as their outputs.
    */
-  virtual std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces();
+  virtual std::vector<hardware_interface::InterfaceDescription>
+  export_reference_interface_descriptions() = 0;
 
   /// Virtual method that each chainable controller should implement to switch chained mode.
   /**
@@ -133,18 +135,17 @@ protected:
   virtual return_type update_and_write_commands(
     const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
 
-  /// Storage of values for state interfaces
+  // interface_names are in order they have been exported
   std::vector<std::string> exported_state_interface_names_;
-  std::vector<double> state_interfaces_values_;
+  // storage for the exported StateInterfaces
+  std::unordered_map<std::string, std::shared_ptr<hardware_interface::StateInterface>>
+    exported_state_interfaces_;
 
-  /// Storage of values for reference interfaces
+  // interface_names are in order they have been exported
   std::vector<std::string> exported_reference_interface_names_;
-  // BEGIN (Handle export change): for backward compatibility
-  std::vector<double> reference_interfaces_;
-  std::unordered_map<std::string, std::reference_wrapper<double>> ref_interface_to_value_;
-  // END
+  // storage for the exported CommandInterfaces
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::CommandInterface>>
-    reference_interfaces_ptrs_;
+    reference_interfaces_;
 
 private:
   /// A flag marking if a chainable controller is currently preceded by another controller.
