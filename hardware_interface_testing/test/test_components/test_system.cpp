@@ -50,12 +50,12 @@ class TestSystem : public SystemInterface
     std::vector<InterfaceDescription> state_interfaces;
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      state_interfaces.emplace_back(
-        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_POSITION)));
-      state_interfaces.emplace_back(
-        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_VELOCITY)));
-      state_interfaces.emplace_back(
-        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_ACCELERATION)));
+      state_interfaces.emplace_back(InterfaceDescription(
+        info_.joints[i].name, InterfaceInfo(hardware_interface::HW_IF_POSITION)));
+      state_interfaces.emplace_back(InterfaceDescription(
+        info_.joints[i].name, InterfaceInfo(hardware_interface::HW_IF_VELOCITY)));
+      state_interfaces.emplace_back(InterfaceDescription(
+        info_.joints[i].name, InterfaceInfo(hardware_interface::HW_IF_ACCELERATION)));
     }
 
     if (info_.gpios.size() > 0)
@@ -77,8 +77,8 @@ class TestSystem : public SystemInterface
 
     for (auto i = 0u; i < info_.joints.size(); ++i)
     {
-      command_interfaces.emplace_back(
-        InterfaceDescription(info_.joints[i].name, InterfaceInfo(HW_IF_VELOCITY)));
+      command_interfaces.emplace_back(InterfaceDescription(
+        info_.joints[i].name, InterfaceInfo(hardware_interface::HW_IF_VELOCITY)));
     }
     // Add max_acceleration command interface
     command_interfaces.emplace_back(InterfaceDescription(

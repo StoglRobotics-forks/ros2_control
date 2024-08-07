@@ -29,8 +29,9 @@ TEST(UtilsTest, AccessorTest)
   info.name = HW_IF_POSITION;
   info.initial_value = "0.0";
   hardware_interface::InterfaceDescription joint_handle_desc(NAME, info);
-  const JointHandle joint_handle(joint_handle_desc);
-  const std::vector<JointHandle> joint_handles = {joint_handle};
+  const std::shared_ptr<JointHandle> joint_handle =
+    std::make_shared<JointHandle>(joint_handle_desc);
+  const std::vector<std::shared_ptr<JointHandle>> joint_handles = {joint_handle};
 
   ASSERT_EQ(transmission_interface::get_names(joint_handles), std::vector<std::string>{NAME});
   ASSERT_EQ(

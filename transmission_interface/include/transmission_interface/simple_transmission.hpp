@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -94,14 +95,14 @@ public:
 
   /// Set up the data the transmission operates on.
   /**
-   * \param[in] joint_handles Vector of interface handles of one joint
-   * \param[in] actuator_handles Vector of interface handles of one actuator
+   * \param[in] joint_handles Vector of shared ptr to interface handles of one joint
+   * \param[in] actuator_handles Vector of shared ptr to interface handles of one actuator
    * \pre Vectors are nonzero.
    * \pre Joint handles share the same joint name and actuator handles share the same actuator name.
    */
   void configure(
-    const std::vector<JointHandle> & joint_handles,
-    const std::vector<ActuatorHandle> & actuator_handles) override;
+    const std::vector<std::shared_ptr<JointHandle>> & joint_handles,
+    const std::vector<std::shared_ptr<ActuatorHandle>> & actuator_handles) override;
 
   /// Transform variables from actuator to joint space.
   /**
@@ -129,18 +130,31 @@ protected:
   double reduction_;
   double jnt_offset_;
 
-  JointHandle joint_position_{hardware_interface::InterfaceDescription{{}, std::string{}}};
-  JointHandle joint_velocity_{hardware_interface::InterfaceDescription{{}, std::string{}}};
-  JointHandle joint_effort_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  std::shared_ptr<JointHandle> joint_position_;
+  std::shared_ptr<JointHandle> joint_velocity_;
+  std::shared_ptr<JointHandle> joint_effort_;
 
-  ActuatorHandle actuator_position_{hardware_interface::InterfaceDescription{{}, std::string{}}};
-  ActuatorHandle actuator_velocity_{hardware_interface::InterfaceDescription{{}, std::string{}}};
-  ActuatorHandle actuator_effort_{hardware_interface::InterfaceDescription{{}, std::string{}}};
+  std::shared_ptr<ActuatorHandle> actuator_position_;
+  std::shared_ptr<ActuatorHandle> actuator_velocity_;
+  std::shared_ptr<ActuatorHandle> actuator_effort_;
 };
 
 inline SimpleTransmission::SimpleTransmission(
   const double joint_to_actuator_reduction, const double joint_offset)
-: reduction_(joint_to_actuator_reduction), jnt_offset_(joint_offset)
+: reduction_(joint_to_actuator_reduction),
+  jnt_offset_(joint_offset),
+  joint_position_(
+    std::make_shared<JointHandle>(hardware_interface::InterfaceDescription{{}, std::string{}})),
+  joint_velocity_(
+    std::make_shared<JointHandle>(hardware_interface::InterfaceDescription{{}, std::string{}})),
+  joint_effort_(
+    std::make_shared<JointHandle>(hardware_interface::InterfaceDescription{{}, std::string{}})),
+  actuator_position_(
+    std::make_shared<ActuatorHandle>(hardware_interface::InterfaceDescription{{}, std::string{}})),
+  actuator_velocity_(
+    std::make_shared<ActuatorHandle>(hardware_interface::InterfaceDescription{{}, std::string{}})),
+  actuator_effort_(
+    std::make_shared<ActuatorHandle>(hardware_interface::InterfaceDescription{{}, std::string{}}))
 {
   if (reduction_ == 0.0)
   {
@@ -149,17 +163,17 @@ inline SimpleTransmission::SimpleTransmission(
 }
 
 template <class HandleType>
-HandleType get_by_interface(
-  const std::vector<HandleType> & handles, const std::string & interface_name)
+std::shared_ptr<HandleType> get_by_interface(
+  const std::vector<std::shared_ptr<HandleType>> & handles, const std::string & interface_name)
 {
   const auto result = std::find_if(
-    handles.cbegin(), handles.cend(),
-    [&interface_name](const auto handle) { return handle.get_interface_name() == interface_name; });
+    handles.cbegin(), handles.cend(), [&interface_name](const auto handle)
+    { return handle->get_interface_name() == interface_name; });
   if (result == handles.cend())
   {
-    // return new Handle where data is set to std::monotype by default
-    return HandleType(hardware_interface::InterfaceDescription(
-      handles.cbegin()->get_prefix_name(), interface_name));
+    // return new Handle where data is set to std::monotype (uninitialized state) by default
+    return std::make_shared<HandleType>(hardware_interface::InterfaceDescription(
+      (*handles.cbegin())->get_prefix_name(), interface_name));
   }
   return *result;
 }
@@ -170,13 +184,13 @@ bool are_names_identical(const std::vector<T> & handles)
   std::vector<std::string> names;
   std::transform(
     handles.cbegin(), handles.cend(), std::back_inserter(names),
-    [](const auto & handle) { return handle.get_prefix_name(); });
+    [](const auto & handle) { return handle->get_prefix_name(); });
   return std::equal(names.cbegin() + 1, names.cend(), names.cbegin());
 }
 
-inline void SimpleTransmission::configure(
-  const std::vector<JointHandle> & joint_handles,
-  const std::vector<ActuatorHandle> & actuator_handles)
+void SimpleTransmission::configure(
+  const std::vector<std::shared_ptr<JointHandle>> & joint_handles,
+  const std::vector<std::shared_ptr<ActuatorHandle>> & actuator_handles)
 {
   if (joint_handles.empty())
   {
@@ -219,37 +233,38 @@ inline void SimpleTransmission::configure(
 
 inline void SimpleTransmission::actuator_to_joint()
 {
-  if (joint_effort_ && actuator_effort_)
+  if (*joint_effort_ && *actuator_effort_)
   {
-    joint_effort_.set_value(actuator_effort_.get_value<double>() * reduction_);
+    joint_effort_->set_value(actuator_effort_->get_value<double>() * reduction_);
   }
 
-  if (joint_velocity_ && actuator_velocity_)
+  if (*joint_velocity_ && *actuator_velocity_)
   {
-    joint_velocity_.set_value(actuator_velocity_.get_value<double>() / reduction_);
+    joint_velocity_->set_value(actuator_velocity_->get_value<double>() / reduction_);
   }
 
-  if (joint_position_ && actuator_position_)
+  if (*joint_position_ && *actuator_position_)
   {
-    joint_position_.set_value(actuator_position_.get_value<double>() / reduction_ + jnt_offset_);
+    joint_position_->set_value(actuator_position_->get_value<double>() / reduction_ + jnt_offset_);
   }
 }
 
 inline void SimpleTransmission::joint_to_actuator()
 {
-  if (joint_effort_ && actuator_effort_)
+  if (*joint_effort_ && *actuator_effort_)
   {
-    actuator_effort_.set_value(joint_effort_.get_value<double>() / reduction_);
+    actuator_effort_->set_value(joint_effort_->get_value<double>() / reduction_);
   }
 
-  if (joint_velocity_ && actuator_velocity_)
+  if (*joint_velocity_ && *actuator_velocity_)
   {
-    actuator_velocity_.set_value(joint_velocity_.get_value<double>() * reduction_);
+    actuator_velocity_->set_value(joint_velocity_->get_value<double>() * reduction_);
   }
 
-  if (joint_position_ && actuator_position_)
+  if (*joint_position_ && *actuator_position_)
   {
-    actuator_position_.set_value((joint_position_.get_value<double>() - jnt_offset_) * reduction_);
+    actuator_position_->set_value(
+      (joint_position_->get_value<double>() - jnt_offset_) * reduction_);
   }
 }
 

@@ -96,16 +96,22 @@ void testConfigureWithBadHandles(std::string interface_name)
 {
   FourBarLinkageTransmission trans({1.0, 1.0}, {1.0, 1.0});
 
-  auto a1_handle = ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(interface_name)));
-  auto a2_handle = ActuatorHandle(InterfaceDescription("act2", InterfaceInfo(interface_name)));
-  auto a3_handle = ActuatorHandle(InterfaceDescription("act3", InterfaceInfo(interface_name)));
-  auto j1_handle = JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name)));
-  auto j2_handle = JointHandle(InterfaceDescription("joint2", InterfaceInfo(interface_name)));
-  auto j3_handle = JointHandle(InterfaceDescription("joint3", InterfaceInfo(interface_name)));
+  auto a1_handle =
+    std::make_shared<ActuatorHandle>(InterfaceDescription("act1", InterfaceInfo(interface_name)));
+  auto a2_handle =
+    std::make_shared<ActuatorHandle>(InterfaceDescription("act2", InterfaceInfo(interface_name)));
+  auto a3_handle =
+    std::make_shared<ActuatorHandle>(InterfaceDescription("act3", InterfaceInfo(interface_name)));
+  auto j1_handle =
+    std::make_shared<JointHandle>(InterfaceDescription("joint1", InterfaceInfo(interface_name)));
+  auto j2_handle =
+    std::make_shared<JointHandle>(InterfaceDescription("joint2", InterfaceInfo(interface_name)));
+  auto j3_handle =
+    std::make_shared<JointHandle>(InterfaceDescription("joint3", InterfaceInfo(interface_name)));
   auto invalid_a1_handle =
-    ActuatorHandle(InterfaceDescription("act1", InterfaceInfo(interface_name)));
+    std::make_shared<ActuatorHandle>(InterfaceDescription("act1", InterfaceInfo(interface_name)));
   auto invalid_j1_handle =
-    JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name)));
+    std::make_shared<JointHandle>(InterfaceDescription("joint1", InterfaceInfo(interface_name)));
 
   EXPECT_THROW(trans.configure({}, {}), Exception);
   EXPECT_THROW(trans.configure({j1_handle}, {}), Exception);
@@ -155,25 +161,25 @@ protected:
     auto a_val = ref_val[0];
     auto a_val_1 = ref_val[1];
     // create handles and configure
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(interface_name, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(interface_name, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(interface_name, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(interface_name, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(interface_name, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(interface_name, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
 
     // actuator->joint->actuator roundtrip
     // but we also set actuator values to an extremal value
     // to ensure joint_to_actuator is not a no-op
     trans.actuator_to_joint();
-    a1_handle.set_value(EXTREMAL_VALUE);
-    a2_handle.set_value(EXTREMAL_VALUE);
+    a1_handle->set_value(EXTREMAL_VALUE);
+    a2_handle->set_value(EXTREMAL_VALUE);
     trans.joint_to_actuator();
-    EXPECT_THAT(a_val, DoubleNear(a1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(a_val_1, DoubleNear(a2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(a_val, DoubleNear(a1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(a_val_1, DoubleNear(a2_handle->get_value<double>(), EPS));
   }
 
   // Generate a set of transmission instances
@@ -248,50 +254,50 @@ TEST_F(WhiteBoxTest, DontMoveJoints)
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(
+    auto a2_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(joint_offset[0], DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(joint_offset[1], DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(joint_offset[0], DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(joint_offset[1], DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 }
 
@@ -306,54 +312,54 @@ TEST_F(WhiteBoxTest, MoveFirstJointOnly)
   {
     auto a_val = 5.0;
     auto a_val_1 = 10.0;
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(
+    auto a2_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(100.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(100.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
     auto a_val = 10.0;
     auto a_val_1 = 5.0;
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.5, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Position interface
   {
     auto a_val = 10.0;
     auto a_val_1 = 5.0;
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.5, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 }
 
@@ -370,50 +376,50 @@ TEST_F(WhiteBoxTest, MoveSecondJointOnly)
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(
+    auto a2_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(200.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(200.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.5, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(0.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(0.5, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(0.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(0.5, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 }
 
@@ -435,49 +441,49 @@ TEST_F(WhiteBoxTest, MoveBothJoints)
 
   // Effort interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(
+    auto a2_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act2", InterfaceInfo(HW_IF_EFFORT, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_EFFORT, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_EFFORT, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-60.0, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(-160.0, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(-60.0, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(-160.0, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Velocity interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_VELOCITY, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_VELOCITY, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_VELOCITY, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-0.15, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(-0.025, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(-0.15, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(-0.025, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 
   // Position interface
   {
-    auto a1_handle = ActuatorHandle(
+    auto a1_handle = std::make_shared<ActuatorHandle>(
       InterfaceDescription("act1", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val), "double")));
-    auto a2_handle = ActuatorHandle(InterfaceDescription(
+    auto a2_handle = std::make_shared<ActuatorHandle>(InterfaceDescription(
       "act2", InterfaceInfo(HW_IF_POSITION, std::to_string(a_val_1), "double")));
-    auto joint1_handle =
-      JointHandle(InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
-    auto joint2_handle =
-      JointHandle(InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint1_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint1", InterfaceInfo(HW_IF_POSITION, "double")));
+    auto joint2_handle = std::make_shared<JointHandle>(
+      InterfaceDescription("joint2", InterfaceInfo(HW_IF_POSITION, "double")));
     trans.configure({joint1_handle, joint2_handle}, {a1_handle, a2_handle});
     trans.actuator_to_joint();
-    EXPECT_THAT(-2.15, DoubleNear(joint1_handle.get_value<double>(), EPS));
-    EXPECT_THAT(3.975, DoubleNear(joint2_handle.get_value<double>(), EPS));
+    EXPECT_THAT(-2.15, DoubleNear(joint1_handle->get_value<double>(), EPS));
+    EXPECT_THAT(3.975, DoubleNear(joint2_handle->get_value<double>(), EPS));
   }
 }

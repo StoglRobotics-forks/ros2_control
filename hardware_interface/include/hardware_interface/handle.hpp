@@ -98,6 +98,8 @@ public:
 
   const std::string & get_prefix_name() const { return prefix_name_; }
 
+  bool holds_value() const { return std::holds_alternative<std::monostate>(value_); }
+
   template <typename T, typename std::enable_if<HANDLE_DATATYPE_TYPES<T>::value, int>::type = 0>
   T get_value() const
   {

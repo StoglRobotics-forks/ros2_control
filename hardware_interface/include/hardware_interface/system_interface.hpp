@@ -517,6 +517,16 @@ public:
     return system_commands_.at(interface_name)->get_value<double>();
   }
 
+  bool state_holds_value(const std::string & interface_name) const
+  {
+    return system_states_.at(interface_name)->holds_value();
+  }
+
+  bool command_holds_value(const std::string & interface_name) const
+  {
+    return system_commands_.at(interface_name)->holds_value();
+  }
+
   void set_emergency_stop(const bool & emergency_stop)
   {
     emergency_stop_->set_value(emergency_stop);

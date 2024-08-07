@@ -318,6 +318,11 @@ public:
     return sensor_states_.at(interface_name)->get_value<double>();
   }
 
+  bool state_holds_value(const std::string & interface_name) const
+  {
+    return sensor_states_.at(interface_name)->holds_value();
+  }
+
   void set_error_code(std::vector<uint8_t> error_codes) { error_signal_->set_value(error_codes); }
 
   std::vector<uint8_t> get_error_code() const

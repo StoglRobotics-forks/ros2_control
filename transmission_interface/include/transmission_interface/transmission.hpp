@@ -48,8 +48,8 @@ public:
   virtual ~Transmission() = default;
 
   virtual void configure(
-    const std::vector<JointHandle> & joint_handles,
-    const std::vector<ActuatorHandle> & actuator_handles) = 0;
+    const std::vector<std::shared_ptr<JointHandle>> & joint_handles,
+    const std::vector<std::shared_ptr<ActuatorHandle>> & actuator_handles) = 0;
 
   /// Transform \e effort variables from actuator to joint space.
   /**
