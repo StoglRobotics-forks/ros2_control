@@ -119,11 +119,18 @@ protected:
   virtual return_type update_and_write_commands(
     const rclcpp::Time & time, const rclcpp::Duration & period) = 0;
 
-  /// Storage of values for reference interfaces
-  // BEGIN (Handle export change): for backward compatibility
-  std::vector<double> reference_interfaces_;
-  std::unordered_map<std::string, std::reference_wrapper<double>> ref_interface_to_value_;
-  // END
+  /// Storage of values for state interfaces
+  std::vector<std::string> exported_state_interface_names_;
+  // storage for the exported StateInterfaces
+  std::vector<std::shared_ptr<hardware_interface::StateInterface>>
+    ordered_exported_state_interfaces_;
+  std::unordered_map<std::string, std::shared_ptr<hardware_interface::StateInterface>>
+    exported_state_interfaces_;
+
+  // interface_names are in order they have been exported
+  std::vector<std::string> exported_reference_interface_names_;
+  // storage for the exported CommandInterfaces
+  std::vector<std::shared_ptr<hardware_interface::CommandInterface>> ordered_reference_interfaces_;
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::CommandInterface>>
     reference_interfaces_ptrs_;
 
