@@ -250,7 +250,8 @@ public:
       auto name = description.get_name();
       unlisted_state_interfaces_.insert(std::make_pair(name, description));
       auto state_interface = std::make_shared<StateInterface>(description);
-      sensor_states_.insert(std::make_pair(name, state_interface));
+      sensor_states_map_.insert(std::make_pair(name, state_interface));
+      unlisted_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
 
@@ -259,7 +260,8 @@ public:
       // TODO(Manuel) maybe check for duplicates otherwise only the first appearance of "name" is
       // inserted
       auto state_interface = std::make_shared<StateInterface>(descr);
-      sensor_states_.insert(std::make_pair(name, state_interface));
+      sensor_states_map_.insert(std::make_pair(name, state_interface));
+      sensor_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
 
@@ -310,17 +312,17 @@ public:
 
   void set_state(const std::string & interface_name, const double & value)
   {
-    sensor_states_.at(interface_name)->set_value(value);
+    sensor_states_map_.at(interface_name)->set_value(value);
   }
 
   double get_state(const std::string & interface_name) const
   {
-    return sensor_states_.at(interface_name)->get_value<double>();
+    return sensor_states_map_.at(interface_name)->get_value<double>();
   }
 
   bool state_holds_value(const std::string & interface_name) const
   {
-    return sensor_states_.at(interface_name)->holds_value();
+    return sensor_states_map_.at(interface_name)->holds_value();
   }
 
   void set_error_code(std::vector<uint8_t> error_codes) { error_signal_->set_value(error_codes); }
@@ -374,16 +376,22 @@ protected:
   rclcpp::Clock::SharedPtr get_clock() const { return clock_interface_->get_clock(); }
 
   HardwareInfo info_;
+  rclcpp_lifecycle::State lifecycle_state_;
 
+  // interface names to InterfaceDescription
   std::unordered_map<std::string, InterfaceDescription> sensor_state_interfaces_;
   std::unordered_map<std::string, InterfaceDescription> unlisted_state_interfaces_;
 
+  // Exported Command- and StateInterfaces in order they are listed in the hardware description.
+  std::vector<std::shared_ptr<StateInterface>> sensor_states_;
+  std::vector<std::shared_ptr<StateInterface>> unlisted_states_;
+
 private:
   rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
-  rclcpp_lifecycle::State lifecycle_state_;
   rclcpp::Logger sensor_logger_;
 
-  std::unordered_map<std::string, std::shared_ptr<StateInterface>> sensor_states_;
+  // interface names to Handle accessed through getters/setters
+  std::unordered_map<std::string, std::shared_ptr<StateInterface>> sensor_states_map_;
 
   std::shared_ptr<StateInterface> error_signal_;
   std::shared_ptr<StateInterface> error_signal_message_;

@@ -295,6 +295,7 @@ public:
       unlisted_state_interfaces_.insert(std::make_pair(name, description));
       auto state_interface = std::make_shared<StateInterface>(description);
       system_states_.insert(std::make_pair(name, state_interface));
+      unlisted_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
 
@@ -302,18 +303,21 @@ public:
     {
       auto state_interface = std::make_shared<StateInterface>(descr);
       system_states_.insert(std::make_pair(name, state_interface));
+      joint_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
     for (const auto & [name, descr] : sensor_state_interfaces_)
     {
       auto state_interface = std::make_shared<StateInterface>(descr);
       system_states_.insert(std::make_pair(name, state_interface));
+      sensor_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
     for (const auto & [name, descr] : gpio_state_interfaces_)
     {
       auto state_interface = std::make_shared<StateInterface>(descr);
       system_states_.insert(std::make_pair(name, state_interface));
+      gpio_states_.push_back(state_interface);
       state_interfaces.push_back(state_interface);
     }
 
@@ -393,6 +397,7 @@ public:
       unlisted_command_interfaces_.insert(std::make_pair(name, description));
       auto command_interface = std::make_shared<CommandInterface>(description);
       system_commands_.insert(std::make_pair(name, command_interface));
+      unlisted_commands_.push_back(command_interface);
       command_interfaces.push_back(command_interface);
     }
 
@@ -400,6 +405,7 @@ public:
     {
       auto command_interface = std::make_shared<CommandInterface>(descr);
       system_commands_.insert(std::make_pair(name, command_interface));
+      joint_commands_.push_back(command_interface);
       command_interfaces.push_back(command_interface);
     }
 
@@ -407,6 +413,7 @@ public:
     {
       auto command_interface = std::make_shared<CommandInterface>(descr);
       system_commands_.insert(std::make_pair(name, command_interface));
+      gpio_commands_.push_back(command_interface);
       command_interfaces.push_back(command_interface);
     }
     return command_interfaces;
@@ -585,6 +592,9 @@ protected:
   rclcpp::Clock::SharedPtr get_clock() const { return clock_interface_->get_clock(); }
 
   HardwareInfo info_;
+  rclcpp_lifecycle::State lifecycle_state_;
+
+  // interface names to InterfaceDescription
   std::unordered_map<std::string, InterfaceDescription> joint_state_interfaces_;
   std::unordered_map<std::string, InterfaceDescription> joint_command_interfaces_;
 
@@ -596,11 +606,22 @@ protected:
   std::unordered_map<std::string, InterfaceDescription> unlisted_state_interfaces_;
   std::unordered_map<std::string, InterfaceDescription> unlisted_command_interfaces_;
 
+  // Exported Command- and StateInterfaces in order they are listed in the hardware description.
+  std::vector<std::shared_ptr<StateInterface>> joint_states_;
+  std::vector<std::shared_ptr<CommandInterface>> joint_commands_;
+
+  std::vector<std::shared_ptr<StateInterface>> sensor_states_;
+
+  std::vector<std::shared_ptr<StateInterface>> gpio_states_;
+  std::vector<std::shared_ptr<CommandInterface>> gpio_commands_;
+
+  std::vector<std::shared_ptr<StateInterface>> unlisted_states_;
+  std::vector<std::shared_ptr<CommandInterface>> unlisted_commands_;
+
 private:
   rclcpp::node_interfaces::NodeClockInterface::SharedPtr clock_interface_;
-  rclcpp_lifecycle::State lifecycle_state_;
   rclcpp::Logger system_logger_;
-
+  // interface names to Handle accessed through getters/setters
   std::unordered_map<std::string, std::shared_ptr<StateInterface>> system_states_;
   std::unordered_map<std::string, std::shared_ptr<CommandInterface>> system_commands_;
 
