@@ -50,6 +50,9 @@ ChainableControllerInterface::export_state_interfaces()
   auto state_interfaces_descr = export_state_interface_descriptions();
   std::vector<std::shared_ptr<hardware_interface::StateInterface>> state_interfaces_ptrs_vec;
   state_interfaces_ptrs_vec.reserve(state_interfaces_descr.size());
+  exported_state_interface_names_.reserve(state_interfaces_descr.size());
+  ordered_exported_state_interfaces_.reserve(state_interfaces_descr.size());
+  exported_state_interfaces_.reserve(state_interfaces_descr.size());
 
   // check if the names of the controller state interfaces begin with the controller's name
   for (auto & descr : state_interfaces_descr)
@@ -81,24 +84,36 @@ ChainableControllerInterface::export_state_interfaces()
         it->second->get_name() +
         ">. If its a duplicate adjust exportation of InterfacesDescription so that all the "
         "interface names are unique.";
-      exported_state_interfaces_.clear();
       exported_state_interface_names_.clear();
-      state_interfaces_ptrs_vec.clear();
+      ordered_exported_state_interfaces_.clear();
+      exported_state_interfaces_.clear();
       throw std::runtime_error(error_msg);
     }
-    exported_state_interface_names_.push_back(inteface_name);
     state_interfaces_ptrs_vec.push_back(state_interface);
+    exported_state_interface_names_.push_back(inteface_name);
+    ordered_exported_state_interfaces_.push_back(state_interface);
   }
 
-  if (exported_state_interfaces_.size() != state_interfaces_descr.size())
+  // check that all are equal
+  if (
+    state_interfaces_descr.size() != state_interfaces_ptrs_vec.size() ||
+    state_interfaces_descr.size() != exported_state_interface_names_.size() ||
+    state_interfaces_descr.size() != ordered_exported_state_interfaces_.size() ||
+    state_interfaces_descr.size() != exported_state_interfaces_.size())
   {
     std::string error_msg =
-      "The internal storage for reference ptrs 'exported_state_interfaces_' variable has size '" +
-      std::to_string(exported_state_interfaces_.size()) +
-      "', but it is expected to have the size '" + std::to_string(state_interfaces_descr.size()) +
-      "' equal to the number of exported reference interfaces. Please correct and recompile the "
-      "controller with name '" +
-      get_node()->get_name() + "' and try again.";
+      "The size of the exported StateInterfaceDescriptions (" +
+      std::to_string(state_interfaces_descr.size()) + ") of controller <" + get_node()->get_name() +
+      "> does not match with the size of one of the following: state_interfaces_ptrs_vec (" +
+      std::to_string(state_interfaces_ptrs_vec.size()) + "), exported_state_interface_names_ (" +
+      std::to_string(exported_state_interface_names_.size()) +
+      "), ordered_exported_state_interfaces_ (" +
+      std::to_string(ordered_exported_state_interfaces_.size()) +
+      ") or exported_state_interfaces_ (" + std::to_string(exported_state_interfaces_.size()) +
+      ").";
+    exported_state_interface_names_.clear();
+    ordered_exported_state_interfaces_.clear();
+    exported_state_interfaces_.clear();
     throw std::runtime_error(error_msg);
   }
 
@@ -111,6 +126,9 @@ ChainableControllerInterface::export_reference_interfaces()
   auto reference_interface_descr = export_reference_interface_descriptions();
   std::vector<std::shared_ptr<hardware_interface::CommandInterface>> reference_interfaces_ptrs_vec;
   reference_interfaces_ptrs_vec.reserve(reference_interface_descr.size());
+  exported_reference_interface_names_.reserve(reference_interface_descr.size());
+  ordered_reference_interfaces_.reserve(reference_interface_descr.size());
+  reference_interfaces_.reserve(reference_interface_descr.size());
 
   // check if the names of the reference interfaces begin with the controller's name
   for (auto & descr : reference_interface_descr)
@@ -141,24 +159,35 @@ ChainableControllerInterface::export_reference_interfaces()
         it->second->get_name() +
         ">. If its a duplicate adjust exportation of InterfacesDescription so that all the "
         "interface names are unique.";
-      reference_interfaces_.clear();
       exported_reference_interface_names_.clear();
-      reference_interfaces_ptrs_vec.clear();
+      ordered_reference_interfaces_.clear();
+      reference_interfaces_.clear();
       throw std::runtime_error(error_msg);
     }
-    exported_reference_interface_names_.push_back(inteface_name);
     reference_interfaces_ptrs_vec.push_back(reference_interface);
+    exported_reference_interface_names_.push_back(inteface_name);
+    ordered_reference_interfaces_.push_back(reference_interface);
   }
 
-  if (reference_interfaces_.size() != reference_interface_descr.size())
+  if (
+    reference_interface_descr.size() != reference_interfaces_ptrs_vec.size() ||
+    reference_interface_descr.size() != exported_reference_interface_names_.size() ||
+    reference_interface_descr.size() != ordered_reference_interfaces_.size() ||
+    reference_interface_descr.size() != reference_interfaces_.size())
   {
     std::string error_msg =
-      "The internal storage for reference ptrs 'reference_interfaces_' variable has size '" +
-      std::to_string(reference_interfaces_.size()) + "', but it is expected to have the size '" +
-      std::to_string(reference_interface_descr.size()) +
-      "' equal to the number of exported reference interfaces. Please correct and recompile the "
-      "controller with name '" +
-      get_node()->get_name() + "' and try again.";
+      "The size of the exported ReferenceInterfaceDescriptions (" +
+      std::to_string(reference_interface_descr.size()) + ") of controller <" +
+      get_node()->get_name() +
+      "> does not match with the size of one of the following: reference_interfaces_ptrs_vec (" +
+      std::to_string(reference_interfaces_ptrs_vec.size()) +
+      "), exported_reference_interface_names_ (" +
+      std::to_string(exported_reference_interface_names_.size()) +
+      "), ordered_reference_interfaces_ (" + std::to_string(ordered_reference_interfaces_.size()) +
+      ") or reference_interfaces_ (" + std::to_string(reference_interfaces_.size()) + ").";
+    exported_reference_interface_names_.clear();
+    ordered_reference_interfaces_.clear();
+    reference_interfaces_.clear();
     throw std::runtime_error(error_msg);
   }
 

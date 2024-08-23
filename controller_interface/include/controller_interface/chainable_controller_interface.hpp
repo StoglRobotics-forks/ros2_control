@@ -138,12 +138,15 @@ protected:
   // interface_names are in order they have been exported
   std::vector<std::string> exported_state_interface_names_;
   // storage for the exported StateInterfaces
+  std::vector<std::shared_ptr<hardware_interface::StateInterface>>
+    ordered_exported_state_interfaces_;
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::StateInterface>>
     exported_state_interfaces_;
 
   // interface_names are in order they have been exported
   std::vector<std::string> exported_reference_interface_names_;
   // storage for the exported CommandInterfaces
+  std::vector<std::shared_ptr<hardware_interface::CommandInterface>> ordered_reference_interfaces_;
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::CommandInterface>>
     reference_interfaces_;
 
