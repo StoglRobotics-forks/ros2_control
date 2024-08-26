@@ -121,7 +121,7 @@ protected:
 
   /// Storage of values for state interfaces
   std::vector<std::string> exported_state_interface_names_;
-  // storage for the exported StateInterfaces
+  // storage for the exported CommandInterfaces
   std::vector<std::shared_ptr<hardware_interface::StateInterface>>
     ordered_exported_state_interfaces_;
   std::unordered_map<std::string, std::shared_ptr<hardware_interface::StateInterface>>
