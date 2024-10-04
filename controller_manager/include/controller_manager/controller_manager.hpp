@@ -672,7 +672,7 @@ private:
   std::map<std::string, std::vector<std::string>> controller_chained_state_interfaces_cache_;
 
   rclcpp::NodeOptions cm_node_options_;
-  const std::string runtime_config_prefix_path_;
+  const std::filesystem::path runtime_config_prefix_path_;
   std::string robot_description_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscription_;
   rclcpp::TimerBase::SharedPtr robot_description_notification_timer_;
