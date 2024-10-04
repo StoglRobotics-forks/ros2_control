@@ -375,28 +375,8 @@ rclcpp::NodeOptions get_cm_node_options()
 
 ControllerManager::ControllerManager(
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
-: rclcpp::Node(manager_node_name, node_namespace, options),
-  diagnostics_updater_(this),
-  executor_(executor),
-  loader_(
-    std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
-      kControllerInterfaceNamespace, kControllerInterfaceClassName)),
-  chainable_loader_(
-    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
-      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
-  cm_node_options_(options)
-{
-  initialize_parameters();
-  resource_manager_ =
-    std::make_unique<hardware_interface::ResourceManager>(trigger_clock_, this->get_logger());
-  init_controller_manager();
-}
-
-ControllerManager::ControllerManager(
-  std::shared_ptr<rclcpp::Executor> executor, const std::string & urdf,
-  bool activate_all_hw_components, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
 : rclcpp::Node(manager_node_name, node_namespace, options),
   diagnostics_updater_(this),
   executor_(executor),
@@ -407,7 +387,31 @@ ControllerManager::ControllerManager(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
   cm_node_options_(options),
-  robot_description_(urdf)
+  runtime_config_prefix_path_(runtime_config_prefix_path)
+{
+  initialize_parameters();
+  resource_manager_ =
+    std::make_unique<hardware_interface::ResourceManager>(trigger_clock_, this->get_logger());
+  init_controller_manager();
+}
+
+ControllerManager::ControllerManager(
+  std::shared_ptr<rclcpp::Executor> executor, const std::string & urdf,
+  bool activate_all_hw_components, const std::string & manager_node_name,
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
+: rclcpp::Node(manager_node_name, node_namespace, options),
+  diagnostics_updater_(this),
+  executor_(executor),
+  loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ControllerInterface>>(
+      kControllerInterfaceNamespace, kControllerInterfaceClassName)),
+  chainable_loader_(
+    std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
+      kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
+  cm_node_options_(options),
+  robot_description_(urdf),
+  runtime_config_prefix_path_(runtime_config_prefix_path)
 {
   initialize_parameters();
   resource_manager_ = std::make_unique<hardware_interface::ResourceManager>(
@@ -418,7 +422,8 @@ ControllerManager::ControllerManager(
 ControllerManager::ControllerManager(
   std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
 : rclcpp::Node(manager_node_name, node_namespace, options),
   resource_manager_(std::move(resource_manager)),
   diagnostics_updater_(this),
@@ -430,7 +435,8 @@ ControllerManager::ControllerManager(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
   cm_node_options_(options),
-  robot_description_(resource_manager_->get_robot_description())
+  robot_description_(resource_manager_->get_robot_description()),
+  runtime_config_prefix_path_(runtime_config_prefix_path)
 {
   initialize_parameters();
   init_controller_manager();
@@ -856,7 +862,8 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
     }
     else if (params_files_parameter.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
     {
-      controller_spec.info.parameters_files.push_back(params_files_parameter.as_string());
+      const std::string file_path = std::string(runtime_config_prefix_path_ + params_files_parameter.as_string());
+      controller_spec.info.parameters_files.push_back(file_path);
     }
     else
     {
