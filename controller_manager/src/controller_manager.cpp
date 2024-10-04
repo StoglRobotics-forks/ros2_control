@@ -189,7 +189,8 @@ rclcpp::NodeOptions get_cm_node_options()
 
 ControllerManager::ControllerManager(
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
 : rclcpp::Node(manager_node_name, node_namespace, options),
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>(
     this->get_node_clock_interface(), this->get_node_logging_interface())),
@@ -200,7 +201,8 @@ ControllerManager::ControllerManager(
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
-  cm_node_options_(options)
+  cm_node_options_(options),
+  runtime_config_prefix_path_(runtime_config_prefix_path)
 {
   init_controller_manager();
 }
@@ -208,7 +210,8 @@ ControllerManager::ControllerManager(
 ControllerManager::ControllerManager(
   std::shared_ptr<rclcpp::Executor> executor, const std::string & urdf,
   bool activate_all_hw_components, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
 : rclcpp::Node(manager_node_name, node_namespace, options),
   update_rate_(get_parameter_or<int>("update_rate", 100)),
   resource_manager_(std::make_unique<hardware_interface::ResourceManager>(
@@ -221,7 +224,8 @@ ControllerManager::ControllerManager(
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
-  cm_node_options_(options)
+  cm_node_options_(options),
+  runtime_config_prefix_path_(runtime_config_prefix_path)
 {
   init_controller_manager();
 }
@@ -229,7 +233,8 @@ ControllerManager::ControllerManager(
 ControllerManager::ControllerManager(
   std::unique_ptr<hardware_interface::ResourceManager> resource_manager,
   std::shared_ptr<rclcpp::Executor> executor, const std::string & manager_node_name,
-  const std::string & node_namespace, const rclcpp::NodeOptions & options)
+  const std::string & node_namespace, const rclcpp::NodeOptions & options,
+  const std::string & runtime_config_prefix_path)
 : rclcpp::Node(manager_node_name, node_namespace, options),
   resource_manager_(std::move(resource_manager)),
   diagnostics_updater_(this),
@@ -239,7 +244,8 @@ ControllerManager::ControllerManager(
   chainable_loader_(
     std::make_shared<pluginlib::ClassLoader<controller_interface::ChainableControllerInterface>>(
       kControllerInterfaceNamespace, kChainableControllerInterfaceClassName)),
-  cm_node_options_(options)
+  cm_node_options_(options),
+  runtime_config_prefix_path_(runtime_config_prefix_path)
 {
   init_controller_manager();
 }
@@ -505,8 +511,9 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
   }
   if (get_parameter(param_name, parameters_file) && !parameters_file.empty())
   {
-    controller_spec.info.parameters_file = parameters_file;
-  }
+    const std::string file_path = std::string(runtime_config_prefix_path_ + parameters_file);
+    controller_spec.info.parameters_file = file_path;
+  }   
 
   const std::string fallback_ctrl_param = controller_name + ".fallback_controllers";
   std::vector<std::string> fallback_controllers;
