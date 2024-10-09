@@ -14,6 +14,8 @@
 
 #include "controller_manager/controller_manager.hpp"
 
+#include <filesystem>
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -511,8 +513,10 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
   }
   if (get_parameter(param_name, parameters_file) && !parameters_file.empty())
   {
-    const std::string file_path = std::string(runtime_config_prefix_path_ + parameters_file);
-    controller_spec.info.parameters_file = file_path;
+    const std::filesystem::path rel_parameters_file_path(parameters_file);
+    std::filesystem::path file_path = runtime_config_prefix_path_;
+    file_path.append(rel_parameters_file_path.relative_path().string());
+    controller_spec.info.parameters_file = file_path.lexically_normal().string();
   }   
 
   const std::string fallback_ctrl_param = controller_name + ".fallback_controllers";
@@ -2256,6 +2260,8 @@ void ControllerManager::manage_switch()
 controller_interface::return_type ControllerManager::update(
   const rclcpp::Time & time, const rclcpp::Duration & period)
 {
+  std::cout << "Update" << std::endl;
+
   std::vector<ControllerSpec> & rt_controller_list =
     rt_controllers_wrapper_.update_and_get_used_by_rt_list();
 
