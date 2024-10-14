@@ -39,7 +39,7 @@ int main(int argc, char ** argv)
 
   std::shared_ptr<rclcpp::Executor> executor =
     std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
-  std::string manager_node_name = "controller_manager";
+  std::string manager_node_name = "sr_ctrlx_controller_manager_1";
 
   rclcpp::NodeOptions cm_node_options = controller_manager::get_cm_node_options();
   std::vector<std::string> node_arguments = cm_node_options.arguments();
