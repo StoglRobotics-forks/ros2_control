@@ -17,7 +17,6 @@
 #include <fmt/compile.h>
 
 #include <filesystem>
-#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -2751,8 +2750,6 @@ void ControllerManager::manage_switch()
 controller_interface::return_type ControllerManager::update(
   const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  std::cout << "Update" << std::endl;
-
   std::vector<ControllerSpec> & rt_controller_list =
     rt_controllers_wrapper_.update_and_get_used_by_rt_list();
 
