@@ -100,7 +100,7 @@ public:
             first_iteration = false;
           }
           next_iteration_time += period;
-          std::this_thread::sleep_until(next_iteration_time);
+         // std::this_thread::sleep_until(next_iteration_time);
         }
       },
       hardware_component_);
