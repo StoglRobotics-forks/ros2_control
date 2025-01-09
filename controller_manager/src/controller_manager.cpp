@@ -514,7 +514,7 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
   {
     const std::filesystem::path rel_parameters_file_path(parameters_file);
     std::filesystem::path file_path = runtime_config_prefix_path_;
-    file_path.append(rel_parameters_file_path.relative_path().string());
+    file_path / rel_parameters_file_path.relative_path().string();
     controller_spec.info.parameters_file = file_path.lexically_normal().string();
   }   
 
