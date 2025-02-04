@@ -16,6 +16,7 @@
 #define CONTROLLER_MANAGER__CONTROLLER_MANAGER_HPP_
 
 #include <map>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
