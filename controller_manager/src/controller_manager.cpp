@@ -633,7 +633,8 @@ void ControllerManager::init_resource_manager(const std::string & robot_descript
     *params_ = cm_param_listener_->get_params();
   }
 
-  if (!resource_manager_->load_and_initialize_components(robot_description, update_rate_, params_->hardware_components_initial_state.not_loaded))
+  if (!resource_manager_->load_and_initialize_components(
+        robot_description, update_rate_, params_->hardware_components_initial_state.not_loaded))
   {
     RCLCPP_WARN(
       get_logger(),
@@ -858,16 +859,36 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
   rclcpp::Parameter params_files_parameter;
   if (get_parameter(param_name, params_files_parameter))
   {
+    RCLCPP_INFO(get_logger(), "For controller '%s' parameter file is set.", controller_name.c_str());
+    
     if (params_files_parameter.get_type() == rclcpp::ParameterType::PARAMETER_STRING_ARRAY)
     {
+      RCLCPP_INFO(
+        get_logger(), "For controller '%s' parameter file is set as string array",
+        controller_name.c_str());
       controller_spec.info.parameters_files = params_files_parameter.as_string_array();
+
+      std::transform(
+        controller_spec.info.parameters_files.begin(), controller_spec.info.parameters_files.end(),
+        controller_spec.info.parameters_files.begin(),
+        [this](const std::string & param_file_path)
+        {
+          std::filesystem::path rel_parameters_file_path(param_file_path);
+          std::filesystem::path full_param_file_path =
+            this->runtime_config_prefix_path_ / rel_parameters_file_path.relative_path();
+          return full_param_file_path.lexically_normal().string();
+        });
     }
     else if (params_files_parameter.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
     {
+      RCLCPP_INFO(
+        get_logger(), "For controller '%s' parameter file is set as string.",
+        controller_name.c_str());
       const std::filesystem::path rel_parameters_file_path(params_files_parameter.as_string());
-      std::filesystem::path file_path = runtime_config_prefix_path_;
-      file_path / rel_parameters_file_path.relative_path().string();
-      controller_spec.info.parameters_files.push_back(file_path.lexically_normal().string());
+      auto full_param_file_path =
+        runtime_config_prefix_path_ / rel_parameters_file_path.relative_path();
+      controller_spec.info.parameters_files.push_back(
+        full_param_file_path.lexically_normal().string());
     }
     else
     {
@@ -881,6 +902,13 @@ controller_interface::ControllerInterfaceBaseSharedPtr ControllerManager::load_c
 
   const std::string fallback_ctrl_param =
     fmt::format(FMT_COMPILE("{}.fallback_controllers"), controller_name);
+
+  RCLCPP_INFO(get_logger(), "For controller '%s' have parameter files:.", controller_name.c_str());
+  for (const auto & param_file : controller_spec.info.parameters_files)
+  {
+    RCLCPP_INFO(get_logger(), "%s", param_file.c_str());
+  }
+
   std::vector<std::string> fallback_controllers;
   if (!has_parameter(fallback_ctrl_param))
   {
